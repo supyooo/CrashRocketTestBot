@@ -1,0 +1,207 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Crash Rocket Character Brief</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=Unbounded:wght@700;800;900&family=JetBrains+Mono:wght@500;600&display=swap">
+<style>
+/* One committed look: the game's own night-neon palette. */
+:root{color-scheme:dark;
+  --page:#0d0820;--panel:#151130;--panel-2:#1d1840;--line:#2a2352;--ink:#efedf8;--ink-2:#a19cc0;--ink-3:#6f6a93;
+  --gold:#ffd23f;--green:#2bff88;--pink:#ff3ea5;--cyan:#29e6ff;--red:#ff5c7d}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--page);color:var(--ink);font:15px/1.6 'Golos Text',system-ui,sans-serif;padding-inline:16px}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible{outline:2px solid #fff;outline-offset:2px}
+.wrap{max-width:980px;margin:0 auto;padding-block:40px 80px}
+h1{margin:0;font:900 clamp(26px,5vw,40px)/1.08 'Unbounded',sans-serif;letter-spacing:-.01em;text-wrap:balance}
+.lead{margin:14px 0 0;color:var(--ink-2);max-width:66ch}
+section{padding-block:36px;border-top:1px solid var(--line);margin-top:36px}
+h2{margin:0 0 6px;font:800 21px/1.25 'Unbounded',sans-serif;text-wrap:balance}
+h2+p{margin:0 0 20px;color:var(--ink-2);max-width:66ch}
+h3{margin:0;font-size:15px;font-weight:700}
+code,.mono{font:500 13px 'JetBrains Mono',ui-monospace,monospace}
+code{background:var(--panel-2);padding:1px 6px;border-radius:6px;color:var(--cyan)}
+.grid{display:grid;gap:12px}
+.g3{grid-template-columns:repeat(auto-fit,minmax(250px,1fr))}
+.g2{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+.tile{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:8px}
+.tile p{margin:0;color:var(--ink-2);font-size:14px}
+.tag{align-self:flex-start;font:700 11px 'Golos Text',sans-serif;letter-spacing:.1em;text-transform:uppercase;padding:3px 8px;border-radius:6px;background:var(--panel-2);color:var(--ink-2)}
+.tag.best{background:rgba(255,210,63,.14);color:var(--gold)}
+ol.steps{margin:0;padding:0;list-style:none;display:grid;gap:10px;counter-reset:s}
+ol.steps li{counter-increment:s;display:grid;grid-template-columns:32px 1fr;gap:12px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+ol.steps li::before{content:counter(s);width:32px;height:32px;border-radius:9px;display:grid;place-items:center;background:var(--panel-2);font:800 13px 'Unbounded',sans-serif;color:var(--gold)}
+ol.steps b{display:block}
+ol.steps p{margin:2px 0 0;color:var(--ink-2);font-size:14px}
+.spec{width:100%;border-collapse:collapse;font-size:14px}
+.spec th,.spec td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+.spec th{width:34%;color:var(--ink-2);font-weight:600}
+.scroll{overflow-x:auto;border:1px solid var(--line);border-radius:14px;background:var(--panel)}
+/* builder */
+.builder{background:linear-gradient(180deg,#1a1440,#120d2b);border:1px solid #3a3170;border-radius:20px;padding:18px;display:grid;gap:14px}
+.row{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.row>span{font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);width:100%}
+.chip{height:34px;padding:0 12px;border-radius:99px;border:1px solid var(--line);background:var(--panel);font-size:13.5px;font-weight:600;color:var(--ink-2)}
+.chip[aria-pressed="true"]{background:var(--gold);border-color:var(--gold);color:#1a1204}
+.chip.test[aria-pressed="false"]{border-style:dashed}
+.out{background:#0b0719;border:1px solid var(--line);border-radius:14px;padding:14px;display:grid;gap:10px}
+.out header{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.out header .file{font:600 13px 'JetBrains Mono',monospace;color:var(--green)}
+.out header .size{font:500 12.5px 'JetBrains Mono',monospace;color:var(--ink-3)}
+.out pre{margin:0;white-space:pre-wrap;font:14px/1.55 'Golos Text',sans-serif;color:var(--ink);max-height:none}
+.copy{margin-left:auto;height:32px;padding:0 14px;border-radius:9px;border:0;background:var(--green);color:#04150d;font-weight:800;font-size:13px}
+.copy.ok{background:var(--gold);color:#1a1204}
+.warn{margin:0;font-size:13px;color:var(--red)}
+.note{font-size:13.5px;color:var(--ink-2)}
+.list{display:grid;gap:8px}
+.asset{display:grid;grid-template-columns:minmax(150px,210px) 1fr;gap:4px 16px;padding:12px 14px;background:var(--panel);border:1px solid var(--line);border-radius:12px}
+.asset .mono{color:var(--green)}
+.asset p{margin:0;color:var(--ink-2);font-size:14px}
+@media (max-width:560px){.asset{grid-template-columns:1fr}}
+.check{margin:0;padding:0;list-style:none;display:grid;gap:6px}
+.check li{padding-left:26px;position:relative;color:var(--ink-2)}
+.check li::before{content:"";position:absolute;left:2px;top:6px;width:12px;height:12px;border-radius:4px;border:2px solid var(--green)}
+.swatch{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px;margin-right:4px}
+</style>
+
+<div class="wrap">
+  <h1>ТЗ на персонажей Crash Rocket</h1>
+  <p class="lead">Задача: получить персонажей, ракеты и парашюты уровня твоего референса и встроить их в игру вместо нарисованных кодом. Генерируешь ты, встраиваю и анимирую я. Ниже: какую нейросеть взять, как добиться единого стиля, конструктор промптов и точный список файлов.</p>
+
+  <section>
+    <h2>Какую нейросеть взять</h2>
+    <p>Главное — одинаковый стиль во всех картинках и один и тот же персонаж в разных позах. Здесь сильнее всего первые две.</p>
+    <div class="grid g3">
+      <div class="tile"><span class="tag best">Начни с неё</span><h3>ChatGPT (генерация картинок)</h3><p>Лучше всех слушается длинных подробных промптов и умеет отдавать PNG с прозрачным фоном. Можно прикрепить готовую картинку и попросить «тот же персонаж, но в другой позе».</p></div>
+      <div class="tile"><span class="tag best">Для поз</span><h3>Gemini (Nano Banana)</h3><p>Очень хорошо держит одного и того же персонажа, когда меняешь позу или эмоцию по образцу. Удобно догенерировать позы к готовой карточке.</p></div>
+      <div class="tile"><span class="tag">Если хочется красивее</span><h3>Midjourney</h3><p>Самая эффектная картинка, но сложнее удержать персонажа между позами, и нет прозрачного фона. Подойдёт для карточек и превью, хуже для поз.</p></div>
+    </div>
+    <p class="note" style="margin-top:14px">Трампа и Илона многие нейросети рисовать откажутся или смягчат: у них ограничения на реальных людей. Эти двое только для теста, так что если откажут, просто пропусти их.</p>
+  </section>
+
+  <section>
+    <h2>Как работать, чтобы стиль совпал</h2>
+    <p>Порядок важнее промптов. Если сразу генерировать всё подряд, получится зоопарк стилей.</p>
+    <ol class="steps">
+      <li><div><b>Сделай эталон: карточку медведя</b><p>Промпт «Медведь → Карточка» из конструктора ниже. Перегенерируй, пока не понравится на 100%. Это образец для всего остального.</p></div></li>
+      <li><div><b>Каждую следующую картинку делай с эталоном</b><p>Прикрепляй карточку медведя к каждому запросу и дописывай в начале: «Keep exactly the same art style, lighting and rendering as the attached image».</p></div></li>
+      <li><div><b>Позы делай от карточки своего персонажа</b><p>Для поз быка прикрепляй карточку быка (и эталон медведя для стиля). Так персонаж не «поплывёт».</p></div></li>
+      <li><div><b>Фон</b><p>Нужен прозрачный PNG. Если нейросеть не умеет, пусть делает сплошной ярко-зелёный фон <code>#00FF00</code>: я вырежу его сам. Белый или «клетчатый» нарисованный фон не подходит.</p></div></li>
+      <li><div><b>Проверь по чек-листу и сложи в папку</b><p>Имена файлов как в списке ниже, папка <code>Desktop/crash-rocket/art-src/</code>. Напиши мне, когда будет готово.</p></div></li>
+    </ol>
+    <p class="note" style="margin-top:14px"><b>Начни с минимального набора:</b> 5 файлов медведя, ракета-свеча и радужный парашют. Я встрою их, посмотрим на телефоне, и только потом генерируй остальных. Если что-то в стиле не сработает, переделывать придётся немного.</p>
+  </section>
+
+  <section>
+    <h2>Конструктор промптов</h2>
+    <p>Выбери, что генерируешь. Промпт собирается из общего описания стиля, персонажа и позы. Копируй целиком, промпты на английском, нейросети так понимают точнее.</p>
+    <div class="builder">
+      <div class="row" id="kind"><span>Что</span></div>
+      <div class="row" id="who"><span>Кто</span></div>
+      <div class="row" id="pose"><span>Поза</span></div>
+      <div class="out">
+        <header><span class="file" id="file"></span><span class="size" id="size"></span><button class="copy" id="copy">Копировать промпт</button></header>
+        <pre id="prompt"></pre>
+        <p class="warn" id="warn" hidden></p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Общие требования к файлам</h2>
+    <p>Одинаковые для всех картинок. От них зависит, встанет ли картинка в игру без переделок.</p>
+    <div class="scroll"><table class="spec">
+      <tr><th>Формат</th><td>PNG, прозрачный фон (или сплошной <code>#00FF00</code>, см. выше)</td></tr>
+      <tr><th>Размер</th><td>Персонажи и парашюты — 1024 × 1024. Ракеты — 2048 × 1024 (горизонтальные). Больше можно, меньше не надо.</td></tr>
+      <tr><th>Кадр</th><td>Объект целиком, ничего не обрезано, отступ от краёв 5–10%, по центру</td></tr>
+      <tr><th>Направление</th><td>Полёт идёт вправо и вверх: персонажи в позах на ракете смотрят <b>вправо</b>, у ракет нос <b>справа</b></td></tr>
+      <tr><th>Свет</th><td>Мягкий сверху слева + неоновая контровая подсветка: <span class="swatch" style="background:#ff3ea5"></span>розовая справа, <span class="swatch" style="background:#29e6ff"></span>бирюзовая слева</td></tr>
+      <tr><th>Нельзя</th><td>Текст, логотипы, водяные знаки, тень на полу, фон с окружением, рамки</td></tr>
+      <tr><th>Ракеты без пламени и без персонажа</th><td>Пламя, хвост и персонажа игра дорисовывает сама, иначе нельзя будет комбинировать скины</td></tr>
+      <tr><th>Персонажи без ракеты и без парашюта</th><td>По той же причине: любой персонаж должен садиться на любую ракету и висеть на любом парашюте</td></tr>
+    </table></div>
+  </section>
+
+  <section>
+    <h2>Полный список файлов</h2>
+    <p>На каждого персонажа 5 картинок. Имена файлов важны: по ним я подключаю картинки без ручной разметки.</p>
+    <div class="list" id="files"></div>
+  </section>
+
+  <section>
+    <h2>Чек-лист перед отправкой</h2>
+    <p>Пробегись по каждой картинке, это экономит круг переделок.</p>
+    <ul class="check">
+      <li>Все картинки в одном стиле с эталоном: тот же свет, объём, насыщенность</li>
+      <li>Персонаж узнаётся во всех 5 позах: те же цвета, одежда, аксессуары</li>
+      <li>Фон прозрачный (или ровный зелёный), по краям нет белой каймы</li>
+      <li>Руки и ноги целиком в кадре, пальцев не шесть</li>
+      <li>В позах на ракете персонаж смотрит вправо и сидит «верхом»: ноги по бокам, руки вперёд</li>
+      <li>На картинке нет текста, логотипов, лишних предметов</li>
+      <li>Карточка читается маленькой: уменьши до размера ногтя, персонаж всё ещё понятен</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Что я сделаю с этими файлами</h2>
+    <p>Чтобы было понятно, зачем такие требования.</p>
+    <div class="grid g2">
+      <div class="tile"><h3>Анимация поверх картинок</h3><p>Персонаж на ракете покачивается и наклоняется. На росте множителя спокойная поза плавно сменяется ликующей, при кэшауте он прыгает и повисает на парашюте, при взрыве кувыркается закопчённым. Сейчас это работает с нарисованными кодом персонажами, дальше будет с твоими картинками.</p></div>
+      <div class="tile"><h3>Карточки в «Скинах» и превью</h3><p>Карточки идут в магазин скинов и в картинки для профиля бота. Позы и ракеты я также использую для обновлённых превью и приветствия.</p></div>
+    </div>
+  </section>
+</div>
+
+<script>
+const STYLE="Stylized 3D cartoon render for a premium mobile game, animated-movie look: chunky rounded shapes, big expressive head (about one third of body height), clean readable silhouette, rich saturated colors, subtle glossy highlights. Soft studio key light from top-left plus strong neon rim light: hot pink (#FF3EA5) from the right and cyan (#29E6FF) from the left. The whole subject fully visible with 5–10% margin, centered, isolated on a fully transparent background (if transparency is impossible, use a flat solid pure green #00FF00 background). No ground shadow, no scenery, no text, no logo, no watermark, no frame.";
+const CHARS=[
+ {id:'bear',ru:'Медведь',d:"Character: an anthropomorphic brown bear, a cocky 'bear market' crypto trader. Navy blue business suit, white shirt, red tie, glossy green neon sunglasses, smug confident grin, round belly, short legs."},
+ {id:'bull',ru:'Бык',d:"Character: an anthropomorphic dark brown bull, a 'bull market' crypto trader. Black business suit, green tie, thick gold chain, gold nose ring, big ivory horns, cocky determined expression, broad muscular build."},
+ {id:'whale',ru:'Кит',d:"Character: a chubby blue whale, a crypto 'whale' investor. Light blue belly, red bow tie, cyan visor sunglasses, tiny water spout on top of the head, short flipper arms, stubby tail used as legs, cheerful rich-guy attitude."},
+ {id:'trump',ru:'Трамп',test:1,d:"Character: a friendly exaggerated cartoon caricature of Donald Trump. Golden swept-over hair, orange tan with pale areas around the eyes, navy suit, white shirt, long red tie, pursed lips."},
+ {id:'musk',ru:'Илон',test:1,d:"Character: a friendly cartoon caricature of Elon Musk. Short dark hair, black suit over a black t-shirt, no tie, playful confident grin."},
+ {id:'sahur',ru:'Тунг Тунг Сахур',test:1,d:"Character: 'Tung Tung Tung Sahur', the meme character: a living upright wooden log with visible wood grain and a cut top with growth rings, big round cartoon eyes, thick angry eyebrows, thin stick arms, holding a wooden baseball bat."}
+];
+const POSES=[
+ {id:'card',ru:'Карточка',size:'1024 × 1024',d:"Pose: portrait from the waist up, 3/4 view turned slightly to the right, looking at the viewer, confident charismatic expression. This is a character select card."},
+ {id:'ride_calm',ru:'На ракете, спокойно',size:'1024 × 1024',d:"Pose: full body, 3/4 side view facing RIGHT, sitting astride as if riding a motorcycle but with NO vehicle drawn: legs apart and bent at the sides, both hands forward at chest height gripping an invisible handle, body leaning slightly forward, calm confident face."},
+ {id:'ride_cheer',ru:'На ракете, восторг',size:'1024 × 1024',d:"Pose: the same seated riding pose facing RIGHT with NO vehicle drawn: one hand still gripping the invisible handle, the other arm raised high in a fist of triumph, mouth wide open shouting with joy, excited eyes, clothes fluttering in the wind."},
+ {id:'chute',ru:'На парашюте',size:'1024 × 1024',d:"Pose: full body, front 3/4 view, hanging in the air from an invisible parachute harness: both arms raised above the head holding invisible straps, legs dangling, relieved happy smile. Do NOT draw the parachute or straps."},
+ {id:'fall',ru:'Падение после взрыва',size:'1024 × 1024',d:"Pose: full body tumbling through the air, arms and legs flailing, terrified face, face and clothes smudged with black soot from an explosion, fur or hair messy, a couple of small smoke wisps around the body."}
+];
+const ITEMS=[
+ {id:'rocket_candle',ru:'Ракета-свеча',size:'2048 × 1024',d:"Object: a rocket shaped like a green stock-market candlestick. Glossy emerald green body with a white zigzag chart line printed on its side, purple fins, a cone nose with a thin candle wick on the tip. Side view, perfectly horizontal, nose pointing to the RIGHT. No flame, no exhaust, no rider."},
+ {id:'rocket_retro',ru:'Ретро-шаттл',size:'2048 × 1024',d:"Object: a retro 1950s style rocket. Polished white-silver body, red nose cone and red fins, hot pink racing stripes, two round cyan portholes. Side view, perfectly horizontal, nose pointing to the RIGHT. No flame, no exhaust, no rider."},
+ {id:'chute_rainbow',ru:'Парашют радужный',size:'1024 × 1024',d:"Object: a parachute canopy with five striped panels: hot pink, yellow, neon green, cyan and purple. Front view, dome on top, suspension lines converging to a single point at the bottom center. No person and no cargo hanging."},
+ {id:'chute_gold',ru:'Парашют «Золотой мешок»',size:'1024 × 1024',d:"Object: a luxurious golden parachute canopy with an embossed coin pattern and gold trim, front view, dome on top, suspension lines converging to a single point at the bottom center. No person and no cargo hanging."}
+];
+const KINDS=[{id:'char',ru:'Персонаж'},{id:'item',ru:'Ракета или парашют'}];
+const st={kind:'char',who:'bear',pose:'card',item:'rocket_candle'};
+try{Object.assign(st,JSON.parse(localStorage.getItem('brief.sel')||'{}'))}catch(e){}
+const $=id=>document.getElementById(id);
+function chips(box,list,key,cls){const lab=box.firstElementChild;box.innerHTML='';box.appendChild(lab);
+  list.forEach(o=>{const b=document.createElement('button');b.className='chip'+(o.test&&cls?' test':'');b.textContent=o.ru+(o.test?' · тест':'');b.setAttribute('aria-pressed',st[key]===o.id);b.onclick=()=>{st[key]=o.id;render()};box.appendChild(b)})}
+function render(){try{localStorage.setItem('brief.sel',JSON.stringify(st))}catch(e){}
+  chips($('kind'),KINDS,'kind');
+  const isChar=st.kind==='char';
+  $('who').firstElementChild.textContent=isChar?'Кто':'Предмет';
+  chips($('who'),isChar?CHARS:ITEMS,isChar?'who':'item',true);
+  $('pose').hidden=!isChar;if(isChar)chips($('pose'),POSES,'pose');
+  let text,file,size,warn='';
+  if(isChar){const c=CHARS.find(x=>x.id===st.who),p=POSES.find(x=>x.id===st.pose);
+    const pre=st.pose==='card'&&st.who==='bear'?'':"Keep exactly the same art style, lighting and rendering as the attached reference image"+(st.pose==='card'?'':', and the same character as the attached character card')+". ";
+    text=pre+STYLE+"\n\n"+c.d+"\n\n"+p.d;file=`${c.id}_${p.id}.png`;size=p.size;
+    if(c.test)warn='Тестовый персонаж: нейросеть может отказать из-за ограничений на реальных людей. Тогда пропусти его.';}
+  else{const it=ITEMS.find(x=>x.id===st.item);text="Keep exactly the same art style, lighting and rendering as the attached reference image. "+STYLE+"\n\n"+it.d;file=it.id+'.png';size=it.size}
+  $('prompt').textContent=text;$('file').textContent=file;$('size').textContent=size;$('warn').textContent=warn;$('warn').hidden=!warn}
+$('copy').onclick=()=>{const b=$('copy'),done=()=>{b.textContent='Скопировано';b.classList.add('ok');setTimeout(()=>{b.textContent='Копировать промпт';b.classList.remove('ok')},1400)};
+  navigator.clipboard.writeText($('prompt').textContent).then(done,()=>{const r=document.createRange();r.selectNodeContents($('prompt'));const s=getSelection();s.removeAllRanges();s.addRange(r)})};
+// file list
+const rows=[];
+CHARS.forEach(c=>POSES.forEach(p=>rows.push([`${c.id}_${p.id}.png`,`${c.ru}${c.test?' (тест)':''} · ${p.ru.toLowerCase()} · ${p.size}`])));
+ITEMS.forEach(it=>rows.push([it.id+'.png',`${it.ru} · ${it.size}`]));
+$('files').innerHTML=rows.map(([f,d],i)=>`<div class="asset"><span class="mono">${f}</span><p>${d}${i<5||f==='rocket_candle.png'||f==='chute_rainbow.png'?' · <b style="color:var(--gold)">первая партия</b>':''}</p></div>`).join('');
+render();
+</script>
