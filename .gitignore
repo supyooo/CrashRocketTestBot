@@ -1,0 +1,6 @@
+# local only: concept references, design explorations, editor/agent settings
+refs/
+mockups/
+.claude/
+node_modules/
+.env*
