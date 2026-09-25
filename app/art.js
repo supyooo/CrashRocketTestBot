@@ -147,6 +147,16 @@ function drawCandle(c){
   c.fillStyle='rgba(255,255,255,.35)';rr(c,-44,-8.5,78,3,1.5);c.fill();
   c.strokeStyle='rgba(255,255,255,.75)';c.lineWidth=1.6;c.beginPath();c.moveTo(-36,6);c.lineTo(-24,1);c.lineTo(-16,4);c.lineTo(-2,-3);c.lineTo(8,0);c.lineTo(22,-6);c.stroke();
 }
+function drawShort(c){
+  c.fillStyle='#2a2f45';c.beginPath();c.moveTo(-46,-12);c.lineTo(-63,-28);c.lineTo(-30,-12);c.fill();c.beginPath();c.moveTo(-46,12);c.lineTo(-63,28);c.lineTo(-30,12);c.fill();
+  c.fillStyle='#1a1d2e';c.fillRect(-57,-8,8,16);
+  const g=c.createLinearGradient(0,-12,0,12);g.addColorStop(0,'#ff9aac');g.addColorStop(.5,'#ff2d55');g.addColorStop(1,'#8a0a24');c.fillStyle=g;rr(c,-50,-12,92,24,6);c.fill();
+  c.strokeStyle='rgba(255,210,220,.55)';c.lineWidth=1;c.stroke();
+  c.fillStyle='#ff4d6d';c.beginPath();c.moveTo(41,-12);c.quadraticCurveTo(58,-6,66,0);c.quadraticCurveTo(58,6,41,12);c.fill();
+  c.strokeStyle='#ffc2cd';c.lineWidth=1.6;c.beginPath();c.moveTo(66,0);c.lineTo(78,0);c.stroke();
+  c.fillStyle='rgba(255,255,255,.3)';rr(c,-44,-8.5,78,3,1.5);c.fill();
+  c.strokeStyle='rgba(255,255,255,.8)';c.lineWidth=1.6;c.beginPath();c.moveTo(-36,-6);c.lineTo(-24,-1);c.lineTo(-16,-4);c.lineTo(-2,3);c.lineTo(8,0);c.lineTo(22,6);c.stroke();
+}
 function retroBody(c){c.beginPath();c.moveTo(-50,-14);c.lineTo(28,-14);c.quadraticCurveTo(62,-11,72,0);c.quadraticCurveTo(62,11,28,14);c.lineTo(-50,14);c.quadraticCurveTo(-55,0,-50,-14);c.closePath()}
 function drawRetro(c){
   c.fillStyle='#ff3b5c';c.strokeStyle='#ff9ac4';c.lineWidth=1;
@@ -161,7 +171,8 @@ function drawRetro(c){
 }
 const ROCKETS={
   candle:{ru:'Зелёная свеча',en:'Green Candle',draw:drawCandle,seat:[-12,-11],tail:-58,trail:'rainbow'},
-  retro:{ru:'Ретро-шаттл',en:'Retro Shuttle',draw:drawRetro,seat:[-16,-13],tail:-61,trail:'fire'}
+  retro:{ru:'Ретро-шаттл',en:'Retro Shuttle',draw:drawRetro,seat:[-16,-13],tail:-61,trail:'fire'},
+  short:{ru:'Свеча «Шорт»',en:'Short Candle',draw:drawShort,seat:[-12,-11],tail:-58,trail:'fire'}
 };
 function drawFlame(c,kind,power,t,x){
   if(power<=0)return;const L=(22+power*26)*(1+Math.sin(t*50)*.08+Math.random()*.12),W=7+power*3;
@@ -331,3 +342,47 @@ function makeZones(){
       if(sweep){sweep.t+=dt;const q=sweep.t/.6;if(q>=1)sweep=null;else{const y=-h*.2+q*h*1.4,g=c.createLinearGradient(0,y-60,0,y+60);g.addColorStop(0,'rgba(255,255,255,0)');g.addColorStop(.5,`rgba(255,240,255,${.35*(1-q)})`);g.addColorStop(1,'rgba(255,255,255,0)');c.fillStyle=g;c.fillRect(0,y-60,w,120)}}}
   };
 }
+
+/* =====================================================================
+   Cosmetic slots beyond rider/rocket/backdrop: exhaust trail, parachute, cash-out emote
+   ===================================================================== */
+const TRAILS={
+  rainbow:{ru:'Радуга',en:'Rainbow'},
+  fire:{ru:'Огонь',en:'Fire'},
+  dollar:{ru:'Доллары',en:'Dollars'},
+  pixel:{ru:'Пиксели',en:'Pixels'}
+};
+// one exhaust particle for a trail style; i cycles colours, t is time
+function trailParticle(kind,i,t){
+  if(kind==='fire')return{c:['#fff2b0','#ffd23f','#ff9f1c','#ff5a1a'][i%4],shape:'dot',smoke:true};
+  if(kind==='dollar')return{c:i%3?'#2bff88':'#b9ffd9',shape:'glyph',glyph:'$'};
+  if(kind==='pixel')return{c:['#29e6ff','#ff3ea5','#ffd23f'][i%3],shape:'sq'};
+  return{c:['#2bff88','#ffd23f','#ff3ea5','#29e6ff'][Math.floor((t*8+i)%4)],shape:'dot'};
+}
+// static trail for previews, drawn behind a rocket tail at (x,y) heading ang
+function drawTrailPreview(c,kind,x,y,ang,s,len,t){const dx=Math.cos(ang),dy=Math.sin(ang);c.save();
+  for(let i=0;i<len;i++){const d=(18+i*5.4)*s,wob=Math.sin(i*.45+t*6)*i*.2*s,px=x-dx*d-dy*wob,py=y-dy*d+dx*wob,a=1-i/len,p=trailParticle(kind,i,t+i*.02);
+    c.globalAlpha=a*.9;c.fillStyle=p.c;const r=Math.max(1,9.5-i*.17)*s;
+    if(p.shape==='glyph'){if(i%3)continue;c.font=`900 ${Math.round(r*2)}px Unbounded,sans-serif`;c.textAlign='center';c.textBaseline='middle';c.fillText(p.glyph,px,py)}
+    else if(p.shape==='sq'){if(i%2)continue;c.fillRect(px-r*.8,py-r*.8,r*1.6,r*1.6)}
+    else{c.globalCompositeOperation='lighter';c.beginPath();c.arc(px,py,r,0,6.283);c.fill();c.globalCompositeOperation='source-over'}}
+  c.restore()}
+
+const CHUTES={
+  rainbow:{ru:'Радужный',en:'Rainbow',cols:['#ff3ea5','#ffd23f','#2bff88','#29e6ff','#8a5cff','#ff3ea5','#ffd23f'],rim:'#ffffff'},
+  bag:{ru:'Мешок денег',en:'Money Bag',cols:['#2bff88','#16c865','#2bff88','#16c865','#2bff88','#16c865','#2bff88'],rim:'#b9ffd9',sign:'$'},
+  gold:{ru:'Золотой',en:'Golden',cols:['#fff0a8','#ffc21a','#ffe27a','#e0a300','#ffe27a','#ffc21a','#fff0a8'],rim:'#fff3c4',shine:1}
+};
+// canopy dome of radius 28 centred at (0,0), opening downwards
+function drawCanopy(c,id){const ch=CHUTES[id]||CHUTES.rainbow,n=ch.cols.length;
+  for(let i=0;i<n;i++){c.fillStyle=ch.cols[i];c.beginPath();c.moveTo(0,0);c.arc(0,0,28,Math.PI+i*Math.PI/n,Math.PI+(i+1)*Math.PI/n);c.closePath();c.fill()}
+  c.fillStyle='rgba(255,255,255,.25)';c.beginPath();c.ellipse(-8,-18,10,4,-.4,0,6.283);c.fill();
+  if(ch.shine){c.fillStyle='rgba(255,255,255,.55)';c.beginPath();c.arc(10,-20,2.4,0,6.283);c.arc(-16,-10,1.6,0,6.283);c.fill()}
+  if(ch.sign){c.fillStyle='#0b3d22';c.font='900 16px Unbounded,sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText(ch.sign,0,-13)}
+  c.strokeStyle=ch.rim;c.lineWidth=1.2;c.beginPath();c.arc(0,0,28,Math.PI,0);c.stroke()}
+
+const EMOTES={
+  cheer:{ru:'Ликование',en:'Cheer'},
+  fireworks:{ru:'Салют',en:'Fireworks'},
+  money:{ru:'Денежный дождь',en:'Money Rain'}
+};
