@@ -10,6 +10,7 @@ function rr(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);
 function suit(c,col,mood,t,tieCol,lapel){
   c.fillStyle=col;rr(c,-11,-24,22,25,7);c.fill();
   if(lapel){c.fillStyle='#f4f4f8';c.beginPath();c.moveTo(-5,-24);c.lineTo(0,-13);c.lineTo(5,-24);c.fill()}
+  if(!tieCol)return;
   c.save();c.translate(0,-21.5);c.rotate(.25+mood*1.05+Math.sin(t*26)*.14*(.3+mood));
   c.fillStyle=tieCol;c.beginPath();c.moveTo(-1.8,0);c.lineTo(1.8,0);c.lineTo(2.9,9);c.lineTo(0,12.5);c.lineTo(-2.9,9);c.closePath();c.fill();c.restore();
 }
@@ -72,10 +73,65 @@ function drawWhale(c,mood,t){
     c.fillStyle='#8fd8ff';for(let i=0;i<3;i++){const k=(t*1.8+i/3)%1;c.globalAlpha=1-k;c.beginPath();c.arc(3+(i-1)*(6+k*6),-40-h*.6+k*10,1.5,0,6.283);c.fill()}c.globalAlpha=1}
   c.restore();
 }
+/* ---- meme riders for testing (caricatures; not for the paid shop) ---- */
+function drawTrump(c,mood,t){
+  suit(c,'#1f2a4a',mood,t,'#d6202a',true);arms(c,'#1f2a4a','#f0a868',mood,t);
+  const hb=Math.sin(t*9)*mood*1.2;c.save();c.translate(0,hb);
+  c.fillStyle='#e99858';c.beginPath();c.arc(-11.6,-34,3,0,6.283);c.arc(11.6,-34,3,0,6.283);c.fill();
+  c.fillStyle='#f2a35e';c.beginPath();c.ellipse(0,-34,11.6,12.4,0,0,6.283);c.fill();
+  c.fillStyle='#f7d6b4';c.beginPath();c.ellipse(-4.6,-36.6,3.4,2.1,0,0,6.283);c.ellipse(4.6,-36.6,3.4,2.1,0,0,6.283);c.fill();
+  c.strokeStyle='#3a2418';c.lineWidth=1.3;c.lineCap='round';c.beginPath();c.moveTo(-6.2,-36.6);c.quadraticCurveTo(-4.6,-37.6,-3,-36.6);c.moveTo(3,-36.6);c.quadraticCurveTo(4.6,-37.6,6.2,-36.6);c.stroke();
+  c.strokeStyle='#e7c46e';c.lineWidth=1.8;c.beginPath();c.moveTo(-7,-40);c.lineTo(-2.5,-40.4);c.moveTo(2.5,-40.4);c.lineTo(7,-40);c.stroke();
+  c.fillStyle='#df8a4c';c.beginPath();c.ellipse(0,-32.2,2.2,2.6,0,0,6.283);c.fill();
+  if(mood<.3){c.fillStyle='#8a3a2a';c.beginPath();c.ellipse(0,-27.6,2.3,1.9,0,0,6.283);c.fill()}
+  else{c.fillStyle='#5a1a14';c.beginPath();c.ellipse(0,-27.4,3+mood*2,1.6+mood*2.4,0,0,6.283);c.fill();c.fillStyle='#fff';c.fillRect(-2.4-mood,-28.8-mood*.8,4.8+mood*2,1.3)}
+  const fl=Math.sin(t*20)*mood*1.6;
+  c.fillStyle='#f3cf63';c.beginPath();c.moveTo(-12.4,-37);c.quadraticCurveTo(-14.5,-50,-2,-51.5+fl*.4);c.quadraticCurveTo(11,-51.5,14.5,-44+fl);c.quadraticCurveTo(16.5,-40.5,13.5,-38.5);
+  c.quadraticCurveTo(12,-43,6,-43.5);c.quadraticCurveTo(-3,-44,-8,-41.5);c.quadraticCurveTo(-11,-40,-12.4,-37);c.closePath();c.fill();
+  c.strokeStyle='#d9a93a';c.lineWidth=1;c.beginPath();c.moveTo(-9,-45);c.quadraticCurveTo(0,-49.5,11,-45+fl*.6);c.moveTo(-6,-42.8);c.quadraticCurveTo(3,-46.5,13,-41.5+fl*.8);c.stroke();
+  c.restore();
+}
+function drawMusk(c,mood,t){
+  suit(c,'#15151c',mood,t,null,false);c.fillStyle='#2b2b36';c.beginPath();c.moveTo(-5,-24);c.lineTo(0,-16);c.lineTo(5,-24);c.fill();
+  arms(c,'#15151c','#f2c9a8',mood,t);
+  const hb=Math.sin(t*9)*mood*1.2;c.save();c.translate(0,hb);
+  c.fillStyle='#e8b896';c.beginPath();c.arc(-11,-34,2.9,0,6.283);c.arc(11,-34,2.9,0,6.283);c.fill();
+  c.fillStyle='#f2c9a8';c.beginPath();c.ellipse(0,-35,10.8,11.5,0,0,6.283);c.fill();rr(c,-9.4,-36,18.8,13.2,6.5);c.fill();
+  c.fillStyle='#3a2a22';c.beginPath();c.moveTo(-11,-37);c.quadraticCurveTo(-11.5,-48,-2,-49);c.quadraticCurveTo(9,-49.5,11,-40);c.lineTo(11,-37.5);
+  c.quadraticCurveTo(9,-43,5,-43.2);c.quadraticCurveTo(0,-41.8,-4,-43.6);c.quadraticCurveTo(-9,-43,-11,-37);c.closePath();c.fill();
+  c.strokeStyle='#2a1c14';c.lineWidth=1.7;c.lineCap='round';c.beginPath();c.moveTo(-7.2,-39.4);c.lineTo(-2.6,-39.8);c.moveTo(2.6,-39.8);c.lineTo(7.2,-39.4);c.stroke();
+  c.fillStyle='#2a1c14';c.beginPath();c.arc(-4.8,-36.2,1.3,0,6.283);c.arc(4.8,-36.2,1.3,0,6.283);c.fill();
+  c.strokeStyle='#d9a482';c.lineWidth=1.1;c.beginPath();c.moveTo(0,-35);c.lineTo(-.8,-31.4);c.lineTo(.8,-31.2);c.stroke();
+  if(mood<.3){c.strokeStyle='#6a2f25';c.lineWidth=1.4;c.beginPath();c.moveTo(-3.5,-27.6);c.quadraticCurveTo(1,-26.2,4.5,-28.8);c.stroke()}
+  else{c.fillStyle='#4a1510';c.beginPath();c.moveTo(-4.5,-28.5);c.quadraticCurveTo(0,-24-mood*3,4.5,-28.5);c.closePath();c.fill();c.fillStyle='#fff';c.fillRect(-3.6,-28.6,7.2,1.3)}
+  c.restore();
+}
+function drawSahur(c,mood,t){
+  const hb=Math.sin(t*9)*mood*1.2;c.save();c.translate(0,hb);
+  const up=clamp((mood-.45)/.4,0,1),ex=lerp(-15,-18,up),ey=lerp(-12,-36,up)+Math.sin(t*14)*2*up;
+  c.strokeStyle='#6e4520';c.lineWidth=2.4;c.beginPath();c.moveTo(-10,-24);c.lineTo(ex,ey);c.stroke();
+  const g=c.createLinearGradient(-12,0,12,0);g.addColorStop(0,'#7e5128');g.addColorStop(.45,'#b8834a');g.addColorStop(1,'#80522a');c.fillStyle=g;rr(c,-12,-52,24,53,8);c.fill();
+  c.strokeStyle='rgba(90,55,25,.55)';c.lineWidth=.9;for(const x of[-7,-1,6]){c.beginPath();c.moveTo(x,-47);c.quadraticCurveTo(x+1.5,-30,x-.5,-4);c.stroke()}
+  c.fillStyle='#dcaa6c';c.beginPath();c.ellipse(0,-51.5,11,3.4,0,0,6.283);c.fill();c.strokeStyle='#a8742f';c.lineWidth=.8;c.beginPath();c.ellipse(0,-51.5,6.5,1.9,0,0,6.283);c.ellipse(0,-51.5,2.8,.8,0,0,6.283);c.stroke();
+  c.fillStyle='#fff';c.beginPath();c.arc(-4.6,-38,3.8,0,6.283);c.arc(4.6,-38,3.8,0,6.283);c.fill();
+  const lx=mood*.8;c.fillStyle='#1b1010';c.beginPath();c.arc(-4.2+lx,-37.6,1.9,0,6.283);c.arc(5+lx,-37.6,1.9,0,6.283);c.fill();
+  c.strokeStyle='#3a2210';c.lineWidth=2;c.lineCap='round';c.beginPath();c.moveTo(-8.4,-43.6);c.lineTo(-2,-42);c.moveTo(8.4,-43.6);c.lineTo(2,-42);c.stroke();
+  if(mood<.3){c.strokeStyle='#3a2210';c.lineWidth=1.5;c.beginPath();c.moveTo(-3.5,-30);c.lineTo(3.5,-30);c.stroke()}
+  else{c.fillStyle='#3a0d12';c.beginPath();c.ellipse(0,-30,3+mood*1.5,1.4+mood*2.6,0,0,6.283);c.fill()}
+  c.lineCap='round';c.lineWidth=2.4;c.strokeStyle='#6e4520';
+  const sw=-.7+Math.sin(t*12)*.7*mood;
+  c.beginPath();c.moveTo(10,-24);c.lineTo(17,-15);c.stroke();
+  c.save();c.translate(17,-15);c.rotate(sw);c.fillStyle='#d6a25e';c.beginPath();c.moveTo(-1.2,0);c.lineTo(1.2,0);c.lineTo(3.2,-20);c.quadraticCurveTo(0,-24,-3.2,-20);c.closePath();c.fill();
+  c.strokeStyle='#a8742f';c.lineWidth=.8;c.stroke();c.restore();
+  c.restore();
+}
 const CHARS={
   bear:{ru:'Медведь',en:'Bear',draw:drawBear,drop:'shades'},
   bull:{ru:'Бык',en:'Bull',draw:drawBull,drop:'horn'},
-  whale:{ru:'Кит',en:'Whale',draw:drawWhale,drop:'shades'}
+  whale:{ru:'Кит',en:'Whale',draw:drawWhale,drop:'shades'},
+  trump:{ru:'Трамп',en:'Trump',draw:drawTrump,drop:'hair'},
+  musk:{ru:'Илон',en:'Elon',draw:drawMusk,drop:'none'},
+  sahur:{ru:'Тунг Тунг Сахур',en:'Tung Tung Sahur',draw:drawSahur,drop:'bat'}
 };
 
 /* =====================================================================
