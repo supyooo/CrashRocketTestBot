@@ -20,8 +20,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
     def do_POST(self):
         url = urllib.parse.urlparse(self.path)
         name = urllib.parse.parse_qs(url.query).get("name", [""])[0]
-        if url.path != "/save" or not re.fullmatch(r"[\w.-]+\.(png|gif|svg)", name):
-            self.send_error(400, "expected /save?name=<file>.png|gif|svg")
+        if url.path != "/save" or not re.fullmatch(r"[\w.-]+\.(png|gif|svg|webp)", name):
+            self.send_error(400, "expected /save?name=<file>.png|gif|svg|webp")
             return
         size = int(self.headers.get("Content-Length", 0))
         os.makedirs(OUT, exist_ok=True)

@@ -117,14 +117,14 @@ ol.steps p{margin:0;color:var(--ink-2);font-size:14px}
   </section>
 
   <section>
-    <div class="sh"><h2>Экран загрузки</h2><span class="spec">иконка 512 × 512 PNG + SVG · цвета</span></div>
-    <p class="lead">Telegram показывает его, пока игра грузится. В настройках Mini App задаются иконка и цвета фона и текста.</p>
+    <div class="sh"><h2>Экран загрузки</h2><span class="spec">иконка 512 × 512 · WEBP или SVG из одного контура · цвета</span></div>
+    <p class="lead">Telegram показывает его, пока игра грузится. В @BotFather это Configure Mini App → Configure Splash Screen: иконка, цвет фона и цвет шапки. Иконку он принимает только как WEBP 512 × 512 или SVG 512 × 512 с одним контуром (<code>brand/icon_svg.py</code>).</p>
     <div class="grid g3">
       <div class="tile"><h3>Иконка <i>прозрачный фон</i></h3><canvas class="art check" id="icon" width="512" height="512"></canvas></div>
       <div class="tile"><h3>Как это выглядит</h3><div class="load"><img id="iconImg" alt=""><b>Crash Rocket</b><div class="dots"><i></i><i></i><i></i></div></div></div>
       <div class="tile"><h3>Цвета</h3><div class="sw">
         <div><i style="background:#12092A"></i>#12092A · фон (тёмная и светлая тема)</div>
-        <div><i style="background:#FFD23F"></i>#FFD23F · текст и акцент</div>
+        <div><i style="background:#12092A"></i>#12092A · шапка (Header Color)</div>
       </div><p class="note" style="margin:0">Для светлой темы Telegram тоже ставь тёмный фон, чтобы при запуске игры не мигал белый экран.</p></div>
     </div>
   </section>
@@ -148,7 +148,7 @@ ol.steps p{margin:0;color:var(--ink-2);font-size:14px}
       <li><div><b>Аватарка</b><p><code>Edit Bot</code> → <code>Edit Botpic</code> → отправь выбранную <code>avatar-*.png</code> как фото.</p></div></li>
       <li><div><b>Картинка приветствия</b><p><code>Edit Bot</code> → <code>Edit Description Picture</code> → отправь <code>welcome-ru.png</code> как фото или <code>welcome.gif</code> как GIF.</p></div></li>
       <li><div><b>Кнопка меню</b><p><code>Bot Settings</code> → <code>Menu Button</code> → ссылка на игру и текст <code>Играть</code>.</p></div></li>
-      <li><div><b>Экран загрузки и превью</b><p><code>Bot Settings</code> → <code>Configure Mini App</code>: там загрузка иконки (<code>loading-icon.png</code> или <code>.svg</code>), цвета и превью (<code>preview-*.png</code>).</p></div></li>
+      <li><div><b>Экран загрузки и превью</b><p><code>Bot Settings</code> → <code>Configure Mini App</code> → <code>Configure Splash Screen</code>: иконка <code>loading-icon.webp</code> или <code>loading-icon.svg</code>, фон и шапка <code>#12092A</code>. Превью (<code>preview-*.png</code>) добавляются в визуальной версии BotFather (кнопка Open).</p></div></li>
       <li><div><b>Английская версия и команды</b><p>Английские описания и меню команд подключим вместе с бэкендом: это одна строка кода на каждый текст. Добавлять команды раньше нет смысла, бот пока на них не отвечает.</p></div></li>
     </ol>
     <p class="note">Названия пунктов в @BotFather иногда немного меняются, но разделы остаются теми же: <code>Edit Bot</code> для профиля и <code>Bot Settings</code> для Mini App.</p>
@@ -239,7 +239,6 @@ function welcome(c,lang,t=1.2,inst,dt=0){
 function loadingIcon(c){c.clearRect(0,0,256,256);
   const g=c.createRadialGradient(128,128,10,128,128,120);g.addColorStop(0,'rgba(43,255,136,.22)');g.addColorStop(1,'rgba(43,255,136,0)');c.fillStyle=g;c.beginPath();c.arc(128,128,120,0,6.283);c.fill();
   rider(c,{x:150,y:112,ang:-.8,s:1.3,on:false,power:1.1,t:.3,len:14})}
-const ICON_SVG=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><defs><linearGradient id="b" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7dffbe"/><stop offset=".5" stop-color="#16c865"/><stop offset="1" stop-color="#06793a"/></linearGradient><linearGradient id="f" x1="1" y1="0" x2="0" y2="0"><stop offset="0" stop-color="#fffbe6"/><stop offset=".35" stop-color="#ffd23f"/><stop offset=".75" stop-color="#ff3ea5"/><stop offset="1" stop-color="#29e6ff" stop-opacity="0"/></linearGradient></defs><g transform="translate(270 238) rotate(-45.8) scale(2.6)"><path d="M-57-9Q-110 0-57 9Z" fill="url(#f)"/><path d="M-46-12-63-28-30-12ZM-46 12-63 28-30 12Z" fill="#7b3cff"/><rect x="-57" y="-8" width="8" height="16" fill="#2a2f45"/><rect x="-50" y="-12" width="92" height="24" rx="6" fill="url(#b)"/><path d="M41-12Q58-6 66 0Q58 6 41 12Z" fill="#1eea78"/><path d="M66 0H78" stroke="#b9ffd9" stroke-width="1.6"/><rect x="-44" y="-8.5" width="78" height="3" rx="1.5" fill="#fff" fill-opacity=".35"/><path d="M-36 6-24 1-16 4-2-3 8 0 22-6" fill="none" stroke="#fff" stroke-opacity=".75" stroke-width="1.6"/></g></svg>`;
 
 /* =====================================================================
    Promo previews (logical 360×640 → 1080×1920)
@@ -345,7 +344,7 @@ const LOCAL=/^(localhost|127\.0\.0\.1)$/.test(location.hostname);if(LOCAL)docume
 async function post(name,blob){const r=await fetch('/save?name='+encodeURIComponent(name),{method:'POST',body:blob});if(!r.ok)throw new Error(name+': '+r.status)}
 document.getElementById('saveAll').onclick=async()=>{const msg=document.getElementById('saveMsg');let n=0;
   const keep=promoLang;for(const l of ['ru','en']){renderPromos(l);for(const cv of FILES){await post(cv.dataset.file,await new Promise(r=>cv.toBlob(r,'image/png')));n++}}renderPromos(keep);
-  await post('loading-icon.svg',new Blob([ICON_SVG],{type:'image/svg+xml'}));n++;msg.textContent=`Сохранено файлов: ${n}`};
+  const ic=document.getElementById('icon');await post('loading-icon.webp',await new Promise(r=>ic.toBlob(r,'image/webp',.95)));n++;msg.textContent=`Сохранено файлов: ${n}`};
 document.getElementById('saveGif').onclick=async()=>{const msg=document.getElementById('gifMsg');msg.textContent='Собираю кадры…';
   try{if(!window.GIF){await new Promise((ok,no)=>{const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js';s.onload=ok;s.onerror=no;document.head.appendChild(s)})}
     const wtxt=await (await fetch('https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js')).text();const wurl=URL.createObjectURL(new Blob([wtxt],{type:'application/javascript'}));
