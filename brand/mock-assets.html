@@ -1,0 +1,50 @@
+<meta charset="utf-8">
+<title>Mock asset renderer</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@800;900&display=swap">
+<style>body{margin:0;background:#0d0820;color:#eee;font:14px system-ui;padding:16px}canvas{background:repeating-conic-gradient(#221c42 0 25%,#181335 0 50%) 0 0/16px 16px;margin:4px;max-width:180px;height:auto}</style>
+<div id="log">rendering…</div><div id="out"></div>
+<script src="../app/art.js"></script>
+<script>
+/* Renders the static images used by the screen mockups (brand/out/mock-*.png). */
+const K=2,OUT=[];
+function mk(name,w,h,draw){const cv=document.createElement('canvas');cv.width=w*K;cv.height=h*K;const c=cv.getContext('2d');c.scale(K,K);draw(c,w,h);cv.dataset.name=name;document.getElementById('out').appendChild(cv);OUT.push(cv)}
+function scene(c,w,h,{bg='synth',m=3,gy=h*.84,t=1.2}={}){const b=BGS[bg].make();b.resize(w,h);b.draw(c,{w,h,sc:Math.min(w/360,h/300),dt:0,t,alt:0,dAlt:0,sp:1,I:.35,phase:'fly',m,moonM:m,rx:w*.6,ry:h*.5,tx:w*.5,ty:h*.55,gy})}
+const PAL=['#2bff88','#ffd23f','#ff3ea5','#29e6ff'];
+function trail(c,x,y,ang,s,kind,len=44,t=1){const dx=Math.cos(ang),dy=Math.sin(ang);c.save();if(kind!=='dollar'&&kind!=='pixel')c.globalCompositeOperation='lighter';
+  for(let i=0;i<len;i++){const d=(18+i*5.4)*s,wob=Math.sin(i*.45+t*6)*i*.2*s,px=x-dx*d-dy*wob,py=y-dy*d+dx*wob,a=(1-i/len);
+    if(kind==='rainbow'){c.globalAlpha=a*.85;c.fillStyle=PAL[i%4];c.beginPath();c.arc(px,py,Math.max(1,9.5-i*.17)*s,0,6.283);c.fill()}
+    else if(kind==='fire'){c.globalAlpha=a*.85;c.fillStyle=['#fff2b0','#ffd23f','#ff9f1c','#ff5a1a'][Math.min(3,Math.floor(i/6))];c.beginPath();c.arc(px,py,Math.max(1,10-i*.18)*s,0,6.283);c.fill()}
+    else if(kind==='dollar'){if(i%3)continue;c.globalAlpha=a;c.fillStyle='#2bff88';c.font=`900 ${Math.round((16-i*.2)*s)}px Unbounded,sans-serif`;c.textAlign='center';c.textBaseline='middle';c.save();c.translate(px,py);c.rotate(Math.sin(i)*.5);c.fillText('$',0,0);c.restore()}
+    else if(kind==='pixel'){if(i%2)continue;c.globalAlpha=a;c.fillStyle=['#29e6ff','#ff3ea5','#ffd23f'][i%3];const q=Math.max(2,(9-i*.15))*s;c.fillRect(Math.round(px/4)*4-q/2,Math.round(py/4)*4-q/2,q,q)}}
+  c.restore()}
+function rocket(c,x,y,ang,s,id='candle',char=null,mood=.6,t=1,filter=''){const R=ROCKETS[id];c.save();c.translate(x,y);c.rotate(ang);c.scale(s,s);if(filter)c.filter=filter;drawFlame(c,R.trail,1,t,R.tail);R.draw(c);c.filter='none';
+  if(char){c.save();c.translate(R.seat[0],R.seat[1]);c.rotate(-ang*.85);CHARS[char].draw(c,mood,t);c.restore()}c.restore()}
+function canopy(c,x,y,s,cols){c.save();c.translate(x,y);c.scale(s,s);const n=cols.length;for(let i=0;i<n;i++){c.fillStyle=cols[i];c.beginPath();c.moveTo(0,0);c.arc(0,0,30,Math.PI+i*Math.PI/n,Math.PI+(i+1)*Math.PI/n);c.closePath();c.fill()}
+  c.fillStyle='rgba(255,255,255,.22)';c.beginPath();c.ellipse(-9,-19,11,4,-.4,0,6.283);c.fill();c.strokeStyle='rgba(255,255,255,.55)';c.lineWidth=.9;c.beginPath();c.moveTo(-30,0);c.lineTo(0,40);c.lineTo(30,0);c.moveTo(-12,0);c.lineTo(0,40);c.lineTo(12,0);c.stroke();c.restore()}
+
+// hero loadout + game stage
+mk('mock-hero',390,280,(c,w,h)=>{scene(c,w,h,{gy:h*.9,m:2});const g=c.createLinearGradient(0,h*.6,0,h);g.addColorStop(0,'rgba(18,9,42,0)');g.addColorStop(1,'rgba(18,9,42,.95)');trail(c,212-Math.cos(-.62)*61*1.5,150-Math.sin(-.62)*61*1.5,-.62,1.5,'rainbow');rocket(c,212,150,-.62,1.5,'candle','bear',.7,1.2);canopy(c,72,92,.7,['#ff3ea5','#ffd23f','#2bff88','#29e6ff','#8a5cff']);c.fillStyle=g;c.fillRect(0,h*.6,w,h*.4)});
+mk('mock-game',390,590,(c,w,h)=>{scene(c,w,h,{gy:h*.95,m:2.4});trail(c,210-Math.cos(-.72)*61*1.3,360-Math.sin(-.72)*61*1.3,-.72,1.3,'rainbow');rocket(c,210,360,-.72,1.3,'candle','bear',.8,1.4);canopy(c,70,300,.45,['#ff3ea5','#ffd23f','#2bff88','#29e6ff','#8a5cff']);canopy(c,120,390,.4,['#ff3ea5','#ffd23f','#2bff88','#29e6ff','#8a5cff'])});
+// characters
+['bear','bull','whale'].forEach(id=>mk('mock-char-'+id,180,220,(c,w,h)=>{c.translate(w/2-6,h*.93);c.scale(2.35,2.35);CHARS[id].draw(c,.55,1.1)}));
+mk('mock-char-mystery',180,220,(c,w,h)=>{c.save();c.translate(w/2-6,h*.93);c.scale(2.35,2.35);CHARS.bull.draw(c,.2,1);c.restore();c.globalCompositeOperation='source-in';c.fillStyle='#2e2659';c.fillRect(0,0,w,h)});
+// rockets
+[['candle',''],['retro',''],['short','hue-rotate(205deg) saturate(1.4)']].forEach(([id,f])=>mk('mock-rocket-'+id,240,180,(c,w,h)=>rocket(c,w*.56,h*.52,-.62,1.25,id==='short'?'candle':id,null,.6,1,f)));
+// trails
+['rainbow','fire','dollar','pixel'].forEach(k=>mk('mock-trail-'+k,240,180,(c,w,h)=>{trail(c,w*.78,h*.25,-.6,1.05,k,40);rocket(c,w*.86,h*.17,-.6,.55,'candle')}));
+// parachutes
+mk('mock-chute-rainbow',180,200,(c,w,h)=>{canopy(c,w/2,h*.42,2.1,['#ff3ea5','#ffd23f','#2bff88','#29e6ff','#8a5cff'])});
+mk('mock-chute-gold',180,200,(c,w,h)=>{canopy(c,w/2,h*.42,2.1,['#ffe27a','#ffc21a','#ffe27a','#ffc21a','#ffe27a','#ffc21a','#ffe27a'])});
+mk('mock-chute-bag',180,200,(c,w,h)=>{canopy(c,w/2,h*.36,1.9,['#2bff88','#1ec96b','#2bff88','#1ec96b','#2bff88']);c.fillStyle='#c9962f';c.beginPath();c.ellipse(w/2,h*.36+92,24,22,0,0,6.283);c.fill();c.fillStyle='#e8b94a';c.beginPath();c.moveTo(w/2-10,h*.36+70);c.lineTo(w/2+10,h*.36+70);c.lineTo(w/2+6,h*.36+78);c.lineTo(w/2-6,h*.36+78);c.fill();c.fillStyle='#fff3c4';c.font='900 22px Unbounded,sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('$',w/2,h*.36+94)});
+// backgrounds
+[['synth',3],['moon',8],['exch',4]].forEach(([id,m])=>mk('mock-bg-'+id,180,240,(c,w,h)=>{scene(c,w,h,{bg:id,m,gy:h*.8});if(id==='exch'){c.strokeStyle='#2bff88';c.lineWidth=2;c.shadowColor='#2bff88';c.shadowBlur=8;c.beginPath();for(let q=0;q<=30;q++){const u=q/30;const X=18+u*120,Y=180-(Math.exp(u*2.6)-1)/(Math.exp(2.6)-1)*110;q?c.lineTo(X,Y):c.moveTo(X,Y)}c.stroke()}}));
+// cash-out emotes
+mk('mock-emote-cheer',180,200,(c,w,h)=>{c.translate(w/2-6,h*.9);c.scale(2.2,2.2);CHARS.bear.draw(c,1,1.35)});
+mk('mock-emote-fireworks',180,200,(c,w,h)=>{c.globalCompositeOperation='lighter';[[60,70,'#ff3ea5'],[120,60,'#29e6ff'],[92,120,'#ffd23f']].forEach(([x,y,col])=>{for(let i=0;i<18;i++){const a=i/18*6.283;c.strokeStyle=col;c.lineWidth=2.2;c.beginPath();c.moveTo(x+Math.cos(a)*8,y+Math.sin(a)*8);c.lineTo(x+Math.cos(a)*30,y+Math.sin(a)*30);c.stroke();c.fillStyle='#fff';c.beginPath();c.arc(x+Math.cos(a)*32,y+Math.sin(a)*32,1.6,0,6.283);c.fill()}})});
+mk('mock-emote-money',180,200,(c,w,h)=>{for(let i=0;i<16;i++){const x=20+((i*53)%140),y=20+((i*37)%160),r=9+(i%3)*3;c.save();c.translate(x,y);c.scale(.5+Math.abs(Math.sin(i))*.5,1);c.fillStyle='#ffd23f';c.beginPath();c.arc(0,0,r,0,6.283);c.fill();c.fillStyle='#0098ea';c.beginPath();c.arc(0,0,r*.72,0,6.283);c.fill();c.fillStyle='#fff';c.beginPath();c.moveTo(-r*.38,-r*.25);c.lineTo(r*.38,-r*.25);c.lineTo(0,r*.38);c.closePath();c.fill();c.restore()}});
+
+(async()=>{await document.fonts.load('900 20px Unbounded');let n=0;
+  // redraw the text-dependent images now that the font is ready
+  for(const cv of OUT){await fetch('/save?name='+cv.dataset.name+'.png',{method:'POST',body:await new Promise(r=>cv.toBlob(r,'image/png'))});n++}
+  document.getElementById('log').textContent='saved '+n})();
+</script>
