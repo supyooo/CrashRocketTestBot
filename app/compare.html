@@ -1,0 +1,65 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Crash Rocket Compare</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=Unbounded:wght@700;800&display=swap">
+<style>
+:root{color-scheme:dark;--page:#0d0820;--panel:#151130;--line:#2a2352;--ink:#efedf8;--ink-2:#9a95bb;--gold:#ffd23f;--green:#2bff88}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--page);color:var(--ink);font:14px/1.5 'Golos Text',system-ui,sans-serif;padding-inline:16px;display:flex;flex-direction:column}
+header{display:flex;flex-wrap:wrap;align-items:center;gap:10px 20px;padding-block:18px 14px;max-width:1100px;width:100%;margin:0 auto}
+h1{margin:0;font:800 20px/1.2 'Unbounded',sans-serif;flex:1 1 auto}
+.seg{display:none;padding:3px;border-radius:12px;background:var(--panel);border:1px solid var(--line)}
+.seg button{border:0;background:transparent;height:34px;padding:0 16px;border-radius:9px;font:700 13px 'Golos Text',sans-serif;color:var(--ink-2);cursor:pointer}
+.seg button[aria-pressed="true"]{background:#241d4d;color:var(--ink)}
+main{flex:1;min-height:0;display:flex;justify-content:center;gap:40px;padding-bottom:20px}
+.col{display:flex;flex-direction:column;align-items:center;gap:12px;min-height:0}
+.col h2{margin:0;font:700 13px 'Golos Text',sans-serif;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-2)}
+.col.new h2{color:var(--gold)}
+.col ul{margin:0;padding:0;list-style:none;font-size:12.5px;color:var(--ink-2);max-width:340px;display:grid;gap:3px}
+.col ul li::before{content:"· ";color:var(--gold)}
+.phone{border-radius:44px;padding:10px;background:#1b1a22;box-shadow:0 0 0 1px #2c2a36,0 30px 60px -20px #000;overflow:hidden}
+.phone .clip{border-radius:34px;overflow:hidden;position:relative}
+.phone iframe{border:0;width:390px;height:844px;display:block;transform-origin:0 0;background:#12092a}
+.note{max-width:1100px;margin:0 auto 18px;font-size:12.5px;color:var(--ink-2);text-align:center}
+@media (max-width:860px){
+  body{padding-inline:0}
+  header{padding-inline:16px}
+  .seg{display:inline-flex}
+  main{gap:0}
+  .col{display:none;width:100%}.col.on{display:flex}
+  .col h2,.col ul{display:none}
+  .phone{border-radius:0;padding:0;box-shadow:none;background:none;width:100%;flex:1}
+  .phone .clip{border-radius:0;height:100%}
+  .phone iframe{width:100%;height:100%;transform:none!important}
+  .note{display:none}
+}
+</style>
+
+<header>
+  <h1>Было и стало</h1>
+  <div class="seg" role="group" aria-label="Версия"><button aria-pressed="false" data-v="old">Было</button><button aria-pressed="true" data-v="new">Стало</button></div>
+</header>
+<main>
+  <section class="col old">
+    <h2>Было · v1</h2>
+    <div class="phone"><div class="clip"><iframe src="v1/" title="Версия 1"></iframe></div></div>
+    <ul><li>Сцена ≈ 40% экрана</li><li>Список игроков под панелью ставки</li><li>После 10x картинка почти не меняется</li></ul>
+  </section>
+  <section class="col new on">
+    <h2>Стало · v2</h2>
+    <div class="phone"><div class="clip"><iframe src="./" title="Версия 2"></iframe></div></div>
+    <ul><li>Сцена ≈ 70% экрана, панель ставки в одну строку</li><li>Лента выигрышей поверх сцены, все игроки по кнопке</li><li>Высотные зоны: облака 2x · стратосфера 5x · космос 10x · Луна 25x · варп 50x</li></ul>
+  </section>
+</main>
+<p class="note">Обе версии живые и работают независимо. Высотные зоны есть только на фоне «Синтвейв-закат»: если выбран другой фон, переключи его в «Скины» → «Фон».</p>
+
+<script>
+function fit(){const vh=innerHeight-(document.querySelector('header').offsetHeight+document.querySelector('.note').offsetHeight+150),k=Math.min(1,Math.max(.45,vh/844));
+  document.querySelectorAll('.phone iframe').forEach(f=>{if(innerWidth>860){f.style.transform=`scale(${k})`;f.parentElement.style.width=390*k+'px';f.parentElement.style.height=844*k+'px'}else{f.style.transform='';f.parentElement.style.width='';f.parentElement.style.height=''}})}
+addEventListener('resize',fit);fit();
+document.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>{document.querySelectorAll('.seg button').forEach(x=>x.setAttribute('aria-pressed',x===b));
+  document.querySelector('.col.old').classList.toggle('on',b.dataset.v==='old');document.querySelector('.col.new').classList.toggle('on',b.dataset.v==='new')});
+</script>
