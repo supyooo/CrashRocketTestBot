@@ -3,7 +3,7 @@
    Without a server, or if it cannot be reached, the game keeps running its offline demo rounds.
    Loaded after the main game script; uses its globals (S, SC, placeBet internals, renderPlayers, feed, toast…). */
 (()=>{
-const CR_SERVER = ''; // production API, e.g. 'https://crash-rocket.up.railway.app'
+const CR_SERVER = 'https://crashrockettestbot-production.up.railway.app'; // production API
 const q=new URLSearchParams(location.search);
 let base=q.get('server')||'';try{if(base)localStorage.setItem('cr.server',base);else base=localStorage.getItem('cr.server')||''}catch(e){}
 base=(base||CR_SERVER).replace(/\/$/,'');
