@@ -537,9 +537,9 @@ function togglePop(id){const p=$(id),was=p.classList.contains('on');closePops();
 $('amtBtn').onclick=e=>{e.stopPropagation();togglePop('amtPop')};$('autoBtn').onclick=e=>{e.stopPropagation();togglePop('autoPop')};
 document.querySelectorAll('.pop').forEach(p=>p.addEventListener('click',e=>e.stopPropagation()));
 document.addEventListener('click',closePops);
-$('topup').onclick=()=>{if(S.bal<1){S.bal=25;toast(T('refill'))}else toast(T('topup'))};
+$('topup').onclick=()=>{if(window.NET_ON)return NET.refill();if(S.bal<1){S.bal=25;toast(T('refill'))}else toast(T('topup'))};
 function placeBet(a){if(S.bal<a){toast(T('noFunds'),'bad');return false}S.bal-=a;if(S.phase==='wait')S.bet={amt:a,out:0};else S.next={amt:a};AU.tone(880,.08,'sine',.12);renderPlayers();return true}
-$('main').onclick=()=>{unlockAudio();const a=getAmt();
+$('main').onclick=()=>{unlockAudio();if(window.NET_ON)return NET.main();const a=getAmt();
   if(S.phase==='fly'&&S.bet&&!S.bet.out){cashOut(S.m);return}
   if(S.phase==='wait'&&S.bet){S.bal+=S.bet.amt;S.bet=null;renderPlayers();return}
   if(S.phase!=='wait'&&S.next){S.bal+=S.next.amt;S.next=null;return}
@@ -608,7 +608,8 @@ applyLang();renderHist();
 let last=performance.now();
 function tick(ts){
   const dt=clamp((ts-last)/1000,0,.05);last=ts;const el=(ts-S.t0)/1000;
-  if(S.phase==='wait'){if(el>=WAIT)startFlight(ts)}
+  if(window.NET_ON){if(S.phase==='fly'){S.t=el;S.m=Math.min(Math.exp(K*Math.max(0,el)),S.crash)}}  // online: the server drives the round
+  else if(S.phase==='wait'){if(el>=WAIT)startFlight(ts)}
   else if(S.phase==='fly'){S.t=el;const m=Math.exp(K*el);
     if(m>=S.crash)doCrash(ts);
     else{S.m=m;let ch=false;
@@ -623,3 +624,4 @@ function tick(ts){
 requestAnimationFrame(tick);
 </script>
 <script src="screens.js"></script>
+<script src="net.js"></script>

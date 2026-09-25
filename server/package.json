@@ -1,0 +1,27 @@
+{
+  "name": "crash-rocket-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Crash Rocket game server: provably fair rounds, play-money wallet, Telegram auth",
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "start": "tsx src/main.ts",
+    "sim": "tsx src/tools/sim.ts",
+    "smoke": "tsx src/tools/smoke.ts",
+    "test": "tsx --test test/fair.test.ts test/engine.test.ts test/auth.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "engines": {
+    "node": ">=18.18"
+  },
+  "dependencies": {
+    "ws": "^8.21.3"
+  },
+  "devDependencies": {
+    "@types/node": "^18.19.130",
+    "@types/ws": "^8.18.1",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3"
+  }
+}

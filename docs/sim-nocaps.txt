@@ -1,0 +1,24 @@
+
+1) Real HMAC rounds, edge 3%, 200,000 rounds
+   target  P(reach) sim   theory   RTP at target
+     1.01x    96.07%   96.04%   97.03%
+     1.50x    64.56%   64.67%   96.84%
+     2.00x    48.45%   48.50%   96.90%
+     5.00x    19.42%   19.40%   97.11%
+    10.00x     9.69%    9.70%   96.92%
+   100.00x     0.93%    0.97%   93.10%
+   crash shown as 1.00x (nobody can cash out): 3.93% (theory 3.96%: 3% below 1x plus 1.00-1.01x floored)
+
+2) RTP by cash-out target (2,000,000 rounds each)
+   edge 1%: 1.2x 99.0%  2x 99.1%  5x 99.1%  20x 99.3%  100x 99.4%
+   edge 3%: 1.2x 97.0%  2x 96.9%  5x 97.0%  20x 96.8%  100x 98.0%
+   edge 5%: 1.2x 95.0%  2x 95.1%  5x 95.2%  20x 95.1%  100x 95.5%
+
+3) Business Monte Carlo: 100 runs × 7 days × 6000 rounds/day, ~25 bets/round, bet median 1 TON,
+   caps: 1000000000 TON per bet, 1000000000 TON per round; whale (500 TON) in 3% of rounds; referral 1% on 40% of turnover
+   edge   turnover/wk        GGR  GGR%     referral        NGR  NGR%   P(loss wk)  maxDD p95  maxDD p99  worst day p1
+   1%     2,785,723     45,075  1.62     11,143     33,932  1.22       33.0%    177,924    298,829   -107,414
+   3%     2,788,142     85,977  3.08     11,153     74,824  2.68       18.0%    166,829    238,879    -83,715
+   5%     2,790,330    144,780  5.19     11,161    133,619  4.79        5.0%    124,673    230,491   -107,720
+   GGR = house profit on bets; NGR = after referral payouts. maxDD = deepest fall from a previous high inside the week:
+   the bankroll must cover it, or the house cannot pay winners during a bad streak.

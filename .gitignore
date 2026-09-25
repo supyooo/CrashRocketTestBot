@@ -5,3 +5,5 @@ mockups/
 node_modules/
 .env*
 brand/out/
+server/node_modules/
+server/data/
