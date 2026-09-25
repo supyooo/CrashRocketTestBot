@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>Crash Rocket Neon</title>
 <script src="https://telegram.org/js/telegram-web-app.js?59"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -11,7 +11,9 @@
   --bg:#12092a;--panel:#161a2f;--panel-2:#1f2440;--line:#2b3155;--text:#f3f1ff;--muted:#8f93b8;
   --green:#2bff88;--gold:#ffd23f;--pink:#ff3ea5;--cyan:#29e6ff;--red:#ff3b6b;--violet:#8a5cff;
   --heat:#eafff3;--heat-glow:rgba(43,255,136,.75)}
-html,body{height:100%;overscroll-behavior:none}
+html,body{height:100%;overscroll-behavior:none;touch-action:manipulation;-webkit-text-size-adjust:100%}
+.app{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.app input{-webkit-user-select:text;user-select:text}
 body{margin:0;background:var(--page);color:var(--ink);font:14px/1.45 'Golos Text',system-ui,sans-serif}
 *{box-sizing:border-box}
 button,input{font:inherit;color:inherit}
@@ -599,6 +601,8 @@ function resize(){const sr=$('stage').getBoundingClientRect(),ar=app.getBounding
 /* =====================================================================
    Telegram Mini App wiring (no-op in a normal browser)
    ===================================================================== */
+/* no pinch zoom inside the game (iOS ignores user-scalable=no); double-tap zoom is off via touch-action */
+['gesturestart','gesturechange'].forEach(ev=>document.addEventListener(ev,e=>e.preventDefault(),{passive:false}));
 if(TG){
   document.documentElement.classList.add('tg');
   TG.ready();TG.expand();
