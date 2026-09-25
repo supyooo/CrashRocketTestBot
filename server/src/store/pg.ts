@@ -10,6 +10,7 @@ import { dirname, join } from 'node:path';
 import { InsufficientFunds, type FairState, type LedgerEntry, type LedgerMove, type OpenRound, type Round, type Snapshot, type Store, type User } from './store.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
+const LEADER_LOCK = 7_310_001; // advisory lock id: "the server that runs rounds"
 const SCHEMA = join(here, '..', '..', 'sql', '001_init.sql');
 
 type LedgerRow = { id: string; user_id: string; delta: string; balance: string; kind: LedgerEntry['kind']; ref: string; at: Date };
@@ -18,6 +19,7 @@ const toEntry = (r: LedgerRow): LedgerEntry => ({ id: Number(r.id), uid: r.user_
 export class PgStore implements Store {
   private pool: pg.Pool;
   private commitment = '';
+  private leader?: pg.PoolClient;
 
   private constructor(url: string) {
     // Railway's internal network is plain TCP; public URLs need TLS
@@ -146,5 +148,25 @@ export class PgStore implements Store {
     if (r) await this.pool.query("INSERT INTO kv (key, value) VALUES ('open', $1) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value", [r]);
     else await this.pool.query("DELETE FROM kv WHERE key = 'open'");
   }
-  async close() { await this.pool.end(); }
+  /**
+   * Only one server may run rounds against a database. A deploy starts the new server while the old one is
+   * still finishing its round; the new one waits here until the old one releases the lock (on exit).
+   */
+  async becomeLeader(onWait: () => void, pollMs = 1000): Promise<void> {
+    const c = await this.pool.connect();
+    for (let first = true; ; first = false) {
+      const { rows } = await c.query('SELECT pg_try_advisory_lock($1) AS ok', [LEADER_LOCK]);
+      if (rows[0].ok) { this.leader = c; return; }
+      if (first) onWait();
+      await new Promise((r) => setTimeout(r, pollMs));
+    }
+  }
+
+  private closed = false;
+  async close() {
+    if (this.closed) return;
+    this.closed = true;
+    if (this.leader) { try { await this.leader.query('SELECT pg_advisory_unlock($1)', [LEADER_LOCK]); } catch { /* lock goes with the connection anyway */ } this.leader.release(); }
+    await this.pool.end();
+  }
 }

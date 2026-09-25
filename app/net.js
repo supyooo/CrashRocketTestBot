@@ -24,12 +24,19 @@ async function login(){
 function connect(){
   const ws=new WebSocket(base.replace(/^http/,'ws')+'/ws?token='+encodeURIComponent(NET.token));NET.ws=ws;
   ws.onmessage=e=>on(JSON.parse(e.data));
-  ws.onclose=()=>{window.NET_ON=false;toast(lang==='ru'?'Нет связи с сервером, переподключаюсь…':'Connection lost, reconnecting…','bad');setTimeout(()=>connect(),2000)};
+  ws.onclose=e=>{window.NET_ON=false;
+    // 1012: planned server update. The round has already finished; the new server takes over in a moment.
+    if(e.code===1012){toast(lang==='ru'?'Обновление сервера, раунд доигран. Подключаюсь…':'Server update, round finished. Reconnecting…');setTimeout(()=>connect(),700)}
+    else if(e.code===4001){toast(lang==='ru'?'Сессия истекла, вхожу заново…':'Session expired, signing in again…');login().then(connect).catch(()=>setTimeout(()=>connect(),3000))}
+    else{toast(lang==='ru'?'Нет связи с сервером, переподключаюсь…':'Connection lost, reconnecting…','bad');setTimeout(()=>connect(),2000)}};
 }
 function botFrom(b){return{uid:b.uid,n:clean(b.name),bet:b.amount,target:Infinity,out:b.cashX100?b.cashX100/100:(b.x||0)}}
 
 function on(m){const now=performance.now();
   if(m.t==='ok'||m.t==='err'){const w=NET.wait.get(m.id);if(w){NET.wait.delete(m.id);m.t==='ok'?w.res(m):w.rej(new Error(m.error))}return}
+  if(m.t==='hello'&&m.phase==='waiting'){ // a fresh server waits for the previous one to finish its round
+    NET.offset=m.serverNow-Date.now();window.NET_ON=true;S.bal=m.balance;S.pend=0;S.bots=[];S.bet=null;S.phase='crash';S.crash=1;S.m=1;S.t0=now;renderPlayers();
+    toast(lang==='ru'?'Сервер обновляется, следующий раунд через пару секунд':'Server is updating, next round in a few seconds');return}
   if(m.t==='hello'){
     NET.offset=m.serverNow-Date.now();window.NET_ON=true;S.bal=m.balance;S.pend=0;
     S.hist=m.history.map(h=>h.crash);renderHist();

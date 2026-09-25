@@ -4,14 +4,20 @@
  *
  * Storage: Postgres when DATABASE_URL is set (the dev JSON file, if present, is imported once into an empty
  * database), otherwise the JSON file for local development.
+ *
+ * Deploys without broken rounds: the new server starts serving right away but only runs rounds after it takes
+ * the leader lock; the old one, on SIGTERM, opens no new round, lets the current one finish, then exits and
+ * releases the lock. Players reconnect by themselves.
  */
 import { config } from './config.js';
 import { FileStore, type Store } from './store/store.js';
 import { PgStore } from './store/pg.js';
 import { Wallet } from './wallet/wallet.js';
 import { Engine } from './game/engine.js';
-import { createApi } from './http.js';
+import { createApi, type EngineRef } from './http.js';
 import { attachWs } from './ws.js';
+
+const DRAIN_MAX_MS = Number(process.env.DRAIN_MAX_MS ?? 150_000);
 
 async function openStore(): Promise<Store> {
   const url = process.env.DATABASE_URL;
@@ -25,24 +31,34 @@ async function openStore(): Promise<Store> {
 
 const store = await openStore();
 const wallet = new Wallet(store);
+const ref: EngineRef = { engine: null };
+const api = createApi({ cfg: config, store, wallet, ref });
+const ws = attachWs(api, config, wallet);
+let loop: NodeJS.Timeout | undefined;
+
+api.listen(config.port, () => console.log(`crash-rocket server on :${config.port} · edge ${config.edgeBps / 100}% · ${config.devAuth ? 'DEV logins enabled' : 'Telegram logins only'}`));
+
+if (store instanceof PgStore) await store.becomeLeader(() => console.log('waiting for the previous server to finish its round…'));
 const engine = await Engine.create(config, store, wallet);
-const api = createApi({ cfg: config, store, wallet, engine });
-attachWs(api, config, engine, wallet);
-
+ref.engine = engine;
+ws.setEngine(engine);
 await engine.start(Date.now());
-const loop = setInterval(() => engine.step(Date.now()), 20);
+loop = setInterval(() => engine.step(Date.now()), 20);
+console.log(`running rounds · fairness commitment: ${engine.commitment}`);
 
-api.listen(config.port, () => {
-  console.log(`crash-rocket server on :${config.port} · edge ${config.edgeBps / 100}% · ${config.devAuth ? 'DEV logins enabled' : 'Telegram logins only'}`);
-  console.log(`fairness commitment: ${engine.commitment}`);
-});
-
-async function shutdown() {
-  clearInterval(loop);
+let stopping = false;
+async function shutdown(signal: string) {
+  if (stopping) return;
+  stopping = true;
+  console.log(`${signal}: finishing the current round before stopping…`);
+  const t0 = Date.now();
+  await Promise.race([engine.drain(), new Promise((r) => setTimeout(r, DRAIN_MAX_MS))]);
+  if (loop) clearInterval(loop);
+  console.log(`round finished in ${Math.round((Date.now() - t0) / 1000)} s, handing over`);
+  ws.closeAll(1012, 'server update');
   api.close();
-  await engine.settled();
-  await store.close();
+  await store.close(); // releases the leader lock
   process.exit(0);
 }
-process.on('SIGINT', () => void shutdown());
-process.on('SIGTERM', () => void shutdown());
+process.on('SIGINT', () => void shutdown('SIGINT'));
+process.on('SIGTERM', () => void shutdown('SIGTERM'));

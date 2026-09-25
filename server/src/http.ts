@@ -8,7 +8,9 @@ import type { Engine } from './game/engine.js';
 import { AuthError, validateInitData } from './auth/telegram.js';
 import { signSession, verifySession, type Session } from './auth/session.js';
 
-type Ctx = { cfg: Config; store: Store; wallet: Wallet; engine: Engine };
+/** The engine appears once this server holds the leader lock (see main.ts). */
+export type EngineRef = { engine: Engine | null };
+type Ctx = { cfg: Config; store: Store; wallet: Wallet; ref: EngineRef };
 
 const MAX_BODY = 64 * 1024;
 function readJson(req: IncomingMessage): Promise<Record<string, unknown>> {
@@ -30,7 +32,7 @@ export function sessionFrom(req: IncomingMessage, cfg: Config): Session | null {
   return verifySession(h?.startsWith('Bearer ') ? h.slice(7) : null, cfg.sessionSecret);
 }
 
-export function createApi({ cfg, store, wallet, engine }: Ctx) {
+export function createApi({ cfg, store, wallet, ref }: Ctx) {
   return createServer(async (req, res) => {
     const origin = req.headers.origin;
     if (origin && cfg.corsOrigins.includes(origin)) {
@@ -42,7 +44,9 @@ export function createApi({ cfg, store, wallet, engine }: Ctx) {
     if (req.method === 'OPTIONS') { res.writeHead(204).end(); return; }
     const url = new URL(req.url ?? '/', 'http://x');
     try {
-      if (url.pathname === '/health') return send(res, 200, { ok: true, round: engine.no, phase: engine.phase });
+      const engine = ref.engine;
+      // healthy as soon as it serves; `leader` tells whether it already runs rounds
+      if (url.pathname === '/health') return send(res, 200, { ok: true, leader: !!engine, round: engine?.no, phase: engine?.phase, draining: engine?.isDraining ?? false });
 
       if (url.pathname === '/api/auth' && req.method === 'POST') {
         const body = await readJson(req);
@@ -65,6 +69,7 @@ export function createApi({ cfg, store, wallet, engine }: Ctx) {
       }
 
       if (url.pathname === '/api/fair') {
+        if (!engine) return send(res, 503, { error: 'starting' });
         return send(res, 200, { commitment: engine.commitment, salt: cfg.fairSalt, edgeBps: cfg.edgeBps,
           formula: 'h = first 52 bits of HMAC-SHA256(key = salt, message = round hash); crash = max(1.00, floor((10000 - edgeBps) * 2^52 / (100 * (2^52 - h))) / 100); sha256 applied n times to the hash of round n gives the commitment' });
       }

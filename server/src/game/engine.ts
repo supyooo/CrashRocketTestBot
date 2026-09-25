@@ -34,6 +34,7 @@ export class Engine extends EventEmitter {
   private chain: string[] = [];
   private betSeq = 0;
   private opening = false;
+  private draining?: () => void;
   private pending = new Set<string>();
   /** Writes about the round (open bets, finished round) go out one after another, in order. */
   private writes: Promise<void> = Promise.resolve();
@@ -77,7 +78,7 @@ export class Engine extends EventEmitter {
         if (exitX <= this.crashX100 && msTo(exitX) <= elapsed) void this.settle(b, exitX).catch((err) => console.error('auto cash-out failed', err));
       }
       if (elapsed >= msTo(this.crashX100)) this.crash(now);
-    } else if (this.phase === 'crashed' && now >= this.phaseAt + this.cfg.crashedMs) void this.openBetting(now);
+    } else if (this.phase === 'crashed' && now >= this.phaseAt + this.cfg.crashedMs && !this.draining) void this.openBetting(now);
   }
 
   /** Current multiplier while running, else 1.00x. */
@@ -86,8 +87,23 @@ export class Engine extends EventEmitter {
   /** All pending writes about rounds are saved. */
   settled() { return this.writes; }
 
+  /**
+   * Graceful stop for deploys: no new round opens; the round in progress (betting or flying) plays out to
+   * its crash as usual, then this resolves once everything about it is saved. Players never lose a round
+   * to a restart.
+   */
+  drain(): Promise<void> {
+    return new Promise((resolve) => {
+      const done = () => { void this.writes.then(() => resolve()); };
+      if (this.phase === 'crashed' && !this.opening) return done();
+      this.draining = done;
+    });
+  }
+  get isDraining() { return !!this.draining; }
+
   async placeBet(uid: string, name: string, amount: number, autoX100?: number): Promise<number> {
     if (this.phase !== 'betting' || this.opening) throw new GameError('bets are closed');
+    if (this.draining) throw new GameError('the server is restarting, bet in the next round in a few seconds');
     if (this.bets.has(uid) || this.pending.has(uid)) throw new GameError('you already have a bet in this round');
     if (!Number.isSafeInteger(amount) || amount < this.cfg.minBet || amount > this.cfg.maxBet) throw new GameError('bet amount is out of limits');
     if (autoX100 !== undefined && (!Number.isInteger(autoX100) || autoX100 < 101 || autoX100 > this.cfg.maxAutoX100)) throw new GameError('auto cash-out must be between 1.01x and 1000x');
@@ -185,6 +201,7 @@ export class Engine extends EventEmitter {
       bets: [...this.bets.values()].map((b) => ({ uid: b.uid, name: b.name, amount: b.amount, cashX100: b.cashX100, payout: b.payout })) };
     this.write(async () => { await this.store.addRound(round); await this.store.setOpenRound(undefined); });
     this.emit('crash', { no: this.no, crashX100: this.crashX100, hash: this.hash });
+    if (this.draining) this.draining();
   }
 
   private saveOpen() {

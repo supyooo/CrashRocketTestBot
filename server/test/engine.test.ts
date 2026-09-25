@@ -18,14 +18,17 @@ import { startPg } from './pg-helper.js';
 
 let pgUrl = '', stopPg: () => Promise<void> = async () => {};
 before(async () => { const p = await startPg(); pgUrl = p.url; stopPg = p.stop; });
-after(async () => { await stopPg(); });
+const opened: Store[] = [];
+after(async () => { for (const st of opened) await st.close().catch(() => {}); await stopPg(); });
 
 let dbN = 0;
 async function freshPg(): Promise<PgStore> {
   // each test gets its own database so tests cannot see each other's money
   const name = 'crash_t' + ++dbN;
   const admin = new pg.Client(pgUrl); await admin.connect(); await admin.query(`CREATE DATABASE ${name}`); await admin.end();
-  return PgStore.open(pgUrl.replace(/\/crash$/, '/' + name));
+  const st = await PgStore.open(pgUrl.replace(/\/crash$/, '/' + name));
+  opened.push(st);
+  return st;
 }
 async function freshFile(): Promise<{ store: FileStore; file: string }> {
   const file = join(mkdtempSync(join(tmpdir(), 'cr-')), 'db.json');
@@ -34,6 +37,8 @@ async function freshFile(): Promise<{ store: FileStore; file: string }> {
 const cfgWith = (over: Partial<typeof config> = {}) => ({ ...config, chainLength: 2000, ...over });
 const crashOf = (e: Engine) => (e as unknown as { crashX100: number }).crashX100;
 const tick = () => new Promise((r) => setImmediate(r));
+/** Opening a round writes to the database first; wait for it instead of assuming it is instant. */
+async function untilBetting(e: Engine) { for (let i = 0; i < 500 && e.phase !== 'betting'; i++) await new Promise((r) => setTimeout(r, 5)); }
 /** Money can only belong to an existing user (Postgres enforces it), so create the user first. */
 async function grantU(store: Store, wallet: Wallet, uid: string, amount: number, ref: string) {
   if (!(await store.getUser(uid))) await store.putUser({ id: uid, name: uid, createdAt: Date.now() });
@@ -95,7 +100,7 @@ for (const kind of ['file', 'postgres'] as const) {
       t = await fly(engine, t);
       if (c >= 150) { assert.equal(await wallet.balance('u1'), before - toUnits(2) + toUnits(3)); return; }
       assert.equal(await wallet.balance('u1'), before - toUnits(2));
-      t += cfg.crashedMs; engine.step(t); await engine.settled(); await tick(); await tick();
+      t += cfg.crashedMs; engine.step(t); await engine.settled(); await untilBetting(engine);
     }
     assert.fail('no round reached 1.50x');
   });
@@ -111,7 +116,7 @@ for (const kind of ['file', 'postgres'] as const) {
       const c = crashOf(engine);
       t = await fly(engine, t);
       if (c >= 300) { assert.equal(await wallet.balance('u1'), before - toUnits(1) + toUnits(3)); return; }
-      t += cfg.crashedMs; engine.step(t); await engine.settled(); await tick(); await tick();
+      t += cfg.crashedMs; engine.step(t); await engine.settled(); await untilBetting(engine);
     }
     assert.fail('no round reached 3.00x');
   });
@@ -152,6 +157,37 @@ for (const kind of ['file', 'postgres'] as const) {
     assert.equal(await wallet.balance('u1'), toUnits(10));
     assert.ok((await store.fair())!.nextNo >= 2);
     void engine2;
+  });
+
+  test(`[${kind}] stopping mid-flight lets the round finish and opens no new one`, async () => {
+    const { engine, wallet, cfg, store } = await setup();
+    await grantU(store, wallet, 'u1', toUnits(10), 'g');
+    let t = 0; await engine.start(t);
+    await engine.placeBet('u1', 'Ann', toUnits(2));
+    t += cfg.bettingMs; engine.step(t);
+    let drained = false; const d = engine.drain().then(() => { drained = true; });
+    await tick(); assert.equal(drained, false);           // still flying
+    t = await fly(engine, t); await d;
+    assert.equal(drained, true);
+    engine.step(t + cfg.crashedMs + 1); await tick();
+    assert.equal(engine.phase, 'crashed');                  // no new round after the drain
+    assert.equal(await store.openRound(), undefined);       // nothing left to refund on the next start
+    assert.equal((await store.rounds(1))[0]!.bets[0]!.uid, 'u1');
+  });
+
+  test(`[${kind}] stopping during betting plays that round and refuses new bets`, async () => {
+    const { engine, wallet, cfg, store } = await setup();
+    await grantU(store, wallet, 'u1', toUnits(10), 'g');
+    await grantU(store, wallet, 'u2', toUnits(10), 'g2');
+    let t = 0; await engine.start(t);
+    await engine.placeBet('u1', 'Ann', toUnits(1));
+    const d = engine.drain();
+    await assert.rejects(engine.placeBet('u2', 'Bob', toUnits(1)), /restarting/);
+    t += cfg.bettingMs; engine.step(t);
+    assert.equal(engine.phase, 'running');
+    await fly(engine, t); await d;
+    assert.equal(engine.phase, 'crashed');
+    assert.equal(await wallet.balance('u2'), toUnits(10));
   });
 
   test(`[${kind}] finished rounds are stored with their players`, async () => {
@@ -200,6 +236,20 @@ test('[postgres] dev file data is imported once into an empty database', async (
   assert.equal((await pgStore.fair())!.nextNo, 3);
   assert.equal(await pgStore.importSnapshot(snap), false); // never twice
   await pgStore.close();
+});
+
+test('[postgres] only one server holds the leader lock at a time', async () => {
+  const a = await freshPg();
+  const url = (a as unknown as { pool: { options: { connectionString: string } } }).pool.options.connectionString;
+  const b = await PgStore.open(url); opened.push(b);
+  await a.becomeLeader(() => {});
+  let waited = false, bLeads = false;
+  const bTurn = b.becomeLeader(() => { waited = true; }, 50).then(() => { bLeads = true; });
+  await new Promise((r) => setTimeout(r, 300));
+  assert.equal(waited, true); assert.equal(bLeads, false);
+  await a.close();                        // the old server exits
+  await bTurn; assert.equal(bLeads, true);
+  await b.close();
 });
 
 test('game errors are GameError instances', () => { assert.ok(new GameError('x') instanceof Error); });
