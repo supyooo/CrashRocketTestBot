@@ -16,12 +16,12 @@
     "node": ">=18.18"
   },
   "dependencies": {
+    "tsx": "^4.23.15",
     "ws": "^8.21.3"
   },
   "devDependencies": {
     "@types/node": "^18.19.130",
     "@types/ws": "^8.18.1",
-    "tsx": "^4.23.15",
     "typescript": "^5.9.3"
   }
 }
