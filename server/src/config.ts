@@ -13,7 +13,7 @@ export const config = {
   /** Telegram bot token. Without it the server runs in dev mode and accepts dev logins. */
   botToken: env.BOT_TOKEN ?? '',
   /** Signs session tokens. Must be set in production, otherwise sessions die on every restart. */
-  sessionSecret: env.SESSION_SECRET ?? randomBytes(32).toString('hex'),
+  sessionSecret: env.SESSION_SECRET || randomBytes(32).toString('hex'),
   devAuth: env.DEV_AUTH === '1' || !env.BOT_TOKEN,
   /** Allowed browser origins for the API. */
   corsOrigins: (env.CORS_ORIGINS ?? 'https://supyooo.github.io,http://localhost:5173,http://127.0.0.1:5173').split(','),
@@ -37,3 +37,8 @@ export const config = {
   maxAutoX100: 100_000
 };
 export type Config = typeof config;
+
+// With real Telegram logins a weak or missing secret would let anyone forge sessions: refuse to start.
+if (config.botToken && (env.SESSION_SECRET ?? '').length < 32) {
+  throw new Error('SESSION_SECRET must be set to a random string of at least 32 characters when BOT_TOKEN is set');
+}
