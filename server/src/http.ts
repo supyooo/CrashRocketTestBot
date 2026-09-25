@@ -55,13 +55,13 @@ export function createApi({ cfg, store, wallet, engine }: Ctx) {
         } else if (cfg.devAuth && typeof body.dev === 'string' && /^[\w-]{1,24}$/.test(body.dev)) {
           uid = 'dev:' + body.dev.toLowerCase(); name = body.dev;
         } else return send(res, 401, { error: 'sign in through Telegram' });
-        let user = store.getUser(uid);
+        let user = await store.getUser(uid);
         if (!user) {
           user = { id: uid, name, createdAt: Date.now(), ...extra };
-          store.putUser(user);
-          wallet.grant(uid, cfg.startBalance, 'grant:start:' + uid);
-        } else if (user.name !== name) store.putUser({ ...user, name });
-        return send(res, 200, { token: signSession({ uid, name }, cfg.sessionSecret), user: { id: uid, name }, balance: fromUnits(wallet.balance(uid)) });
+          await store.putUser(user);
+          await wallet.grant(uid, cfg.startBalance, 'grant:start:' + uid);
+        } else if (user.name !== name) await store.putUser({ ...user, name });
+        return send(res, 200, { token: signSession({ uid, name }, cfg.sessionSecret), user: { id: uid, name }, balance: fromUnits(await wallet.balance(uid)) });
       }
 
       if (url.pathname === '/api/fair') {
@@ -71,24 +71,24 @@ export function createApi({ cfg, store, wallet, engine }: Ctx) {
 
       if (url.pathname === '/api/rounds') {
         const limit = Math.min(100, Number(url.searchParams.get('limit') ?? 20) || 20);
-        return send(res, 200, store.rounds(limit).map((r) => ({ no: r.no, crash: r.crashX100 / 100, hash: r.hash, startedAt: r.startedAt, players: r.bets.length })));
+        return send(res, 200, (await store.rounds(limit)).map((r) => ({ no: r.no, crash: r.crashX100 / 100, hash: r.hash, startedAt: r.startedAt, players: r.bets.length })));
       }
 
       const s = sessionFrom(req, cfg);
       if (!s) return send(res, 401, { error: 'not signed in' });
 
       if (url.pathname === '/api/me') {
-        return send(res, 200, { user: { id: s.uid, name: s.name }, balance: fromUnits(wallet.balance(s.uid)),
-          ledger: store.ledgerOf(s.uid, 20).map((e) => ({ kind: e.kind, delta: fromUnits(e.delta), balance: fromUnits(e.balance), at: e.at })) });
+        return send(res, 200, { user: { id: s.uid, name: s.name }, balance: fromUnits(await wallet.balance(s.uid)),
+          ledger: (await store.ledgerOf(s.uid, 20)).map((e) => ({ kind: e.kind, delta: fromUnits(e.delta), balance: fromUnits(e.balance), at: e.at })) });
       }
 
       // play money only: a free top-up when the balance runs dry, three times a day
       if (url.pathname === '/api/refill' && req.method === 'POST') {
-        if (wallet.balance(s.uid) >= cfg.minBet * 10) return send(res, 400, { error: 'you still have play money' });
+        if ((await wallet.balance(s.uid)) >= cfg.minBet * 10) return send(res, 400, { error: 'you still have play money' });
         const day = dayKey();
-        const used = store.ledgerOf(s.uid, 200).filter((e) => e.ref.startsWith(`refill:${s.uid}:${day}:`)).length;
+        const used = await store.countRefs(`refill:${s.uid}:${day}:`);
         if (used >= 3) return send(res, 429, { error: 'refill limit for today reached' });
-        const balance = wallet.grant(s.uid, cfg.startBalance, `refill:${s.uid}:${day}:${used + 1}`);
+        const balance = await wallet.grant(s.uid, cfg.startBalance, `refill:${s.uid}:${day}:${used + 1}`);
         return send(res, 200, { balance: fromUnits(balance) });
       }
 

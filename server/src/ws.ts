@@ -36,19 +36,20 @@ export function attachWs(server: Server, cfg: Config, engine: Engine, wallet: Wa
     toUser(e.uid!, { t: 'balance', balance: fromUnits(e.balance!) });
   });
 
-  wss.on('connection', (ws, req) => {
+  wss.on('connection', async (ws, req) => {
     const token = new URL(req.url ?? '', 'http://x').searchParams.get('token');
     const s = verifySession(token, cfg.sessionSecret);
     if (!s) { ws.close(4001, 'not signed in'); return; }
     const c = Object.assign(ws, { uid: s.uid, name: s.name, msgs: 0, alive: true }) as Client;
     clients.add(c);
+    const balance = await wallet.balance(s.uid);
     const snap = engine.snapshot(Date.now());
-    send(c, { t: 'hello', you: { uid: s.uid, name: s.name }, balance: fromUnits(wallet.balance(s.uid)), ...snap,
+    send(c, { t: 'hello', you: { uid: s.uid, name: s.name }, balance: fromUnits(balance), ...snap,
       bets: snap.bets.map((b) => ({ ...b, amount: fromUnits(b.amount), payout: b.payout === undefined ? undefined : fromUnits(b.payout) })),
       history: snap.history.map((h) => ({ no: h.no, crash: h.x100 / 100 })) });
     c.on('pong', () => { c.alive = true; });
     c.on('close', () => clients.delete(c));
-    c.on('message', (raw) => {
+    c.on('message', async (raw) => {
       if (++c.msgs > 30) { c.close(4008, 'too many messages'); return; }
       let m: { t?: string; id?: number; amount?: number; auto?: number };
       try { m = JSON.parse(String(raw)); } catch { return; }
@@ -57,10 +58,10 @@ export function attachWs(server: Server, cfg: Config, engine: Engine, wallet: Wa
         if (m.t === 'bet') {
           if (typeof m.amount !== 'number') throw new GameError('amount is required');
           const auto = typeof m.auto === 'number' ? Math.round(m.auto * 100) : undefined;
-          const bal = engine.placeBet(c.uid, c.name, toUnits(m.amount), auto);
+          const bal = await engine.placeBet(c.uid, c.name, toUnits(m.amount), auto);
           reply(true, { balance: fromUnits(bal) });
-        } else if (m.t === 'cancel') reply(true, { balance: fromUnits(engine.cancelBet(c.uid)) });
-        else if (m.t === 'cashout') { const r = engine.cashout(c.uid, Date.now()); reply(true, { x: r.x100 / 100, payout: fromUnits(r.payout), balance: fromUnits(r.balance) }); }
+        } else if (m.t === 'cancel') reply(true, { balance: fromUnits(await engine.cancelBet(c.uid)) });
+        else if (m.t === 'cashout') { const r = await engine.cashout(c.uid, Date.now()); reply(true, { x: r.x100 / 100, payout: fromUnits(r.payout), balance: fromUnits(r.balance) }); }
         else if (m.t === 'ping') send(c, { t: 'pong', id: m.id, serverNow: Date.now() });
       } catch (err) {
         if (err instanceof GameError || err instanceof InsufficientFunds) reply(false, { error: err.message });

@@ -18,7 +18,10 @@ npm run dev          # http://localhost:8787, dev logins enabled when BOT_TOKEN 
 npm test             # fairness, engine, auth
 npm run smoke        # two dev players play a real round against the running server
 npm run sim          # maths simulator (npm run sim -- --runs=100 --maxwin=10000)
+npm run devdb        # local Postgres without Docker, then DATABASE_URL=postgres://postgres:dev@127.0.0.1:54320/crash npm run dev
 ```
+
+Tests run every game scenario against both stores, including a real embedded Postgres (race and idempotency checks).
 
 Open the game against it: `http://localhost:5173/app/?server=http://localhost:8787&dev=alice` (serve the repo root on port 5173).
 Without `?server=` the game runs its offline demo rounds.
@@ -35,7 +38,8 @@ Without `?server=` the game runs its offline demo rounds.
 | `HOUSE_EDGE_BPS` | 300 | House edge, basis points (300 = 3%) |
 | `FAIR_SALT` | dev salt | Public salt; in production a future block hash announced in advance |
 | `MAX_BET` / `MAX_WIN` | 1000 / 10000 | Limits in play TON |
-| `DATA_FILE` | data/dev-db.json | Dev storage file (Postgres schema: `sql/001_init.sql`) |
+| `DATABASE_URL` | — | Postgres connection. When set, data lives in Postgres; the schema is applied on start and an existing `DATA_FILE` is imported once into an empty database |
+| `DATA_FILE` | data/dev-db.json | Dev storage file used without `DATABASE_URL` |
 
 ## API
 
@@ -67,5 +71,5 @@ crash = max(1.00, floor((10000 - edgeBps) * 2^52 / (100 * (2^52 - h))) / 100)
 
 ## What is not here yet
 
-Postgres store (schema ready), Telegram bot process, moving coins/skins/quests from the device to the server,
+Telegram bot process, moving coins/skins/quests from the device to the server,
 real online counter, deposits and withdrawals (last stage, after the legal review).

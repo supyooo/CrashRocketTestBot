@@ -9,6 +9,7 @@
     "start": "tsx src/main.ts",
     "sim": "tsx src/tools/sim.ts",
     "smoke": "tsx src/tools/smoke.ts",
+    "devdb": "tsx src/tools/devdb.ts",
     "test": "tsx --test test/fair.test.ts test/engine.test.ts test/auth.test.ts",
     "typecheck": "tsc --noEmit"
   },
@@ -16,12 +17,15 @@
     "node": ">=18.18"
   },
   "dependencies": {
+    "pg": "^8.23.0",
     "tsx": "^4.23.15",
     "ws": "^8.21.3"
   },
   "devDependencies": {
     "@types/node": "^18.19.130",
+    "@types/pg": "^8.23.1",
     "@types/ws": "^8.18.1",
+    "embedded-postgres": "^18.4.0-beta.17",
     "typescript": "^5.9.3"
   }
 }

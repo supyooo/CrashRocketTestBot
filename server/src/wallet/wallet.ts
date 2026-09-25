@@ -6,20 +6,20 @@ export class Wallet {
 
   balance(uid: string) { return this.store.balance(uid); }
 
-  grant(uid: string, amount: number, ref: string) {
-    return this.store.applyLedger([{ uid, delta: amount, kind: 'grant', ref }])[0]!.balance;
+  async grant(uid: string, amount: number, ref: string) {
+    return (await this.store.applyLedger([{ uid, delta: amount, kind: 'grant', ref }]))[0]!.balance;
   }
 
   /** Takes a stake; throws InsufficientFunds and changes nothing if the balance is too low. */
-  stake(uid: string, amount: number, ref: string) {
-    return this.store.applyLedger([{ uid, delta: -amount, kind: 'bet', ref }])[0]!.balance;
+  async stake(uid: string, amount: number, ref: string) {
+    return (await this.store.applyLedger([{ uid, delta: -amount, kind: 'bet', ref }]))[0]!.balance;
   }
 
-  pay(uid: string, amount: number, ref: string) {
-    return this.store.applyLedger([{ uid, delta: amount, kind: 'win', ref }])[0]!.balance;
+  async pay(uid: string, amount: number, ref: string) {
+    return (await this.store.applyLedger([{ uid, delta: amount, kind: 'win', ref }]))[0]!.balance;
   }
 
-  refund(uid: string, amount: number, ref: string) {
-    return this.store.applyLedger([{ uid, delta: amount, kind: 'refund', ref }])[0]!.balance;
+  async refund(uid: string, amount: number, ref: string) {
+    return (await this.store.applyLedger([{ uid, delta: amount, kind: 'refund', ref }]))[0]!.balance;
   }
 }

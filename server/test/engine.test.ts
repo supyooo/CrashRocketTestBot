@@ -1,141 +1,205 @@
-import { test } from 'node:test';
+/**
+ * The same game scenarios run against both stores: the dev JSON file and a real Postgres (embedded).
+ * Plus Postgres-only checks for races and the dev-data import.
+ */
+import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import pg from 'pg';
 import { config, toUnits } from '../src/config.js';
-import { FileStore, InsufficientFunds } from '../src/store/store.js';
+import { FileStore, InsufficientFunds, type Store } from '../src/store/store.js';
+import { PgStore } from '../src/store/pg.js';
 import { Wallet } from '../src/wallet/wallet.js';
 import { Engine, GameError } from '../src/game/engine.js';
 import { msTo } from '../src/game/curve.js';
+import { startPg } from './pg-helper.js';
 
-function setup(over: Partial<typeof config> = {}) {
+let pgUrl = '', stopPg: () => Promise<void> = async () => {};
+before(async () => { const p = await startPg(); pgUrl = p.url; stopPg = p.stop; });
+after(async () => { await stopPg(); });
+
+let dbN = 0;
+async function freshPg(): Promise<PgStore> {
+  // each test gets its own database so tests cannot see each other's money
+  const name = 'crash_t' + ++dbN;
+  const admin = new pg.Client(pgUrl); await admin.connect(); await admin.query(`CREATE DATABASE ${name}`); await admin.end();
+  return PgStore.open(pgUrl.replace(/\/crash$/, '/' + name));
+}
+async function freshFile(): Promise<{ store: FileStore; file: string }> {
   const file = join(mkdtempSync(join(tmpdir(), 'cr-')), 'db.json');
-  const cfg = { ...config, chainLength: 2000, ...over };
-  const store = new FileStore(file);
+  return { store: new FileStore(file), file };
+}
+const cfgWith = (over: Partial<typeof config> = {}) => ({ ...config, chainLength: 2000, ...over });
+const crashOf = (e: Engine) => (e as unknown as { crashX100: number }).crashX100;
+const tick = () => new Promise((r) => setImmediate(r));
+/** Money can only belong to an existing user (Postgres enforces it), so create the user first. */
+async function grantU(store: Store, wallet: Wallet, uid: string, amount: number, ref: string) {
+  if (!(await store.getUser(uid))) await store.putUser({ id: uid, name: uid, createdAt: Date.now() });
+  return wallet.grant(uid, amount, ref);
+}
+
+for (const kind of ['file', 'postgres'] as const) {
+  const open = async () => (kind === 'file' ? (await freshFile()).store : await freshPg());
+  async function setup(over: Partial<typeof config> = {}) {
+    const store: Store = await open();
+    const cfg = cfgWith(over);
+    const wallet = new Wallet(store);
+    const engine = await Engine.create(cfg, store, wallet);
+    return { cfg, store, wallet, engine };
+  }
+  /** Runs flights in 50 ms steps until the rocket is gone, letting async payouts finish. */
+  async function fly(engine: Engine, t: number) {
+    for (let k = 0; k < 4000 && engine.phase === 'running'; k++) { t += 50; engine.step(t); await tick(); }
+    await engine.settled();
+    return t;
+  }
+
+  test(`[${kind}] bet, cash out mid-flight, paid exactly once`, async () => {
+    const { engine, wallet, cfg, store } = await setup();
+    await grantU(store, wallet, 'u1', toUnits(10), 'grant:u1');
+    let t = 1_000; await engine.start(t);
+    await engine.placeBet('u1', 'Ann', toUnits(1));
+    assert.equal(await wallet.balance('u1'), toUnits(9));
+    t += cfg.bettingMs; engine.step(t);
+    assert.equal(engine.phase, 'running');
+    if (crashOf(engine) > 101) {
+      const res = await engine.cashout('u1', t + 5);
+      assert.equal(await wallet.balance('u1'), toUnits(9) + res.payout);
+      await assert.rejects(async () => engine.cashout('u1', t + 20), /already cashed out/);
+    }
+    await fly(engine, t);
+    assert.equal(engine.phase, 'crashed');
+  });
+
+  test(`[${kind}] cash-out at the crash moment is refused`, async () => {
+    const { engine, wallet, cfg, store } = await setup();
+    await grantU(store, wallet, 'u1', toUnits(100), 'g');
+    let t = 0; await engine.start(t);
+    await engine.placeBet('u1', 'Ann', toUnits(1));
+    t += cfg.bettingMs; engine.step(t);
+    const c = crashOf(engine);
+    assert.throws(() => engine.cashout('u1', t + msTo(c)), /too late/);
+  });
+
+  test(`[${kind}] auto cash-out settles at exactly its multiplier`, async () => {
+    const { engine, wallet, cfg, store } = await setup();
+    await grantU(store, wallet, 'u1', toUnits(1000), 'g');
+    let t = 0; await engine.start(t);
+    for (let i = 0; i < 200; i++) {
+      const before = await wallet.balance('u1');
+      await engine.placeBet('u1', 'Ann', toUnits(2), 150);
+      t += cfg.bettingMs; engine.step(t);
+      const c = crashOf(engine);
+      t = await fly(engine, t);
+      if (c >= 150) { assert.equal(await wallet.balance('u1'), before - toUnits(2) + toUnits(3)); return; }
+      assert.equal(await wallet.balance('u1'), before - toUnits(2));
+      t += cfg.crashedMs; engine.step(t); await engine.settled(); await tick(); await tick();
+    }
+    assert.fail('no round reached 1.50x');
+  });
+
+  test(`[${kind}] max win caps the payout and cashes out automatically`, async () => {
+    const { engine, wallet, cfg, store } = await setup({ maxWin: toUnits(3) });
+    await grantU(store, wallet, 'u1', toUnits(1000), 'g');
+    let t = 0; await engine.start(t);
+    for (let i = 0; i < 300; i++) {
+      const before = await wallet.balance('u1');
+      await engine.placeBet('u1', 'Ann', toUnits(1));
+      t += cfg.bettingMs; engine.step(t);
+      const c = crashOf(engine);
+      t = await fly(engine, t);
+      if (c >= 300) { assert.equal(await wallet.balance('u1'), before - toUnits(1) + toUnits(3)); return; }
+      t += cfg.crashedMs; engine.step(t); await engine.settled(); await tick(); await tick();
+    }
+    assert.fail('no round reached 3.00x');
+  });
+
+  test(`[${kind}] validation, cancel refunds, not enough money changes nothing`, async () => {
+    const { engine, wallet, store } = await setup();
+    await grantU(store, wallet, 'u1', toUnits(1), 'g');
+    await engine.start(0);
+    await assert.rejects(engine.placeBet('u1', 'Ann', toUnits(0.01)), /limits/);
+    await assert.rejects(engine.placeBet('u1', 'Ann', toUnits(5)), InsufficientFunds);
+    assert.equal(await wallet.balance('u1'), toUnits(1));
+    await engine.placeBet('u1', 'Ann', toUnits(1));
+    await assert.rejects(engine.placeBet('u1', 'Ann', toUnits(1)), /already/);
+    await engine.cancelBet('u1');
+    assert.equal(await wallet.balance('u1'), toUnits(1));
+    await engine.placeBet('u1', 'Ann', toUnits(1)); // charged again after a cancel, not skipped as a duplicate
+    assert.equal(await wallet.balance('u1'), 0);
+  });
+
+  test(`[${kind}] replaying a ledger ref never moves money twice`, async () => {
+    const { wallet, store } = await setup();
+    await grantU(store, wallet, 'u1', toUnits(5), 'same-ref');
+    await grantU(store, wallet, 'u1', toUnits(5), 'same-ref');
+    assert.equal(await wallet.balance('u1'), toUnits(5));
+  });
+
+  test(`[${kind}] a restart mid-round refunds stakes of the unfinished round`, async () => {
+    const store = await open();
+    const cfg = cfgWith();
+    const wallet = new Wallet(store);
+    const engine = await Engine.create(cfg, store, wallet);
+    await grantU(store, wallet, 'u1', toUnits(10), 'g');
+    await engine.start(0);
+    await engine.placeBet('u1', 'Ann', toUnits(4));
+    await engine.settled();
+    // "restart": a new engine on the same data
+    const engine2 = await Engine.create(cfg, store, new Wallet(store));
+    assert.equal(await wallet.balance('u1'), toUnits(10));
+    assert.ok((await store.fair())!.nextNo >= 2);
+    void engine2;
+  });
+
+  test(`[${kind}] finished rounds are stored with their players`, async () => {
+    const { engine, wallet, cfg, store } = await setup();
+    await grantU(store, wallet, 'u1', toUnits(10), 'g');
+    let t = 0; await engine.start(t);
+    await engine.placeBet('u1', 'Ann', toUnits(1));
+    t += cfg.bettingMs; engine.step(t);
+    await fly(engine, t);
+    const [r] = await store.rounds(1);
+    assert.equal(r!.no, 1);
+    assert.equal(r!.bets[0]!.uid, 'u1');
+    assert.equal(await store.openRound(), undefined);
+  });
+}
+
+test('[postgres] parallel stakes can never overdraw a balance', async () => {
+  const store = await freshPg();
   const wallet = new Wallet(store);
-  const engine = new Engine(cfg, store, wallet);
-  return { cfg, store, wallet, engine, file };
-}
-/** Plays rounds until one crashes at or above `min` (the chain is random per test). */
-function roundAtLeast(e: Engine, cfg: typeof config, min: number, t0: number) {
-  let t = t0;
-  e.start(t);
-  for (;;) {
-    // peek: run a throwaway round to learn its crash point from the emitted event
-    let crash = 0;
-    const onCrash = (c: { crashX100: number }) => { crash = c.crashX100; };
-    e.once('crash', onCrash);
-    t += cfg.bettingMs; e.step(t);
-    t += 1_000_000; e.step(t);
-    if (crash >= min) return { t, crash };
-    t += cfg.crashedMs; e.step(t);
-  }
-}
-
-test('bet, cash out mid-flight, balance is paid exactly once', () => {
-  const { engine, wallet, cfg } = setup();
-  wallet.grant('u1', toUnits(10), 'grant:u1');
-  let t = 1_000; engine.start(t);
-  engine.placeBet('u1', 'Ann', toUnits(1));
-  assert.equal(wallet.balance('u1'), toUnits(9));
-  t += cfg.bettingMs; engine.step(t);
-  assert.equal(engine.phase, 'running');
-  // cash out 10 ms after launch: always before any crash point > 1.00x can trigger; the multiplier is ~1.00x
-  const crashed = new Promise<number>((r) => engine.once('crash', (c) => r(c.crashX100)));
-  let res: { x100: number; payout: number } | undefined;
-  try { res = engine.cashout('u1', t + 10); } catch (err) { assert.ok(err instanceof GameError); }
-  if (res) {
-    assert.ok(res.x100 >= 100);
-    assert.equal(wallet.balance('u1'), toUnits(9) + res.payout);
-    assert.throws(() => engine.cashout('u1', t + 20), /already cashed out/);
-  }
-  engine.step(t + 10_000_000);
-  return crashed.then((x) => assert.ok(x >= 100));
+  await grantU(store, wallet, 'u1', toUnits(5), 'g');
+  const results = await Promise.allSettled(Array.from({ length: 20 }, (_, i) => wallet.stake('u1', toUnits(1), 'race:' + i)));
+  assert.equal(results.filter((r) => r.status === 'fulfilled').length, 5);
+  assert.equal(await wallet.balance('u1'), 0);
+  await store.close();
 });
 
-test('cash-out after the crash moment is refused', () => {
-  const { engine, wallet, cfg } = setup();
-  wallet.grant('u1', toUnits(100), 'g');
-  const { t } = roundAtLeast(engine, cfg, 100, 0);
-  let t2 = t + cfg.crashedMs; engine.step(t2); // new betting round
-  engine.placeBet('u1', 'Ann', toUnits(1));
-  t2 += cfg.bettingMs; engine.step(t2);
-  let crash = 0; engine.once('crash', (c) => { crash = c.crashX100; });
-  // ask exactly at the crash moment without stepping: must be too late
-  const peek = (engine as unknown as { crashX100: number }).crashX100;
-  assert.throws(() => engine.cashout('u1', t2 + msTo(peek)), /too late/);
-  engine.step(t2 + msTo(peek)); assert.equal(crash, peek);
+test('[postgres] the same ref sent in parallel is applied once', async () => {
+  const store = await freshPg();
+  const wallet = new Wallet(store);
+  await store.putUser({ id: 'u1', name: 'u1', createdAt: Date.now() });
+  await Promise.all(Array.from({ length: 10 }, () => wallet.grant('u1', toUnits(2), 'dup')));
+  assert.equal(await wallet.balance('u1'), toUnits(2));
+  await store.close();
 });
 
-test('auto cash-out settles at exactly its multiplier when the rocket passes it', () => {
-  const { engine, wallet, cfg } = setup();
-  wallet.grant('u1', toUnits(100), 'g');
-  // find a round that reaches 1.50x, then bet on the next ones until one of them does too
-  let t = 0; engine.start(t);
-  for (let i = 0; i < 200; i++) {
-    const before = wallet.balance('u1');
-    engine.placeBet('u1', 'Ann', toUnits(2), 150);
-    t += cfg.bettingMs; engine.step(t);
-    const peek = (engine as unknown as { crashX100: number }).crashX100;
-    for (let k = 0; k < 400 && engine.phase === 'running'; k++) { t += 50; engine.step(t); }
-    if (peek >= 150) { assert.equal(wallet.balance('u1'), before - toUnits(2) + toUnits(3)); return; }
-    assert.equal(wallet.balance('u1'), before - toUnits(2));
-    t += cfg.crashedMs; engine.step(t);
-  }
-  assert.fail('no round reached 1.50x in 200 tries');
+test('[postgres] dev file data is imported once into an empty database', async () => {
+  const { store: file, file: path } = await freshFile();
+  await file.putUser({ id: 'dev:ann', name: 'ann', createdAt: Date.now() });
+  await new Wallet(file).grant('dev:ann', toUnits(7), 'grant:start:dev:ann');
+  await file.setFair({ seed: 's', commitment: 'c', length: 10, nextNo: 3 });
+  await file.close();
+  const pgStore = await freshPg();
+  const snap = FileStore.read(path)!;
+  assert.equal(await pgStore.importSnapshot(snap), true);
+  assert.equal(await pgStore.balance('dev:ann'), toUnits(7));
+  assert.equal((await pgStore.fair())!.nextNo, 3);
+  assert.equal(await pgStore.importSnapshot(snap), false); // never twice
+  await pgStore.close();
 });
 
-test('max win caps the payout and cashes the bet out automatically', () => {
-  const { engine, wallet, cfg } = setup({ maxWin: toUnits(3) });
-  wallet.grant('u1', toUnits(100), 'g');
-  let t = 0; engine.start(t);
-  for (let i = 0; i < 300; i++) {
-    const before = wallet.balance('u1');
-    engine.placeBet('u1', 'Ann', toUnits(1));
-    t += cfg.bettingMs; engine.step(t);
-    const peek = (engine as unknown as { crashX100: number }).crashX100;
-    for (let k = 0; k < 1000 && engine.phase === 'running'; k++) { t += 50; engine.step(t); }
-    if (peek >= 300) { assert.equal(wallet.balance('u1'), before - toUnits(1) + toUnits(3)); return; }
-    t += cfg.crashedMs; engine.step(t);
-  }
-  assert.fail('no round reached 3.00x');
-});
-
-test('bets are validated and cancel refunds; not enough money changes nothing', () => {
-  const { engine, wallet } = setup();
-  wallet.grant('u1', toUnits(1), 'g');
-  engine.start(0);
-  assert.throws(() => engine.placeBet('u1', 'Ann', toUnits(0.01)), /limits/);
-  assert.throws(() => engine.placeBet('u1', 'Ann', toUnits(5)), InsufficientFunds);
-  assert.equal(wallet.balance('u1'), toUnits(1));
-  engine.placeBet('u1', 'Ann', toUnits(1));
-  assert.throws(() => engine.placeBet('u1', 'Ann', toUnits(1)), /already/);
-  engine.cancelBet('u1');
-  assert.equal(wallet.balance('u1'), toUnits(1));
-  // bet again in the same round after cancelling: charged again, not skipped by idempotency
-  engine.placeBet('u1', 'Ann', toUnits(1));
-  assert.equal(wallet.balance('u1'), 0);
-});
-
-test('replaying a ledger ref never moves money twice', () => {
-  const { wallet } = setup();
-  wallet.grant('u1', toUnits(5), 'same-ref');
-  wallet.grant('u1', toUnits(5), 'same-ref');
-  assert.equal(wallet.balance('u1'), toUnits(5));
-});
-
-test('a restart mid-round refunds stakes of the unfinished round', () => {
-  const s = setup();
-  s.wallet.grant('u1', toUnits(10), 'g');
-  s.engine.start(0);
-  s.engine.placeBet('u1', 'Ann', toUnits(4));
-  s.store.flush();
-  // "restart": new store and engine from the same file
-  const store2 = new FileStore(s.file);
-  const wallet2 = new Wallet(store2);
-  new Engine(s.cfg, store2, wallet2);
-  assert.equal(wallet2.balance('u1'), toUnits(10));
-  // and round numbers keep moving forward: no hash is ever reused
-  assert.ok(store2.fair()!.nextNo >= 2);
-});
+test('game errors are GameError instances', () => { assert.ok(new GameError('x') instanceof Error); });

@@ -208,7 +208,6 @@ html.tg .device>.app{border-radius:0}
         <div class="hist" id="hist"></div>
         <button class="plp" id="plBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><path d="M16 4.8a3.5 3.5 0 0 1 0 6.4M18 14.8c1.9.7 3 2.4 3.5 5.2"/></svg><span id="plN"></span><i></i><span id="plPool"></span></button>
         <div class="feed" id="feed"></div>
-        <div class="online"><i></i><span id="online"></span></div>
         <div class="hud"><div class="mult waiting" id="mult">1.00x</div><div class="sub" id="sub"></div><div class="zone" id="zone"><small id="zoneN"></small><b id="zoneT"></b></div></div>
         <div class="count" id="count"></div>
         <div class="bigwin" id="bigwin"></div>
@@ -564,7 +563,7 @@ function heat(m){let h=HEAT[0];for(const x of HEAT)if(m>=x[0])h=x;return h}
 
 function updateHud(ts){
   const el=(ts-S.t0)/1000;
-  set('bal','textContent',fmtTon(Math.max(0,S.bal-S.pend)));set('online','textContent',T('online')(S.online));
+  set('bal','textContent',fmtTon(Math.max(0,S.bal-S.pend)));
   if(S.phase==='wait'){set('mult','textContent','1.00x');set('mult','className','mult waiting');set('sub','textContent',T('startIn')(Math.max(0,WAIT-el).toFixed(1)));
     const left=Math.ceil(WAIT-el);if(left<=3&&left>=1&&left!==lastCount){lastCount=left;showCount(String(left));AU.beep()}}
   else{const mu=$('mult');set('mult','textContent',x2(S.m)+'x');
