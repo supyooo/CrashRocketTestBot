@@ -4,3 +4,4 @@ mockups/
 .claude/
 node_modules/
 .env*
+brand/out/

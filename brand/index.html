@@ -1,0 +1,360 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Crash Rocket Bot Kit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700;800&family=Unbounded:wght@600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+:root{color-scheme:dark;--page:#0d0820;--panel:#151130;--panel-2:#1d1840;--line:#2a2352;--ink:#efedf8;--ink-2:#9a95bb;
+  --green:#2bff88;--gold:#ffd23f;--pink:#ff3ea5;--cyan:#29e6ff;--red:#ff3b6b;--tg:#0e1621;--tg-2:#17212b;--tg-ink:#f5f5f5;--tg-2ink:#7f91a4;--tg-blue:#5288c1}
+*{box-sizing:border-box}
+html,body{height:auto}
+body{margin:0;background:var(--page);color:var(--ink);font:15px/1.55 'Golos Text',system-ui,sans-serif;padding-inline:16px}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible{outline:2px solid #fff;outline-offset:2px}
+.wrap{max-width:1080px;margin:0 auto;padding-block:40px 80px}
+header.top{display:flex;flex-wrap:wrap;align-items:flex-end;gap:16px 24px;padding-bottom:28px;border-bottom:1px solid var(--line)}
+h1{margin:0;font:900 clamp(28px,5vw,44px)/1.05 'Unbounded',sans-serif;letter-spacing:-.01em;flex:1 1 420px}
+h1 span{display:block;margin-top:10px;font:500 15px/1.5 'Golos Text',sans-serif;color:var(--ink-2);letter-spacing:0;max-width:60ch}
+.save{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.btn{height:44px;padding:0 18px;border-radius:12px;border:0;background:var(--gold);color:#1a1204;font-weight:800;box-shadow:0 4px 0 #b8901a}
+.btn:active{transform:translateY(2px);box-shadow:0 2px 0 #b8901a}
+.btn.ghost{background:var(--panel-2);color:var(--ink);box-shadow:0 4px 0 var(--line)}
+.save small{font-size:12px;color:var(--ink-2)}
+section{padding-block:40px;border-bottom:1px solid var(--line)}
+.sh{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 16px;margin-bottom:20px}
+h2{margin:0;font:800 22px/1.2 'Unbounded',sans-serif}
+.spec{font:500 12.5px 'JetBrains Mono',monospace;color:var(--ink-2)}
+.lead{margin:0 0 20px;color:var(--ink-2);max-width:68ch}
+.grid{display:grid;gap:16px}
+.g3{grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+.g2{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+.tile{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:14px;display:flex;flex-direction:column;gap:12px}
+.tile h3{margin:0;font-size:14px;font-weight:700;display:flex;justify-content:space-between;gap:8px}
+.tile h3 i{font-style:normal;font:500 11.5px 'JetBrains Mono',monospace;color:var(--ink-2)}
+canvas.art{display:block;width:100%;height:auto;border-radius:12px;background:#000}
+canvas.round{border-radius:50%}
+canvas.check{background:repeating-conic-gradient(#221c42 0 25%,#181335 0 50%) 0 0/20px 20px}
+.pick{display:inline-flex;align-self:flex-start;gap:6px;align-items:center;font-size:12px;font-weight:700;color:var(--gold)}
+/* telegram mocks */
+.tgrow{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:12px;background:var(--tg-2)}
+.tgrow img{width:54px;height:54px;border-radius:50%;flex:none}
+.tgrow b{display:block;font-size:14.5px;color:var(--tg-ink)}
+.tgrow span{font-size:13px;color:var(--tg-2ink)}
+.tgrow .tiny{width:28px;height:28px;margin-left:auto}
+.chat{background:var(--tg);border-radius:18px;overflow:hidden;display:flex;flex-direction:column;border:1px solid #1f2c3a}
+.chat .bar{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--tg-2)}
+.chat .bar img{width:36px;height:36px;border-radius:50%}
+.chat .bar b{font-size:14px;color:var(--tg-ink);display:block;line-height:1.2}
+.chat .bar span{font-size:12px;color:var(--tg-2ink)}
+.chat .body{padding:18px 14px;display:flex;justify-content:center}
+.chat .card{max-width:340px;width:100%;background:var(--tg-2);border-radius:14px;overflow:hidden}
+.chat .card canvas{display:block;width:100%;height:auto}
+.chat .card div{padding:10px 12px 12px;font-size:13.5px;color:var(--tg-ink);white-space:pre-line;line-height:1.45}
+.chat .card div b{display:block;margin-bottom:6px;font-size:14px}
+.chat .start{margin:0 14px 14px;height:40px;border-radius:10px;display:grid;place-items:center;background:var(--tg-2);color:var(--tg-blue);font-weight:700;font-size:13.5px;letter-spacing:.04em;text-transform:uppercase}
+.chat .menu{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--tg-2)}
+.chat .menu span{height:32px;padding:0 12px;border-radius:9px;background:var(--tg-blue);color:#fff;display:grid;place-items:center;font-weight:700;font-size:13px}
+.chat .menu i{flex:1;height:32px;border-radius:16px;background:var(--tg);display:flex;align-items:center;padding-left:12px;font-style:normal;color:var(--tg-2ink);font-size:13px}
+.load{aspect-ratio:9/16;max-height:420px;border-radius:18px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:#12092a;border:1px solid var(--line)}
+.load img{width:96px;height:96px}
+.load b{font:800 16px 'Unbounded',sans-serif;color:#fff}
+.load .dots{display:flex;gap:6px}.load .dots i{width:7px;height:7px;border-radius:50%;background:var(--gold);animation:dot 1s infinite}
+.load .dots i:nth-child(2){animation-delay:.15s}.load .dots i:nth-child(3){animation-delay:.3s}
+@keyframes dot{50%{opacity:.25}}
+.sw{display:flex;flex-direction:column;gap:8px}
+.sw div{display:flex;align-items:center;gap:10px;font:500 13px 'JetBrains Mono',monospace}
+.sw div i{width:28px;height:28px;border-radius:8px;border:1px solid var(--line)}
+.seg{display:inline-flex;padding:3px;border-radius:12px;background:var(--panel);border:1px solid var(--line)}
+.seg button{border:0;background:transparent;height:32px;padding:0 14px;border-radius:9px;font-weight:700;font-size:13px;color:var(--ink-2)}
+.seg button[aria-pressed="true"]{background:var(--panel-2);color:var(--ink)}
+.promos{grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+.promos canvas{border-radius:16px}
+/* texts */
+.txt{display:grid;gap:14px}
+.field{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.field header{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.field header b{font-size:13px;font-weight:700}
+.field header .spec{margin-left:auto}
+.field header .spec.over{color:var(--red)}
+.field pre{margin:0;white-space:pre-wrap;font:15px/1.5 'Golos Text',sans-serif;color:var(--ink)}
+.copy{height:28px;padding:0 10px;border-radius:8px;border:1px solid var(--line);background:var(--panel-2);font-size:12px;font-weight:700}
+.copy.ok{color:var(--green);border-color:var(--green)}
+ol.steps{margin:0;padding:0;list-style:none;display:grid;gap:10px;counter-reset:s}
+ol.steps li{counter-increment:s;display:grid;grid-template-columns:34px 1fr;gap:12px;align-items:start;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+ol.steps li::before{content:counter(s);width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:var(--panel-2);font:800 14px 'Unbounded',sans-serif;color:var(--gold)}
+ol.steps b{display:block;margin-bottom:2px}
+ol.steps code{font:500 12.5px 'JetBrains Mono',monospace;background:var(--panel-2);padding:2px 6px;border-radius:6px;color:var(--cyan)}
+ol.steps p{margin:0;color:var(--ink-2);font-size:14px}
+.note{margin-top:14px;font-size:13px;color:var(--ink-2)}
+[data-local]{display:none}
+.is-local [data-local]{display:flex}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <h1>Crash Rocket · оформление бота<span>Всё для профиля бота в Telegram: аватарка, приветствие, экран загрузки, превью и тексты. Картинки нарисованы той же графикой, что и в игре, в тех размерах, которые просит Telegram.</span></h1>
+    <div class="save" data-local>
+      <button class="btn" id="saveAll">Сохранить все PNG</button>
+      <small id="saveMsg">в папку brand/out</small>
+    </div>
+  </header>
+
+  <section>
+    <div class="sh"><h2>Аватарка</h2><span class="spec">640 × 640 PNG · показывается кругом</span></div>
+    <p class="lead">Три варианта. В списке чатов аватарка крошечная, поэтому ниже каждой показано, как она выглядит в реальном размере.</p>
+    <div class="grid g3" id="avatars"></div>
+  </section>
+
+  <section>
+    <div class="sh"><h2>Картинка приветствия</h2><span class="spec">640 × 360 · PNG или GIF</span></div>
+    <p class="lead">Её видит человек, который впервые открыл чат с ботом, вместе с описанием и кнопкой «Запустить». Есть статичная версия на русском и английском и анимированная.</p>
+    <div class="grid g2" id="welcome"></div>
+    <div class="grid g2" style="margin-top:16px">
+      <div class="tile"><h3>Анимированная версия <i>640 × 360 · GIF, 2,4 с по кругу</i></h3><canvas class="art" id="anim" width="640" height="360"></canvas>
+        <div data-local style="gap:10px;align-items:center"><button class="btn ghost" id="saveGif">Собрать GIF</button><small class="spec" id="gifMsg"></small></div></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sh"><h2>Экран загрузки</h2><span class="spec">иконка 512 × 512 PNG + SVG · цвета</span></div>
+    <p class="lead">Telegram показывает его, пока игра грузится. В настройках Mini App задаются иконка и цвета фона и текста.</p>
+    <div class="grid g3">
+      <div class="tile"><h3>Иконка <i>прозрачный фон</i></h3><canvas class="art check" id="icon" width="512" height="512"></canvas></div>
+      <div class="tile"><h3>Как это выглядит</h3><div class="load"><img id="iconImg" alt=""><b>Crash Rocket</b><div class="dots"><i></i><i></i><i></i></div></div></div>
+      <div class="tile"><h3>Цвета</h3><div class="sw">
+        <div><i style="background:#12092A"></i>#12092A · фон (тёмная и светлая тема)</div>
+        <div><i style="background:#FFD23F"></i>#FFD23F · текст и акцент</div>
+      </div><p class="note" style="margin:0">Для светлой темы Telegram тоже ставь тёмный фон, чтобы при запуске игры не мигал белый экран.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sh"><h2>Превью приложения</h2><span class="spec">1080 × 1920 PNG × 3</span>
+      <div class="seg" style="margin-left:auto"><button aria-pressed="true" data-plang="ru">RU</button><button aria-pressed="false" data-plang="en">EN</button></div></div>
+    <p class="lead">Скриншоты для профиля бота и каталога приложений Telegram. Они продают игру раньше, чем человек её запустит.</p>
+    <div class="grid promos" id="promos"></div>
+  </section>
+
+  <section>
+    <div class="sh"><h2>Тексты</h2><span class="spec">лимиты Telegram указаны справа</span></div>
+    <div class="txt" id="texts"></div>
+  </section>
+
+  <section style="border-bottom:0">
+    <div class="sh"><h2>Как загрузить в @BotFather</h2></div>
+    <ol class="steps">
+      <li><div><b>Имя, About, Description</b><p><code>/mybots</code> → бот → <code>Edit Bot</code> → <code>Edit Name</code>, <code>Edit About</code>, <code>Edit Description</code>. Тексты копируй кнопками выше, русская версия идёт по умолчанию.</p></div></li>
+      <li><div><b>Аватарка</b><p><code>Edit Bot</code> → <code>Edit Botpic</code> → отправь выбранную <code>avatar-*.png</code> как фото.</p></div></li>
+      <li><div><b>Картинка приветствия</b><p><code>Edit Bot</code> → <code>Edit Description Picture</code> → отправь <code>welcome-ru.png</code> как фото или <code>welcome.gif</code> как GIF.</p></div></li>
+      <li><div><b>Кнопка меню</b><p><code>Bot Settings</code> → <code>Menu Button</code> → ссылка на игру и текст <code>Играть</code>.</p></div></li>
+      <li><div><b>Экран загрузки и превью</b><p><code>Bot Settings</code> → <code>Configure Mini App</code>: там загрузка иконки (<code>loading-icon.png</code> или <code>.svg</code>), цвета и превью (<code>preview-*.png</code>).</p></div></li>
+      <li><div><b>Английская версия и команды</b><p>Английские описания и меню команд подключим вместе с бэкендом: это одна строка кода на каждый текст. Добавлять команды раньше нет смысла, бот пока на них не отвечает.</p></div></li>
+    </ol>
+    <p class="note">Названия пунктов в @BotFather иногда немного меняются, но разделы остаются теми же: <code>Edit Bot</code> для профиля и <code>Bot Settings</code> для Mini App.</p>
+  </section>
+</div>
+
+<script src="../app/art.js"></script>
+<script>
+/* =====================================================================
+   Shared pieces
+   ===================================================================== */
+const PAL=['#2bff88','#ffd23f','#ff3ea5','#29e6ff'];
+function scene(c,w,h,{t=1.2,m=3,gy=h*.78,sp=1,dt=0,bg='synth',inst}={}){
+  const b=inst||BGS[bg].make();if(!inst)b.resize(w,h);
+  b.draw(c,{w,h,sc:Math.min(w/360,h/300),dt,t,alt:0,dAlt:0,sp,I:.35,phase:'fly',m,moonM:m,rx:w*.6,ry:h*.5,tx:w*.5,ty:h*.55,gy});return b}
+function rider(c,{x,y,ang=-.72,s=1,char='bear',rocket='candle',mood=.6,t=1,power=1,trail=true,on=true,len=46}){
+  const R=ROCKETS[rocket],dx=Math.cos(ang),dy=Math.sin(ang);
+  if(trail){const tx=x+dx*R.tail*s,ty=y+dy*R.tail*s,cols=R.trail==='fire'?['#ffd23f','#ff6a1a','#ff9f1c','#fff2b0']:PAL;
+    c.save();c.globalCompositeOperation='lighter';
+    for(let i=0;i<len;i++){const d=(20+i*5.6)*s,wob=Math.sin(i*.45+t*6)*i*.22*s,px=tx-dx*d-dy*wob,py=ty-dy*d+dx*wob;
+      c.globalAlpha=(1-i/len)*.85;c.fillStyle=cols[i%cols.length];c.beginPath();c.arc(px,py,Math.max(1,(9.5-i*.16))*s,0,6.283);c.fill()}
+    c.restore()}
+  c.save();c.translate(x,y);c.rotate(ang);c.scale(s,s);drawFlame(c,R.trail,power,t,R.tail);R.draw(c);
+  if(on){c.save();c.translate(R.seat[0],R.seat[1]);c.rotate(-ang*.85);CHARS[char].draw(c,mood,t);c.restore()}c.restore()}
+function para(c,x,y,s,label,gold,t=0,char){c.save();c.translate(x,y);c.rotate(Math.sin(t*2+x)*.12);c.scale(s,s);
+  const cols=gold?['#ffe27a','#ff3ea5','#ffc21a','#ff3ea5','#ffe27a']:['#ff3ea5','#ffd23f','#2bff88','#29e6ff','#8a5cff'];
+  for(let i=0;i<5;i++){c.fillStyle=cols[i];c.beginPath();c.moveTo(0,0);c.arc(0,0,14,Math.PI+i*Math.PI/5,Math.PI+(i+1)*Math.PI/5);c.closePath();c.fill()}
+  c.strokeStyle='rgba(255,255,255,.6)';c.lineWidth=.7;c.beginPath();c.moveTo(-14,0);c.lineTo(-3,18);c.moveTo(14,0);c.lineTo(3,18);c.stroke();
+  if(char){c.save();c.translate(0,44);c.scale(.55,.55);CHARS[char].draw(c,1,t);c.restore()}else{c.fillStyle='#f4f1ff';c.beginPath();c.arc(0,20,3.2,0,6.283);c.fill();c.fillRect(-2,22,4,6)}
+  c.restore();
+  if(label){c.save();c.font=`800 ${Math.round(11*s)}px Unbounded,sans-serif`;c.textAlign='center';c.fillStyle=gold?'#ffd23f':'#fff';c.shadowColor='rgba(0,0,0,.8)';c.shadowBlur=6;c.fillText(label,x,y+(char?64:40)*s);c.restore()}}
+function glowText(c,txt,x,y,font,fill,glow,blur=18,align='left'){c.save();c.font=font;c.textAlign=align;c.textBaseline='alphabetic';c.fillStyle=fill;
+  if(glow){c.shadowColor=glow;c.shadowBlur=blur;c.fillText(txt,x,y);c.shadowBlur=blur*2.2;c.globalAlpha=.6;c.fillText(txt,x,y);c.globalAlpha=1}c.shadowBlur=0;c.fillText(txt,x,y);c.restore()}
+function fitFont(c,txt,weight,family,maxW,start){let s=start;c.font=`${weight} ${s}px ${family}`;while(c.measureText(txt).width>maxW&&s>10){s-=2;c.font=`${weight} ${s}px ${family}`}return s}
+function prep(cv,lw,lh){const c=cv.getContext('2d');const k=cv.width/lw;c.setTransform(k,0,0,k,0,0);c.clearRect(0,0,lw,lh);return c}
+
+/* =====================================================================
+   Avatars (logical 320 → 640 px)
+   ===================================================================== */
+const AVATARS=[
+ {id:'bear',name:'A · Медведь-маскот',draw(c){
+   const g=c.createRadialGradient(160,120,20,160,160,230);g.addColorStop(0,'#5b1269');g.addColorStop(.55,'#260a4d');g.addColorStop(1,'#0b0322');c.fillStyle=g;c.fillRect(0,0,320,320);
+   // striped sun
+   c.save();c.beginPath();for(let i=0;i<9;i++){const y0=40+i*18,hh=15-i*1.2;c.rect(40,y0,240,Math.max(1,hh))}c.clip();
+   const sg=c.createLinearGradient(0,40,0,200);sg.addColorStop(0,'#ffd23f');sg.addColorStop(1,'#ff3ea5');c.fillStyle=sg;c.beginPath();c.arc(160,200,120,Math.PI,0);c.fill();c.restore();
+   c.strokeStyle='rgba(255,62,165,.55)';c.lineWidth=1.4;for(let k=0;k<7;k++){const y=200+k*k*3.2+k*4;c.beginPath();c.moveTo(0,y);c.lineTo(320,y);c.stroke()}for(let i=-8;i<=8;i++){c.beginPath();c.moveTo(160+i*10,200);c.lineTo(160+i*70,330);c.stroke()}
+   c.save();c.translate(160,330);c.scale(6.1,6.1);drawBear(c,.15,0);c.restore();
+   ring(c,'#2bff88')}},
+ {id:'rocket',name:'B · Ракета-свеча',draw(c){
+   const g=c.createLinearGradient(0,0,0,320);g.addColorStop(0,'#0b0322');g.addColorStop(.6,'#2a0b52');g.addColorStop(1,'#5b1269');c.fillStyle=g;c.fillRect(0,0,320,320);
+   c.fillStyle='rgba(255,255,255,.7)';for(let i=0;i<40;i++){const x=(i*73)%320,y=(i*131)%220;c.fillRect(x,y,1.3,1.3)}
+   c.strokeStyle='rgba(255,62,165,.5)';c.lineWidth=1.2;for(let k=0;k<7;k++){const y=250+k*k*2+k*4;c.beginPath();c.moveTo(0,y);c.lineTo(320,y);c.stroke()}for(let i=-8;i<=8;i++){c.beginPath();c.moveTo(160+i*10,250);c.lineTo(160+i*60,330);c.stroke()}
+   rider(c,{x:178,y:150,ang:-.8,s:1.75,char:'bear',mood:.7,t:.4,power:1.1});
+   ring(c,'#ff3ea5')}},
+ {id:'chart',name:'C · График x100',draw(c){
+   c.fillStyle='#07090c';c.fillRect(0,0,320,320);const g=c.createRadialGradient(220,90,10,220,90,260);g.addColorStop(0,'rgba(43,255,136,.18)');g.addColorStop(1,'rgba(0,0,0,0)');c.fillStyle=g;c.fillRect(0,0,320,320);
+   c.strokeStyle='rgba(43,255,136,.08)';c.lineWidth=1;for(let i=0;i<=320;i+=32){c.beginPath();c.moveTo(i,0);c.lineTo(i,320);c.moveTo(0,i);c.lineTo(320,i);c.stroke()}
+   const pts=[];for(let i=0;i<=60;i++){const u=i/60;pts.push([62+u*150,248-(Math.exp(u*3.2)-1)/(Math.exp(3.2)-1)*140])}
+   c.beginPath();pts.forEach(([x,y],i)=>i?c.lineTo(x,y):c.moveTo(x,y));c.lineTo(212,280);c.lineTo(62,280);c.closePath();const ag=c.createLinearGradient(0,80,0,280);ag.addColorStop(0,'rgba(43,255,136,.35)');ag.addColorStop(1,'rgba(43,255,136,0)');c.fillStyle=ag;c.fill();
+   c.save();c.beginPath();pts.forEach(([x,y],i)=>i?c.lineTo(x,y):c.moveTo(x,y));c.strokeStyle='#2bff88';c.lineWidth=7;c.lineCap='round';c.lineJoin='round';c.shadowColor='#2bff88';c.shadowBlur=18;c.stroke();c.restore();
+   const a=Math.atan2(pts[60][1]-pts[55][1],pts[60][0]-pts[55][0]);rider(c,{x:pts[60][0]+Math.cos(a)*14,y:pts[60][1]+Math.sin(a)*14,ang:a,s:.7,on:false,trail:false,power:1});
+   glowText(c,'x100',160,238,'900 66px Unbounded,sans-serif','#ffd23f','rgba(255,210,63,.8)',14,'center');
+   ring(c,'#2bff88')}}
+];
+function ring(c,col){c.save();c.beginPath();c.arc(160,160,154,0,6.283);c.strokeStyle=col;c.lineWidth=4;c.shadowColor=col;c.shadowBlur=16;c.globalAlpha=.85;c.stroke();c.restore()}
+
+/* =====================================================================
+   Welcome picture (logical 640×360)
+   ===================================================================== */
+const COPY={
+ ru:{tag:'Забери до взрыва',mult:'12.45x',chute:'+124.50 TON'},
+ en:{tag:'Cash out before it blows',mult:'12.45x',chute:'+124.50 TON'}};
+function welcome(c,lang,t=1.2,inst,dt=0){
+  const b=scene(c,640,360,{t,m:12,gy:300,inst,dt,sp:1.04});
+  const vg=c.createLinearGradient(0,0,360,0);vg.addColorStop(0,'rgba(9,3,32,.78)');vg.addColorStop(1,'rgba(9,3,32,0)');c.fillStyle=vg;c.fillRect(0,0,380,360);
+  const bob=Math.sin(t*2*Math.PI/2.4)*4;
+  para(c,118,196+Math.sin(t*2.6)*3,1.15,'@whale_99 3.10x',false,t);para(c,238,236+Math.cos(t*2.2)*3,.95,'',false,t);
+  rider(c,{x:476,y:168+bob,ang:-.9+Math.sin(t*2*Math.PI/1.2)*.02,s:1.95,char:'bear',mood:.8,t,power:1.15,len:26});
+  glowText(c,'CRASH',30,74,'900 50px Unbounded,sans-serif','#fff','rgba(255,62,165,.85)',16);
+  glowText(c,'ROCKET',30,126,'900 50px Unbounded,sans-serif','#fff','rgba(255,62,165,.85)',16);
+  const tg=COPY[lang].tag;const fs=fitFont(c,tg,800,'Golos Text,sans-serif',300,24);glowText(c,tg,32,160,`800 ${fs}px Golos Text,sans-serif`,'#ffd23f','rgba(255,210,63,.5)',8);
+  const pulse=1+Math.sin(t*2*Math.PI/1.2)*.03;c.save();c.translate(30,322);c.scale(pulse,pulse);glowText(c,COPY[lang].mult,0,0,'900 58px Unbounded,sans-serif','#eafff3','rgba(43,255,136,.9)',18);c.restore();
+  return b}
+
+/* =====================================================================
+   Loading icon (512 px, transparent)
+   ===================================================================== */
+function loadingIcon(c){c.clearRect(0,0,256,256);
+  const g=c.createRadialGradient(128,128,10,128,128,120);g.addColorStop(0,'rgba(43,255,136,.22)');g.addColorStop(1,'rgba(43,255,136,0)');c.fillStyle=g;c.beginPath();c.arc(128,128,120,0,6.283);c.fill();
+  rider(c,{x:150,y:112,ang:-.8,s:1.3,on:false,power:1.1,t:.3,len:14})}
+const ICON_SVG=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><defs><linearGradient id="b" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7dffbe"/><stop offset=".5" stop-color="#16c865"/><stop offset="1" stop-color="#06793a"/></linearGradient><linearGradient id="f" x1="1" y1="0" x2="0" y2="0"><stop offset="0" stop-color="#fffbe6"/><stop offset=".35" stop-color="#ffd23f"/><stop offset=".75" stop-color="#ff3ea5"/><stop offset="1" stop-color="#29e6ff" stop-opacity="0"/></linearGradient></defs><g transform="translate(270 238) rotate(-45.8) scale(2.6)"><path d="M-57-9Q-110 0-57 9Z" fill="url(#f)"/><path d="M-46-12-63-28-30-12ZM-46 12-63 28-30 12Z" fill="#7b3cff"/><rect x="-57" y="-8" width="8" height="16" fill="#2a2f45"/><rect x="-50" y="-12" width="92" height="24" rx="6" fill="url(#b)"/><path d="M41-12Q58-6 66 0Q58 6 41 12Z" fill="#1eea78"/><path d="M66 0H78" stroke="#b9ffd9" stroke-width="1.6"/><rect x="-44" y="-8.5" width="78" height="3" rx="1.5" fill="#fff" fill-opacity=".35"/><path d="M-36 6-24 1-16 4-2-3 8 0 22-6" fill="none" stroke="#fff" stroke-opacity=".75" stroke-width="1.6"/></g></svg>`;
+
+/* =====================================================================
+   Promo previews (logical 360×640 → 1080×1920)
+   ===================================================================== */
+const PROMO={
+ ru:[['Забери','до взрыва','Ракета летит, множитель растёт. Жми «Забрать», пока не бахнуло.'],['Выбери','героя','Медведь, Бык или Кит на свече или ретро-шаттле.'],['Три мира','полёта','Синтвейв-закат, Луна и Биржа, где ракета рисует график.']],
+ en:[['Cash out','before it blows','The rocket climbs, the multiplier grows. Bail out before the boom.'],['Pick your','rider','Bear, Bull or Whale on a green candle or a retro shuttle.'],['Three','worlds','Synthwave sunset, the Moon and the Exchange, where the rocket draws the chart.']]};
+function promoHead(c,[a,b,sub]){
+  const g=c.createLinearGradient(0,0,0,640);g.addColorStop(0,'#0b0322');g.addColorStop(1,'#1a0838');c.fillStyle=g;c.fillRect(0,0,360,640);
+  let fs=fitFont(c,a,900,'Unbounded,sans-serif',310,40);glowText(c,a,26,70,`900 ${fs}px Unbounded,sans-serif`,'#fff','rgba(255,62,165,.7)',12);
+  fs=fitFont(c,b,900,'Unbounded,sans-serif',310,40);glowText(c,b,26,70+fs+6,`900 ${fs}px Unbounded,sans-serif`,'#ffd23f','rgba(255,210,63,.6)',12);
+  c.font='500 14px Golos Text,sans-serif';c.fillStyle='rgba(239,237,248,.75)';wrap(c,sub,26,150,300,20)}
+function wrap(c,txt,x,y,maxW,lh){const words=txt.split(' ');let line='';for(const w of words){const t=line?line+' '+w:w;if(c.measureText(t).width>maxW&&line){c.fillText(line,x,y);y+=lh;line=w}else line=t}if(line)c.fillText(line,x,y)}
+function phoneFrame(c,x,y,w,h,drawIn){c.save();rr(c,x-6,y-6,w+12,h+12,30);c.fillStyle='#1b1a22';c.fill();c.strokeStyle='#2c2a36';c.lineWidth=1.5;c.stroke();rr(c,x,y,w,h,24);c.clip();drawIn(c);c.restore()}
+function promo(c,lang,i){
+  promoHead(c,PROMO[lang][i]);
+  if(i===0){phoneFrame(c,34,196,292,420,c=>{c.save();c.translate(34,196);scene(c,292,420,{m:3.45,gy:330});
+      glowText(c,'3.45x',146,72,'900 50px Unbounded,sans-serif','#eafff3','rgba(43,255,136,.9)',16,'center');
+      c.font='600 11px Golos Text,sans-serif';c.fillStyle='rgba(255,255,255,.8)';c.textAlign='center';c.fillText(lang==='ru'?'Высота 2 450 м':'Altitude 2,450 m',146,94);
+      rider(c,{x:212,y:196,ang:-.95,s:1.2,char:'bear',mood:.9,t:1,on:false,power:1.2,len:22});
+      para(c,70,112,1,'@crypto_king 2.10x',false,1);para(c,84,180,1.25,'+34.50 TON',true,1.4,'bear');
+      rr(c,14,352,264,52,14);c.fillStyle='#2bff88';c.fill();c.fillStyle='#04150d';c.textAlign='center';c.font='800 15px Unbounded,sans-serif';c.fillText(lang==='ru'?'ЗАБРАТЬ':'CASH OUT',146,376);c.font='700 11.5px Golos Text,sans-serif';c.fillText('34.50 TON',146,393);c.restore()})}
+  if(i===1){const chars=['bear','bull','whale'],names={ru:['Медведь','Бык','Кит'],en:['Bear','Bull','Whale']};
+    chars.forEach((ch,k)=>{const x=24+k*106,y=206;rr(c,x,y,98,150,16);const g=c.createLinearGradient(0,y,0,y+150);g.addColorStop(0,'#2a0b52');g.addColorStop(1,'#16072e');c.fillStyle=g;c.fill();c.strokeStyle=k===0?'#ffd23f':'#2b3155';c.lineWidth=k===0?2:1;c.stroke();
+      c.save();c.translate(x+46,y+118);c.scale(1.45,1.45);CHARS[ch].draw(c,.55,.8+k);c.restore();c.font='700 12px Golos Text,sans-serif';c.fillStyle='#fff';c.textAlign='center';c.fillText(names[lang][k],x+49,y+140)});
+    c.save();c.translate(0,380);c.beginPath();c.rect(0,0,360,260);c.clip();scene(c,360,260,{m:5,gy:210});
+    rider(c,{x:120,y:170,ang:-.62,s:1.15,char:'bull',rocket:'candle',mood:.7,t:.5,power:1,len:30});rider(c,{x:268,y:92,ang:-.8,s:1.05,char:'whale',rocket:'retro',mood:.8,t:.9,power:1,len:34});c.restore()}
+  if(i===2){const bgs=['synth','moon','exch'],lbl={ru:['Синтвейв','Луна','Биржа'],en:['Synthwave','Moon','Exchange']};
+    bgs.forEach((id,k)=>{const y=196+k*146,hh=136;c.save();rr(c,20,y,320,hh,16);c.clip();c.translate(20,y);
+      scene(c,320,hh,{bg:id,m:id==='moon'?25:4,gy:hh*.84,t:1+k});
+      if(id==='exch'){c.save();c.strokeStyle='#2bff88';c.lineWidth=2.4;c.shadowColor='#2bff88';c.shadowBlur=10;c.beginPath();for(let q=0;q<=40;q++){const u=q/40;const X=30+u*170,Y=118-(Math.exp(u*2.6)-1)/(Math.exp(2.6)-1)*78;q?c.lineTo(X,Y):c.moveTo(X,Y)}c.stroke();c.restore()}
+      rider(c,{x:238,y:hh*.5,ang:-.6,s:.82,char:['bear','whale','bull'][k],rocket:k===1?'retro':'candle',mood:.7,t:k,power:1});
+      rr(c,12,12,92,24,12);c.fillStyle='rgba(10,6,28,.88)';c.fill();c.font='700 11px Golos Text,sans-serif';c.fillStyle='#fff';c.textAlign='center';c.fillText(lbl[lang][k],58,28);c.restore()})}
+}
+
+/* =====================================================================
+   Texts
+   ===================================================================== */
+const TEXTS=[
+ {k:'Name',lim:64,v:'Crash Rocket'},
+ {k:'About · RU',lim:120,v:'Краш-игра на ракете: лови множитель и прыгай с парашютом до взрыва. Скины, друзья, три мира.'},
+ {k:'About · EN',lim:120,v:'Crash game on a rocket: ride the multiplier and bail out before it blows. Skins, friends, three worlds.'},
+ {k:'Description · RU',lim:512,v:`🚀 Crash Rocket — краш-игра прямо в Telegram.
+
+Ракета взлетает, множитель растёт: 1.5x, 3x, 10x… Жми «Забрать», и твой герой прыгает с парашютом вместе с выигрышем. Не успел — ракета взрывается.
+
+• Общие раунды с другими игроками
+• Медведь, Бык и Кит — выбирай героя и ракету
+• Синтвейв, Луна и Биржа — три мира полёта
+
+Нажми «Играть» внизу, чтобы начать.`},
+ {k:'Description · EN',lim:512,v:`🚀 Crash Rocket is a crash game right inside Telegram.
+
+The rocket takes off and the multiplier climbs: 1.5x, 3x, 10x… Hit “Cash out” and your rider parachutes off with the win. Too late, and the rocket blows up.
+
+• Shared rounds with other players
+• Bear, Bull and Whale — pick your rider and rocket
+• Synthwave, the Moon and the Exchange — three worlds to fly through
+
+Tap “Play” below to start.`},
+ {k:'Кнопка меню',lim:64,v:'Играть'},
+ {k:'Команды (на потом, с бэкендом)',lim:null,v:`start - Запустить игру
+help - Как играть`}
+];
+function renderTexts(){document.getElementById('texts').innerHTML=TEXTS.map((f,i)=>{const n=[...f.v].length;
+  return `<div class="field"><header><b>${f.k}</b><span class="spec${f.lim&&n>f.lim?' over':''}">${f.lim?`${n} / ${f.lim}`:''}</span><button class="copy" data-i="${i}">Копировать</button></header><pre>${f.v.replace(/</g,'&lt;')}</pre></div>`}).join('');
+  document.querySelectorAll('.copy').forEach(b=>b.onclick=()=>{const v=TEXTS[+b.dataset.i].v;const done=()=>{b.textContent='Скопировано';b.classList.add('ok');setTimeout(()=>{b.textContent='Копировать';b.classList.remove('ok')},1400)};
+    navigator.clipboard.writeText(v).then(done,()=>{const r=document.createRange();r.selectNodeContents(b.closest('.field').querySelector('pre'));const s=getSelection();s.removeAllRanges();s.addRange(r)})})}
+
+/* =====================================================================
+   Build page
+   ===================================================================== */
+const FILES=[];
+function mk(w,h,file,cls='art'){const cv=document.createElement('canvas');cv.width=w;cv.height=h;cv.className=cls;if(file){cv.dataset.file=file;FILES.push(cv)}return cv}
+function build(){
+  const av=document.getElementById('avatars');
+  AVATARS.forEach(a=>{const cv=mk(640,640,`avatar-${a.id}.png`,'art round');a.draw(prep(cv,320,320));const url=cv.toDataURL();
+    const tile=document.createElement('div');tile.className='tile';tile.innerHTML=`<h3>${a.name}<i>avatar-${a.id}.png</i></h3>`;tile.appendChild(cv);
+    tile.insertAdjacentHTML('beforeend',`<div class="tgrow"><img src="${url}" alt=""><div><b>Crash Rocket</b><span>бот · Играть 🚀</span></div><img class="tiny" src="${url}" alt=""></div>`);av.appendChild(tile)});
+  const wl=document.getElementById('welcome'),desc={ru:TEXTS[3].v,en:TEXTS[4].v},q={ru:'Что умеет этот бот?',en:'What can this bot do?'},st={ru:'Запустить',en:'Start'},menu={ru:'Играть',en:'Play'},ph={ru:'Сообщение',en:'Message'};
+  ['ru','en'].forEach(l=>{const cv=mk(640,360,`welcome-${l}.png`);welcome(prep(cv,640,360),l);
+    const chat=document.createElement('div');chat.className='chat';chat.innerHTML=`<div class="bar"><img src="${FILES[0].toDataURL()}" alt=""><div><b>Crash Rocket</b><span>${l==='ru'?'бот':'bot'}</span></div></div><div class="body"><div class="card"></div></div><div class="start">${st[l]}</div><div class="menu"><span>${menu[l]}</span><i>${ph[l]}</i></div>`;
+    const card=chat.querySelector('.card');card.appendChild(cv);card.insertAdjacentHTML('beforeend',`<div><b>${q[l]}</b>${desc[l].replace(/</g,'&lt;')}</div>`);
+    const tile=document.createElement('div');tile.className='tile';tile.innerHTML=`<h3>${l==='ru'?'Русская':'Английская'} версия<i>welcome-${l}.png</i></h3>`;tile.appendChild(chat);wl.appendChild(tile)});
+  const ic=document.getElementById('icon');ic.dataset.file='loading-icon.png';FILES.push(ic);loadingIcon(prep(ic,256,256));document.getElementById('iconImg').src=ic.toDataURL();
+  renderPromos('ru');renderTexts();animate()}
+let promoLang='ru';
+function renderPromos(l){promoLang=l;const box=document.getElementById('promos');box.innerHTML='';for(let i=FILES.length-1;i>=0;i--)if(/^preview-/.test(FILES[i].dataset.file))FILES.splice(i,1);
+  [0,1,2].forEach(i=>{const cv=mk(1080,1920,`preview-${i+1}-${l}.png`);promo(prep(cv,360,640),l,i);const tile=document.createElement('div');tile.className='tile';tile.innerHTML=`<h3>${i+1}<i>preview-${i+1}-${l}.png</i></h3>`;tile.appendChild(cv);box.appendChild(tile)})}
+document.querySelectorAll('[data-plang]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-plang]').forEach(x=>x.setAttribute('aria-pressed',x===b));renderPromos(b.dataset.plang)});
+
+/* animated welcome: 48 frames × 50 ms, grid and bob loop seamlessly */
+const AN={cv:null,inst:null,frame:0};
+function animFrame(c,f){const t=f*.05;welcome(c,'ru',t,AN.inst,.05)}
+function animate(){AN.cv=document.getElementById('anim');const c=prep(AN.cv,640,360);AN.inst=BGS.synth.make();AN.inst.resize(640,360);let last=0;
+  const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  (function loop(ts){if(!AN.busy&&ts-last>=50){last=ts;animFrame(c,AN.frame);AN.frame=(AN.frame+1)%48}if(!reduce)requestAnimationFrame(loop)})(0)}
+
+/* =====================================================================
+   Saving (only when served by brand/serve.py)
+   ===================================================================== */
+const LOCAL=/^(localhost|127\.0\.0\.1)$/.test(location.hostname);if(LOCAL)document.documentElement.classList.add('is-local');
+async function post(name,blob){const r=await fetch('/save?name='+encodeURIComponent(name),{method:'POST',body:blob});if(!r.ok)throw new Error(name+': '+r.status)}
+document.getElementById('saveAll').onclick=async()=>{const msg=document.getElementById('saveMsg');let n=0;
+  const keep=promoLang;for(const l of ['ru','en']){renderPromos(l);for(const cv of FILES){await post(cv.dataset.file,await new Promise(r=>cv.toBlob(r,'image/png')));n++}}renderPromos(keep);
+  await post('loading-icon.svg',new Blob([ICON_SVG],{type:'image/svg+xml'}));n++;msg.textContent=`Сохранено файлов: ${n}`};
+document.getElementById('saveGif').onclick=async()=>{const msg=document.getElementById('gifMsg');msg.textContent='Собираю кадры…';
+  try{if(!window.GIF){await new Promise((ok,no)=>{const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js';s.onload=ok;s.onerror=no;document.head.appendChild(s)})}
+    const wtxt=await (await fetch('https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js')).text();const wurl=URL.createObjectURL(new Blob([wtxt],{type:'application/javascript'}));
+    AN.busy=true;const off=document.createElement('canvas');off.width=640;off.height=360;const c=prep(off,640,360);const inst=BGS.synth.make();inst.resize(640,360);
+    const gif=new GIF({workers:2,quality:10,width:640,height:360,workerScript:wurl,dither:false});
+    for(let f=0;f<48;f++){welcome(c,'ru',f*.05,inst,.05);gif.addFrame(c,{copy:true,delay:50})}
+    AN.busy=false;gif.on('progress',p=>msg.textContent=`Кодирую ${Math.round(p*100)}%`);
+    gif.on('finished',async blob=>{await post('welcome.gif',blob);msg.textContent=`welcome.gif сохранён · ${(blob.size/1024).toFixed(0)} КБ`});gif.render()}
+  catch(e){AN.busy=false;msg.textContent='Не получилось: '+e.message}};
+
+document.fonts.load('900 40px Unbounded').then(()=>Promise.all([document.fonts.load('800 20px Golos Text'),document.fonts.load('500 14px Golos Text'),document.fonts.load('700 12px Golos Text')])).then(build,build);
+</script>
