@@ -95,6 +95,8 @@ export function attachWs(server: Server, cfg: Config, wallet: Wallet) {
 
   return {
     setEngine,
+    /** Private message to every connection of one player (deposit credited, payout sent…). */
+    toUser,
     /** Ends every connection with a reason the app understands (1012 = server update, reconnect soon). */
     closeAll(code: number, reason: string) { clearInterval(loop); clearInterval(ping); for (const c of clients) c.close(code, reason); wss.close(); },
     get size() { return clients.size; }

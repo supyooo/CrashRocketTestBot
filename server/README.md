@@ -40,6 +40,10 @@ Without `?server=` the game runs its offline demo rounds.
 | `MAX_BET` / `MAX_WIN` | 1000 / 10000 | Limits in play TON |
 | `DATABASE_URL` | — | Postgres connection. When set, data lives in Postgres; the schema is applied on start and an existing `DATA_FILE` is imported once into an empty database |
 | `DATA_FILE` | data/dev-db.json | Dev storage file used without `DATABASE_URL` |
+| `TON_MNEMONIC` | — | 24 words of the **testnet** house wallet. When set, balances are test TON only: play money is reset once, no free refills. Needs `DATABASE_URL` |
+| `TONCENTER_API_KEY` | — | testnet key from @tonapibot (without it toncenter allows 1 request/s) |
+| `TON_NETWORK` | testnet | The server refuses to start with anything else |
+| `TON_MIN_DEPOSIT` / `TON_MIN_WITHDRAW` / `TON_MAX_WITHDRAW_DAY` | 0.1 / 0.5 / 100 | Limits in TON |
 
 ## API
 
@@ -48,6 +52,8 @@ Without `?server=` the game runs its offline demo rounds.
 - `POST /api/refill` → free play-money top-up when the balance is empty, 3 per day
 - `GET /api/rounds?limit=20` → finished rounds with revealed hashes
 - `GET /api/fair` → commitment, salt, edge and the formula, for independent verification
+- `GET /api/ton/info` → house address, the player's deposit comment, wallets they deposited from, recent transfers (test TON mode)
+- `POST /api/ton/withdraw` `{amount, address}` → queues a payout; only to a wallet the player deposited from
 - `GET /health`
 
 ## WebSocket `/ws?token=…`
@@ -55,7 +61,13 @@ Without `?server=` the game runs its offline demo rounds.
 Client → server: `{t:'bet', id, amount, auto?}`, `{t:'cancel', id}`, `{t:'cashout', id}`, `{t:'ping', id}`
 
 Server → client: `hello` (full state), `betting`, `run`, `tick`, `crash` (with the revealed hash), public `bet` / `cancel` / `cashout`,
-private `balance`, and `ok` / `err` replies to requests by `id`.
+private `balance`, `ton` (deposit credited, payout queued / sent / returned), and `ok` / `err` replies to requests by `id`.
+
+## Test TON
+
+Deposits: the player sends test TON to the house wallet with their personal comment (`CR…`); the server polls
+toncenter and credits each transaction once. Payouts: sent one at a time with a seqno saved before sending, so a
+restart can never pay twice; a payout that surely did not land (5 tries, 3 min) is returned to the balance.
 
 ## Fairness
 
@@ -72,4 +84,4 @@ crash = max(1.00, floor((10000 - edgeBps) * 2^52 / (100 * (2^52 - h))) / 100)
 ## What is not here yet
 
 Telegram bot process, moving coins/skins/quests from the device to the server,
-real online counter, deposits and withdrawals (last stage, after the legal review).
+real online counter, mainnet TON (only after the legal review).

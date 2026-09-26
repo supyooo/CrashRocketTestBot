@@ -4,14 +4,14 @@
  * The unique ref and the CHECK (balance >= 0) are the last line of defence even if two requests race.
  */
 import pg from 'pg';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { InsufficientFunds, type FairState, type LedgerEntry, type LedgerMove, type OpenRound, type Round, type Snapshot, type Store, type User } from './store.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const LEADER_LOCK = 7_310_001; // advisory lock id: "the server that runs rounds"
-const SCHEMA = join(here, '..', '..', 'sql', '001_init.sql');
+const SQL_DIR = join(here, '..', '..', 'sql');
 
 type LedgerRow = { id: string; user_id: string; delta: string; balance: string; kind: LedgerEntry['kind']; ref: string; at: Date };
 const toEntry = (r: LedgerRow): LedgerEntry => ({ id: Number(r.id), uid: r.user_id, delta: Number(r.delta), balance: Number(r.balance), kind: r.kind, ref: r.ref, at: r.at.getTime() });
@@ -20,6 +20,8 @@ export class PgStore implements Store {
   private pool: pg.Pool;
   private commitment = '';
   private leader?: pg.PoolClient;
+  /** For modules with their own tables (the TON gateway). */
+  get db() { return this.pool; }
 
   private constructor(url: string) {
     // Railway's internal network is plain TCP; public URLs need TLS
@@ -30,7 +32,8 @@ export class PgStore implements Store {
 
   static async open(url: string): Promise<PgStore> {
     const s = new PgStore(url);
-    await s.pool.query(readFileSync(SCHEMA, 'utf8'));
+    // migrations in order; each file is written to be safe to run again
+    for (const f of readdirSync(SQL_DIR).filter((n) => n.endsWith('.sql')).sort()) await s.pool.query(readFileSync(join(SQL_DIR, f), 'utf8'));
     s.commitment = (await s.fair())?.commitment ?? '';
     return s;
   }

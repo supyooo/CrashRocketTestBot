@@ -20,6 +20,7 @@ async function login(){
   const r=await fetch(base+'/api/auth',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
   if(!r.ok)throw new Error((await r.json().catch(()=>({}))).error||'login failed');
   const d=await r.json();NET.token=d.token;NET.uid=d.user.id;S.bal=d.balance;
+  NET.ton=!!(d.mode&&d.mode.currency==='tton');if(NET.ton)tonMode();
 }
 function connect(){
   const ws=new WebSocket(base.replace(/^http/,'ws')+'/ws?token='+encodeURIComponent(NET.token));NET.ws=ws;
@@ -56,6 +57,7 @@ function on(m){const now=performance.now();
     if(m.uid===NET.uid){if(S.bet&&!S.bet.out){S.m=Math.max(S.m,m.x);cashOut(m.x)}return}  // auto cash-out done by the server
     const b=S.bots.find(x=>x.uid===m.uid);if(b){b.out=m.x;SC.onBotCash(b.n,m.x);feed(b.n,m.x,b.bet*(m.x-1))}renderPlayers();return}
   if(m.t==='balance'){S.bal=m.balance;return}
+  if(m.t==='ton'){onTon(m);return}
 }
 
 async function sendBet(a,quiet){
@@ -71,7 +73,118 @@ NET.main=async()=>{if(NET.busy)return;NET.busy=true;try{const a=getAmt();
   if(S.phase==='wait')return sendBet(a);
   if(S.bal<a){toast(T('noFunds'),'bad');return}
   S.next={amt:a};toast(T('nextQueued'))}finally{NET.busy=false}};
-NET.refill=async()=>{const r=await fetch(base+'/api/refill',{method:'POST',headers:{authorization:'Bearer '+NET.token}});const d=await r.json();if(r.ok){S.bal=d.balance;toast(T('refill'))}else toast(d.error,'bad')};
+NET.refill=async()=>{if(NET.ton)return NET.openTon('deposit');const r=await fetch(base+'/api/refill',{method:'POST',headers:{authorization:'Bearer '+NET.token}});const d=await r.json();if(r.ok){S.bal=d.balance;toast(T('refill'))}else toast(d.error,'bad')};
+
+/* ---------- test TON: top up from a wallet, withdraw back to it ----------
+   Deposits are matched by the player's personal comment; withdrawals go only to wallets they deposited from. */
+const TC_MANIFEST='https://supyooo.github.io/CrashRocketTestBot/tonconnect-manifest.json';
+const TC_SCRIPT='https://cdn.jsdelivr.net/npm/@tonconnect/ui@2.4.4/dist/tonconnect-ui.min.js';
+const TL={
+  ru:{dep:'Пополнить',wd:'Вывести',tnet:'Тестовая сеть TON. Отправляйте только тестовые TON — настоящие пропадут.',amount:'Сумма',
+    pay:'Оплатить через кошелёк',connect:'Подключить кошелёк',manual:'Или переводом вручную',addr:'Адрес',comment:'Комментарий (обязательно)',
+    noComment:'Без этого комментария перевод не зачислится.',min:'Минимум',copied:'Скопировано',sentW:'Отправлено из кошелька, ждём зачисления (до минуты)',
+    mainnet:'Кошелёк в основной сети. Переключите его на testnet.',to:'На кошелёк',noAddr:'Вывод идёт только на кошелёк, с которого вы пополняли. Сначала пополните баланс.',
+    max:'Макс',limit:'Лимит в сутки',history:'Последние переводы',empty:'Переводов пока нет',credited:'+{a} TON зачислено',
+    st:{credited:'зачислено',unmatched:'без кода',too_small:'меньше минимума',pending:'в очереди',sending:'отправляется',sent:'отправлено',failed:'вернули на баланс'},
+    wdQueued:'Вывод {a} TON принят',wdSent:'Вывод {a} TON отправлен',wdFailed:'Вывод {a} TON не прошёл, сумма вернулась на баланс',
+    err:{'amount is below the minimum withdrawal':'Сумма меньше минимальной','withdrawals go only to a wallet you have deposited from':'Вывод только на кошелёк, с которого было пополнение',
+      'daily withdrawal limit reached':'Достигнут дневной лимит вывода','insufficient funds':'Недостаточно средств','this is a mainnet address; only testnet addresses are accepted':'Это адрес основной сети, нужен testnet'},
+    dep2:'Депозит',wd2:'Вывод',loadErr:'Не удалось загрузить данные кошелька'},
+  en:{dep:'Top up',wd:'Withdraw',tnet:'TON testnet. Send test TON only — real TON will be lost.',amount:'Amount',
+    pay:'Pay with wallet',connect:'Connect wallet',manual:'Or transfer manually',addr:'Address',comment:'Comment (required)',
+    noComment:'Without this comment the transfer will not be credited.',min:'Minimum',copied:'Copied',sentW:'Sent from your wallet, waiting to be credited (up to a minute)',
+    mainnet:'Your wallet is on mainnet. Switch it to testnet.',to:'To wallet',noAddr:'Withdrawals go only to a wallet you topped up from. Top up first.',
+    max:'Max',limit:'Daily limit',history:'Recent transfers',empty:'No transfers yet',credited:'+{a} TON credited',
+    st:{credited:'credited',unmatched:'no code',too_small:'below minimum',pending:'queued',sending:'sending',sent:'sent',failed:'returned'},
+    wdQueued:'Withdrawal of {a} TON accepted',wdSent:'Withdrawal of {a} TON sent',wdFailed:'Withdrawal of {a} TON failed, returned to your balance',
+    err:{},dep2:'Deposit',wd2:'Withdrawal',loadErr:'Could not load wallet data'}};
+const tl=k=>(TL[lang]||TL.en)[k];
+const terr=m=>(tl('err')[m])||m;
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const short=a=>a.slice(0,6)+'…'+a.slice(-6);
+const api=async(path,opt={})=>{const r=await fetch(base+path,{...opt,headers:{authorization:'Bearer '+NET.token,'content-type':'application/json'}});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'error');return d};
+let tsh,tab='deposit',info=null,depAmt=5,tc=null,tcLoading=null;
+
+function tonMode(){
+  const box=$('balBox');if(box&&!box.querySelector('.tnet')){const b=document.createElement('span');b.className='tnet';b.textContent='TESTNET';box.insertBefore(b,$('topup'))}
+  if(tsh)return;
+  tsh=document.createElement('section');tsh.className='sheet tsheet';tsh.setAttribute('aria-label','TON');$('app').appendChild(tsh);
+  tsh.addEventListener('click',tonAct);tsh.addEventListener('input',e=>{if(e.target.id==='tAmt'){depAmt=parseFloat(e.target.value.replace(',','.'))||0;tsh.querySelectorAll('.tchip').forEach(c=>c.classList.toggle('on',+c.dataset.v===depAmt))}});
+  $('scrim').addEventListener('click',closeTon);
+}
+function closeTon(){if(!tsh||!tsh.classList.contains('on'))return;tsh.classList.remove('on');if(!document.querySelector('.sheet.on'))$('scrim').classList.remove('on')}
+NET.openTon=async(which)=>{if(!NET.ton||!tsh)return;tab=which==='withdraw'?'withdraw':'deposit';render();tsh.classList.add('on');$('scrim').classList.add('on');haptic('select');await load()};
+async function load(){try{info=await api('/api/ton/info');S.bal=info.balance;render()}catch(e){toast(tl('loadErr'),'bad')}}
+
+function render(){
+  const i=info,dep=tab==='deposit';
+  let h=`<div class="sh-h"><h2>${tl(dep?'dep':'wd')}</h2><button data-t="close" aria-label="Close">×</button></div>
+  <div class="segs"><button data-t="tab" data-v="deposit" aria-pressed="${dep}">${tl('dep')}</button><button data-t="tab" data-v="withdraw" aria-pressed="${!dep}">${tl('wd')}</button></div>
+  <div class="tbody"><div class="twarn">${tl('tnet')}</div>`;
+  if(!i)h+=`<div class="tload"></div>`;
+  else if(dep){
+    h+=`<div class="lbl">${tl('amount')} · ${tl('min')} ${i.minDeposit} TON</div>
+    <div class="tchips">${[1,5,10,25].map(v=>`<button class="tchip${v===depAmt?' on':''}" data-t="amt" data-v="${v}">${v}</button>`).join('')}<input id="tAmt" class="tinp" inputmode="decimal" value="${depAmt}" aria-label="${tl('amount')}"></div>
+    <button class="btn green tbig" data-t="pay">${tc&&tc.connected?tl('pay'):tl('connect')}</button>
+    <div class="lbl">${tl('manual')}</div>
+    <div class="tcopy box" data-t="copy" data-v="${esc(i.house)}"><span>${tl('addr')}</span><b>${esc(short(i.house))}</b><i>⧉</i></div>
+    <div class="tcopy box" data-t="copy" data-v="${esc(i.code)}"><span>${tl('comment')}</span><b class="tcode">${esc(i.code)}</b><i>⧉</i></div>
+    <div class="tnote">${tl('noComment')}</div>`;
+  }else{
+    h+=`<div class="lbl">${tl('amount')} · ${tl('min')} ${i.minWithdraw} TON · ${tl('limit')} ${i.maxWithdrawDay} TON</div>
+    <div class="tchips"><input id="tWd" class="tinp" inputmode="decimal" placeholder="0.00" aria-label="${tl('amount')}"><button class="tchip" data-t="max">${tl('max')}</button></div>`;
+    if(!i.addresses.length)h+=`<div class="tnote">${tl('noAddr')}</div>`;
+    else h+=`<div class="lbl">${tl('to')}</div>${i.addresses.map((a,k)=>`<label class="taddr box"><input type="radio" name="tTo" value="${esc(a)}"${k?'':' checked'}><b>${esc(short(a))}</b></label>`).join('')}
+      <button class="btn green tbig" data-t="wd">${tl('wd')}</button>`;
+  }
+  if(i){h+=`<div class="lbl">${tl('history')}</div>`+(i.transfers.length?i.transfers.map(t=>`<div class="ttx"><span>${tl(t.kind==='deposit'?'dep2':'wd2')}</span><em class="s-${t.status}">${(tl('st')[t.status])||t.status}</em><b class="${t.kind==='deposit'?'in':'out'}">${t.kind==='deposit'?'+':'−'}${fmtTon(t.amount)}</b></div>`).join(''):`<div class="tnote">${tl('empty')}</div>`)}
+  tsh.innerHTML=h+'</div>';
+}
+
+async function copy(v){try{await navigator.clipboard.writeText(v)}catch(e){const t=document.createElement('textarea');t.value=v;document.body.appendChild(t);t.select();try{document.execCommand('copy')}catch(_){}t.remove()}toast(tl('copied'));haptic('light')}
+
+function loadTc(){
+  if(tc)return Promise.resolve(tc);
+  return tcLoading||(tcLoading=new Promise((res,rej)=>{const s=document.createElement('script');s.src=TC_SCRIPT;s.onload=()=>{try{
+      tc=new TON_CONNECT_UI.TonConnectUI({manifestUrl:TC_MANIFEST});
+      tc.uiOptions={language:lang==='ru'?'ru':'en',uiPreferences:{theme:'DARK'},actionsConfiguration:{twaReturnUrl:'https://t.me/CrashRocketTestBot'}};
+      tc.onStatusChange(()=>{if(tsh.classList.contains('on'))render()});res(tc)}catch(e){rej(e)}};
+    s.onerror=()=>{tcLoading=null;rej(new Error('TON Connect did not load'))};document.head.appendChild(s)}));
+}
+async function pay(){
+  if(!info)return;const amt=depAmt;
+  if(!(amt>=info.minDeposit)){toast(`${tl('min')} ${info.minDeposit} TON`,'bad');return}
+  let ui;try{ui=await loadTc();await ui.connectionRestored}catch(e){toast(e.message,'bad');return}
+  if(!ui.connected){ui.openModal();return}                   // the button turns into "Pay" once connected
+  if(ui.account&&ui.account.chain!=='-3'){toast(tl('mainnet'),'bad');return}
+  try{
+    await ui.sendTransaction({validUntil:Math.floor(Date.now()/1000)+300,network:'-3',
+      messages:[{address:info.house,amount:String(Math.round(amt*1000))+'000000',payload:info.payload}]});
+    toast(tl('sentW'));haptic('success');
+  }catch(e){console.warn(e)}                                  // declined in the wallet: nothing to do
+}
+async function withdraw(btn){
+  const amt=parseFloat(($('tWd').value||'').replace(',','.'));const to=(tsh.querySelector('input[name="tTo"]:checked')||{}).value;
+  if(!(amt>0)||!to)return;btn.disabled=true;
+  try{const d=await api('/api/ton/withdraw',{method:'POST',body:JSON.stringify({amount:amt,address:to})});S.bal=d.balance;haptic('success');await load()}
+  catch(e){toast(terr(e.message),'bad');haptic('error');btn.disabled=false}
+}
+function tonAct(e){const b=e.target.closest('[data-t]');if(!b)return;const t=b.dataset.t;
+  if(t==='close')closeTon();
+  else if(t==='tab'){tab=b.dataset.v;render();haptic('select')}
+  else if(t==='amt'){depAmt=+b.dataset.v;render()}
+  else if(t==='copy')copy(b.dataset.v);
+  else if(t==='pay')pay();
+  else if(t==='max'){$('tWd').value=Math.floor(S.bal*100)/100}
+  else if(t==='wd')withdraw(b);
+}
+function onTon(m){const a=fmtTon(m.amount);
+  if(m.kind==='deposit'){toast(tl('credited').replace('{a}',a));haptic('success')}
+  else if(m.status==='pending')toast(tl('wdQueued').replace('{a}',a));
+  else if(m.status==='sent'){toast(tl('wdSent').replace('{a}',a));haptic('success')}
+  else if(m.status==='failed'){toast(tl('wdFailed').replace('{a}',a),'bad');haptic('error')}
+  if(tsh&&tsh.classList.contains('on'))load();
+}
 
 login().then(connect).catch(e=>{console.warn('online mode unavailable:',e.message);toast(lang==='ru'?'Сервер недоступен, демо-режим':'Server unavailable, demo mode')});
 })();

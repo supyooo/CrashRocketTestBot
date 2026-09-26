@@ -1,7 +1,9 @@
 /** REST API: login, profile, play-money refill, round history and the data players need to verify fairness. */
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import type { Config } from './config.js';
-import { fromUnits } from './config.js';
+import { fromUnits, toUnits } from './config.js';
+import { InsufficientFunds } from './store/store.js';
+import { TonError, type TonGateway } from './ton/gateway.js';
 import type { Store } from './store/store.js';
 import type { Wallet } from './wallet/wallet.js';
 import type { Engine } from './game/engine.js';
@@ -10,7 +12,7 @@ import { signSession, verifySession, type Session } from './auth/session.js';
 
 /** The engine appears once this server holds the leader lock (see main.ts). */
 export type EngineRef = { engine: Engine | null };
-type Ctx = { cfg: Config; store: Store; wallet: Wallet; ref: EngineRef };
+type Ctx = { cfg: Config; store: Store; wallet: Wallet; ref: EngineRef; ton?: TonGateway };
 
 const MAX_BODY = 64 * 1024;
 function readJson(req: IncomingMessage): Promise<Record<string, unknown>> {
@@ -32,7 +34,8 @@ export function sessionFrom(req: IncomingMessage, cfg: Config): Session | null {
   return verifySession(h?.startsWith('Bearer ') ? h.slice(7) : null, cfg.sessionSecret);
 }
 
-export function createApi({ cfg, store, wallet, ref }: Ctx) {
+export function createApi({ cfg, store, wallet, ref, ton }: Ctx) {
+  const mode = ton ? { currency: 'tton', network: 'testnet' } : { currency: 'play' };
   return createServer(async (req, res) => {
     const origin = req.headers.origin;
     if (origin && cfg.corsOrigins.includes(origin)) {
@@ -65,7 +68,7 @@ export function createApi({ cfg, store, wallet, ref }: Ctx) {
           await store.putUser(user);
           await wallet.grant(uid, cfg.startBalance, 'grant:start:' + uid);
         } else if (user.name !== name) await store.putUser({ ...user, name });
-        return send(res, 200, { token: signSession({ uid, name }, cfg.sessionSecret), user: { id: uid, name }, balance: fromUnits(await wallet.balance(uid)) });
+        return send(res, 200, { token: signSession({ uid, name }, cfg.sessionSecret), user: { id: uid, name }, balance: fromUnits(await wallet.balance(uid)), mode });
       }
 
       if (url.pathname === '/api/fair') {
@@ -87,8 +90,29 @@ export function createApi({ cfg, store, wallet, ref }: Ctx) {
           ledger: (await store.ledgerOf(s.uid, 20)).map((e) => ({ kind: e.kind, delta: fromUnits(e.delta), balance: fromUnits(e.balance), at: e.at })) });
       }
 
+      if (url.pathname === '/api/ton/info') {
+        if (!ton) return send(res, 404, { error: 'test TON is not enabled' });
+        const i = await ton.info(s.uid);
+        return send(res, 200, { ...i, minDeposit: fromUnits(i.minDeposit), minWithdraw: fromUnits(i.minWithdraw), maxWithdrawDay: fromUnits(i.maxWithdrawDay),
+          transfers: i.transfers.map((t) => ({ ...t, amount: fromUnits(t.amount) })), balance: fromUnits(await wallet.balance(s.uid)) });
+      }
+
+      if (url.pathname === '/api/ton/withdraw' && req.method === 'POST') {
+        if (!ton) return send(res, 404, { error: 'test TON is not enabled' });
+        const body = await readJson(req);
+        if (typeof body.amount !== 'number' || typeof body.address !== 'string') return send(res, 400, { error: 'amount and address are required' });
+        try {
+          const r = await ton.requestWithdraw(s.uid, toUnits(body.amount), body.address);
+          return send(res, 200, { id: r.id, balance: fromUnits(r.balance) });
+        } catch (err) {
+          if (err instanceof TonError || err instanceof InsufficientFunds) return send(res, 400, { error: err.message });
+          throw err;
+        }
+      }
+
       // play money only: a free top-up when the balance runs dry, three times a day
       if (url.pathname === '/api/refill' && req.method === 'POST') {
+        if (ton) return send(res, 400, { error: 'test TON mode: top up from your wallet' });
         if ((await wallet.balance(s.uid)) >= cfg.minBet * 10) return send(res, 400, { error: 'you still have play money' });
         const day = dayKey();
         const used = await store.countRefs(`refill:${s.uid}:${day}:`);

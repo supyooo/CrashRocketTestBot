@@ -239,7 +239,7 @@ function renderProfile(){const u=user(),name=u?(u.username?'@'+u.username:[u.fir
   const hist=D.st.hist.slice(0,6).map(h=>`<div class="hrow"><span>${h.time}</span><span>${fmtTon(h.amt)} TON</span><span style="color:${h.win?'var(--cyan)':'var(--muted)'};font-weight:700">${dec(h.x)}x</span><b style="color:${h.win?'var(--green)':'var(--red)'}">${h.win?'+'+fmtTon(h.win-h.amt):'−'+fmtTon(h.amt)}</b></div>`).join('');
   scr.profile.innerHTML=`<div class="mehead"><span class="pic">${u&&u.photo_url?`<img src="${esc(u.photo_url)}" alt="">`:ini}</span><div class="who"><b>${esc(name)}</b><div class="lvl"><span>${tx('lvl')(lv.L)}</span><div class="bar5"><i style="width:${lv.cur/lv.need*100}%"></i></div><span>${num(lv.cur)} / ${num(lv.need)}</span></div></div></div>
    <div class="wallet"><span class="lbl">${tx('bal')}</span><div class="sum"><svg width="30" height="30" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="12" fill="#0098ea"/><path d="M7.2 7.5h9.6c.7 0 1.1.8.8 1.4L12.6 17c-.3.5-.9.5-1.2 0L6.4 8.9c-.3-.6.1-1.4.8-1.4zm4.1 1.3H8.3l3 5.4V8.8zm1.4 0v5.4l3-5.4h-3z" fill="#fff"/></svg><b>${fmtTon(S.bal)}</b><span>TON</span></div>
-    <div class="row2"><button class="btn green" data-act="soon">${tx('top')}</button><button class="btn ghost" data-act="soon">${tx('wd')}</button></div>
+    <div class="row2"><button class="btn green" data-act="deposit">${tx('top')}</button><button class="btn ghost" data-act="withdraw">${tx('wd')}</button></div>
     <div class="cn">${COIN}<b>${num(D.coins)} ${tx('coins')}</b><span style="flex:1"></span><button class="link" data-act="gotourq">${tx('earn')}</button></div></div>
    <div class="stats"><div class="box"><span>${tx('sRounds')}</span><b>${num(D.st.rounds)}</b></div><div class="box"><span>${tx('sBest')}</span><b style="color:var(--gold)">${D.st.best?dec(D.st.best)+'x':'—'}</b></div>
     <div class="box"><span>${tx('sTurn')}</span><b>${fmtTon(D.st.turn)} TON</b></div><div class="box"><span>${tx('sNet')}</span><b style="color:${D.st.net>=0?'var(--green)':'var(--red)'}">${D.st.net>=0?'+':'−'}${fmtTon(Math.abs(D.st.net))} TON</b></div></div>
@@ -280,6 +280,7 @@ function act(e){const b=e.target.closest('[data-act]');if(!b)return;const a=b.da
   else if(a==='sound'){$('snd').click();setTimeout(renderProfile,30)}
   else if(a==='vibro'){D.set.vibro=!D.set.vibro;save();renderProfile();haptic('select')}
   else if(a==='lang'){window.setLang(lang==='ru'?'en':'ru');render()}
+  else if(a==='deposit'||a==='withdraw'){if(window.NET&&NET.ton)NET.openTon(a);else toast(tx('soonBack'))}
   else if(a==='soon')toast(tx('soonBack'))}
 Object.values(scr).forEach(s=>s.addEventListener('click',act));isheet.addEventListener('click',act);
 $('scrim').addEventListener('click',()=>{if(sheetItem)closeItem()});

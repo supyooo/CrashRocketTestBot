@@ -10,7 +10,7 @@ import { mkdirSync, readFileSync, writeFileSync, renameSync, existsSync } from '
 import { dirname } from 'node:path';
 
 export type User = { id: string; name: string; tgId?: number; username?: string; lang?: string; refBy?: string; createdAt: number };
-export type LedgerKind = 'grant' | 'bet' | 'win' | 'refund';
+export type LedgerKind = 'grant' | 'bet' | 'win' | 'refund' | 'deposit' | 'withdraw' | 'adjust';
 export type LedgerMove = { uid: string; delta: number; kind: LedgerKind; ref: string };
 /** One balance movement. `ref` is unique: replaying the same operation never moves money twice. */
 export type LedgerEntry = { id: number; uid: string; delta: number; balance: number; kind: LedgerKind; ref: string; at: number };
