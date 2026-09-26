@@ -5,7 +5,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700;800&family=Unbounded:wght@500;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap">
-<link rel="stylesheet" href="screens.css">
+<link rel="stylesheet" href="screens.css?v=20260926">
 <style>
 :root{color-scheme:dark;
   --page:#0d0820;--ink:#ecebf5;--ink-2:#9490b3;--hair:#262143;
@@ -52,6 +52,7 @@ html.tg .device>.app{border-radius:0}
 .chip{flex:none;height:26px;padding:0 10px;border-radius:9px;display:grid;place-items:center;font:700 12px/1 'Unbounded',sans-serif;font-variant-numeric:tabular-nums;border:1px solid currentColor;background:rgba(10,6,28,.55)}
 .chip.lo{color:var(--red)}.chip.mid{color:var(--cyan)}.chip.hi{color:var(--gold)}
 .chip.new{animation:pop .35s ease-out}
+.hist .chip{cursor:pointer}
 @keyframes pop{from{transform:scale(.5);opacity:0}}
 
 .stage{position:relative;flex:1;min-height:170px;overflow:hidden}
@@ -153,6 +154,7 @@ html.tg .device>.app{border-radius:0}
 .ph{display:flex;justify-content:space-between;color:var(--muted);font-size:12px;font-weight:600;padding:0 20px 8px;font-variant-numeric:tabular-nums}
 .plist{display:flex;flex-direction:column;gap:4px;padding:0 16px 16px;overflow-y:auto;font-size:12.5px}
 .pl{display:grid;grid-template-columns:22px 1fr auto 70px;align-items:center;gap:8px;height:34px;flex:none;padding:0 8px;border-radius:10px;background:var(--panel);border:1px solid transparent;font-variant-numeric:tabular-nums}
+.pl.my{grid-template-columns:48px 1fr auto}.pl.my .b{text-align:left}
 .pl .av{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:10px;font-weight:800;color:#fff}
 .pl .n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
 .pl .b{color:var(--muted);font-weight:600}
@@ -226,6 +228,7 @@ html.tg .device>.app{border-radius:0}
         <div class="pop r" id="autoPop">
           <label class="auto"><span class="sw-t"><input type="checkbox" id="autoOn"><span></span></span><span data-i="auto">Автовывод</span></label>
           <label class="pfield"><span data-i="atX">На множителе</span><input id="autoX" inputmode="decimal" value="2.00" aria-label="Auto x"><b>x</b></label>
+          <label class="auto"><span class="sw-t"><input type="checkbox" id="autoBet"><span></span></span><span data-i="autoBet">Ставить каждый раунд</span></label>
         </div>
         <div class="drow">
           <div class="amt"><button id="dec" aria-label="−">−</button><button id="amtBtn"><span id="amtV">1.00</span><svg class="ton" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="12" fill="#0098ea"/><path d="M7.2 7.5h9.6c.7 0 1.1.8.8 1.4L12.6 17c-.3.5-.9.5-1.2 0L6.4 8.9c-.3-.6.1-1.4.8-1.4zm4.1 1.3H8.3l3 5.4V8.8zm1.4 0v5.4l3-5.4h-3z" fill="#fff"/></svg></button><button id="inc" aria-label="+">+</button></div>
@@ -245,6 +248,7 @@ html.tg .device>.app{border-radius:0}
       <div class="scrim" id="scrim"></div>
       <section class="sheet" id="psheet" aria-label="Players">
         <div class="sh-h"><h2 data-i="playersH">Игроки раунда</h2><button id="psClose" aria-label="Close">×</button></div>
+        <div class="segs" id="psTabs"><button data-v="round" aria-selected="true" data-i="tRound">Раунд</button><button data-v="mine" aria-selected="false" data-i="tMine">Мои ставки</button></div>
         <div class="ph"><span id="phL"></span><span id="phR"></span></div>
         <div class="plist" id="plist"></div>
       </section>
@@ -252,7 +256,7 @@ html.tg .device>.app{border-radius:0}
   </div>
 </div>
 
-<script src="art.js"></script>
+<script src="art.js?v=20260926"></script>
 <script>
 /* =====================================================================
    i18n
@@ -265,7 +269,7 @@ const I18N={
   winL:'Ты забрал',bigL:'Большой выигрыш',on:m=>`на ${m}x`,bigwin:'BIG WIN!',rekt:'ЛИКВИДАЦИЯ',safe:m=>`Ты успел выйти на ${m}x`,
   noFunds:'Недостаточно TON',players:n=>`Игроки · ${n}`,pool:v=>`Банк ${v} TON`,flying:'в полёте',you:'Вы',online:n=>`${fmtInt(n)} онлайн`,
   soon:'Этот экран сделаем следующим шагом',topup:'Пополнение появится вместе с бэкендом',refill:'Демо-баланс пополнен',
-  wear:'Надеть',worn:'Выбрано',playersH:'Игроки раунда',yourAmt:'Своя сумма',atX:'На множителе',autoS:'Авто',off:'выкл',
+  wear:'Надеть',worn:'Выбрано',playersH:'Игроки раунда',yourAmt:'Своя сумма',atX:'На множителе',autoS:'Авто',off:'выкл',autoBet:'Ставить каждый раунд',autoStop:'Автоставка выключена: не хватает на ставку',tRound:'Раунд',tMine:'Мои ставки',noMine:'Вы ещё не играли',
   zones:['Сквозь облака','Стратосфера','Открытый космос','Мимо Луны','Варп-скорость'],zoneN:(i,m)=>`Зона ${i} · ${m}x`},
  en:{gChar:'Rider',gRocket:'Rocket',gBg:'Backdrop',
   skins:'Skins',auto:'Auto cash out',tGame:'Game',tHangar:'Hangar',tTour:'Tournaments',tTop:'Top',tProfile:'Profile',
@@ -274,7 +278,7 @@ const I18N={
   winL:'You cashed out',bigL:'Big win',on:m=>`at ${m}x`,bigwin:'BIG WIN!',rekt:'LIQUIDATED',safe:m=>`You bailed at ${m}x`,
   noFunds:'Not enough TON',players:n=>`Players · ${n}`,pool:v=>`Pool ${v} TON`,flying:'flying',you:'You',online:n=>`${fmtInt(n)} online`,
   soon:'This screen is the next step',topup:'Top-up arrives with the backend',refill:'Demo balance refilled',
-  wear:'Equip',worn:'Equipped',playersH:'Round players',yourAmt:'Custom amount',atX:'At multiplier',autoS:'Auto',off:'off',
+  wear:'Equip',worn:'Equipped',playersH:'Round players',yourAmt:'Custom amount',atX:'At multiplier',autoS:'Auto',off:'off',autoBet:'Bet every round',autoStop:'Auto-bet is off: not enough for the bet',tRound:'Round',tMine:'My bets',noMine:'No bets yet',
   zones:['Through the clouds','Stratosphere','Open space','Moon flyby','Warp speed'],zoneN:(i,m)=>`Zone ${i} · ${m}x`}
 };
 let lang='ru';try{lang=localStorage.getItem('cr.lang')||'ru'}catch(e){}
@@ -332,6 +336,7 @@ function doCrash(ts){S.phase='crash';S.t0=ts;S.m=S.crash;S.hist.unshift(S.crash)
   renderHist(true);renderPlayers();window.ECO&&ECO.roundEnd(S.bet,S.crash)}
 function newRound(ts){S.phase='wait';S.t0=ts;S.m=1;S.t=0;S.bet=null;S.bots=makeBots();S.online+=Math.round((Math.random()-.45)*30);
   if(S.next){S.bet={amt:S.next.amt,out:0};S.next=null}
+  else if(!window.NET_ON){const a=autoBetDue();if(a){S.bal-=a;S.bet={amt:a,out:0}}}
   SC.onReset();renderPlayers();lastCount=-1}
 function cashOut(m,confirmed){const b=S.bet;if(!b||b.out||(S.phase!=='fly'&&!confirmed))return;  // confirmed: the server paid it, show it even if the crash message came first
   b.out=m;const win=b.amt*m;S.bal+=win;S.pend+=win;
@@ -512,11 +517,16 @@ function flashVig(col){const v=$('vig');v.style.setProperty('--vig',col);v.class
 let lastCount=-1;function showCount(txt,go){const e=$('count');e.textContent=txt;e.className='count';void e.offsetWidth;e.className='count on'+(go?' go':'')}
 function hue(s){let h=0;for(const ch of s)h=(h*31+ch.charCodeAt(0))%360;return h}
 function renderHist(fresh){$('hist').innerHTML=S.hist.map((c,i)=>`<span class="chip ${c<2?'lo':c<10?'mid':'hi'}${fresh&&i===0?' new':''}">${x2(c)}x</span>`).join('')}
+let psTab='round';
+$('psTabs').onclick=e=>{const b=e.target.closest('button');if(!b)return;psTab=b.dataset.v;$('psTabs').querySelectorAll('button').forEach(x=>x.setAttribute('aria-selected',x===b));$('phL').parentElement.style.display=psTab==='mine'?'none':'';renderPlayers();haptic('select')};
 function renderPlayers(){
   const rows=[...S.bots];if(S.bet)rows.unshift({n:T('you'),bet:S.bet.amt,out:S.bet.out,me:true});
   rows.sort((a,b)=>(b.me?1e9:0)-(a.me?1e9:0)||(b.out?1:0)-(a.out?1:0)||b.bet-a.bet);
   const pool=rows.reduce((s,r)=>s+r.bet,0);set('phL','textContent',T('players')(rows.length));set('phR','textContent',T('pool')(fmtTon(pool)));
   set('plN','textContent',String(rows.length));set('plPool','textContent',fmtTon(pool)+' TON');
+  if(psTab==='mine'){  // my last rounds: time, stake, multiplier, result
+    const h=window.ECO&&ECO.hist?ECO.hist():[];
+    $('plist').innerHTML=h.length?h.map(r=>`<div class="pl my ${r.win?'won':'lost'}"><span class="n">${r.time}</span><span class="b">${fmtTon(r.amt)}</span><span class="r">${x2(r.x)}x · ${r.win?'+'+fmtTon(r.win-r.amt):'−'+fmtTon(r.amt)}</span></div>`).join(''):`<div class="pl my"><span class="n">${T('noMine')}</span></div>`;return}
   $('plist').innerHTML=rows.map(r=>{const st=r.out?'won':S.phase==='crash'?'lost':'';
     const res=r.out?'+'+fmtTon(r.bet*(r.out-1)):S.phase==='crash'?'−'+fmtTon(r.bet):S.phase==='fly'?T('flying'):'—';
     const av=r.me?'linear-gradient(135deg,#ffd23f,#ff3ea5)':`hsl(${hue(r.n)} 55% 45%)`;
@@ -531,8 +541,11 @@ function setAmt(v){v=clamp(Math.round(v*100)/100,.1,1000);$('amt').value=v.toFix
 $('dec').onclick=()=>{const a=getAmt();setAmt(a-(a>1?.5:.1))};$('inc').onclick=()=>{const a=getAmt();setAmt(a+(a>=1?.5:.1))};
 $('half').onclick=()=>setAmt(getAmt()/2);$('dbl').onclick=()=>setAmt(getAmt()*2);
 $('quick').onclick=e=>{const v=e.target.dataset&&e.target.dataset.v;if(v){setAmt(+v);closePops()}};$('amt').onchange=()=>setAmt(getAmt());
-function autoChip(){const on=$('autoOn').checked;$('autoBtn').classList.toggle('on',on);$('autoV').textContent=on?x2(parseFloat($('autoX').value)||2)+'x':T('off')}
-$('autoOn').onchange=autoChip;
+function autoChip(){const on=$('autoOn').checked,ab=$('autoBet').checked;$('autoBtn').classList.toggle('on',on||ab);$('autoV').textContent=[on?x2(parseFloat($('autoX').value)||2)+'x':ab?'':T('off'),ab?'↻':''].filter(Boolean).join(' ')}
+$('autoOn').onchange=autoChip;$('autoBet').onchange=autoChip;
+/** Auto-bet: the same amount every round until it is switched off or the balance runs short. */
+function autoBetDue(){if(!$('autoBet').checked||S.bet||S.next)return 0;const a=getAmt();
+  if(S.bal<a){$('autoBet').checked=false;autoChip();toast(T('autoStop'),'bad');window.NET&&NET.ton&&NET.openTon('deposit');return 0}return a}
 $('autoX').onchange=()=>{let v=parseFloat($('autoX').value.replace(',','.'));if(!isFinite(v)||v<1.01)v=1.01;$('autoX').value=v.toFixed(2);autoChip()};
 function closePops(){document.querySelectorAll('.pop.on').forEach(p=>p.classList.remove('on'))}
 function togglePop(id){const p=$(id),was=p.classList.contains('on');closePops();if(!was)p.classList.add('on');haptic('select')}
@@ -626,5 +639,7 @@ function tick(ts){
   updateHud(ts);requestAnimationFrame(tick)}
 requestAnimationFrame(tick);
 </script>
-<script src="screens.js"></script>
-<script src="net.js"></script>
+<!-- ?v=: bump on every release so Telegram does not keep old copies -->
+<script src="screens.js?v=20260926"></script>
+<script src="net.js?v=20260926"></script>
+<script src="round.js?v=20260926"></script>

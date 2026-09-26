@@ -119,6 +119,7 @@ function renderCoins(bump){const e=$('coins');if(e)e.textContent=num(D.coins);if
 let roundBet=false;
 window.ECO={
   vibro:()=>D.set.vibro,
+  hist:()=>D.st.hist,
   bet(a){rollover();D.st.turn+=a;D.st.net-=a;save();addCoins(a*50*coinMult())},
   cash(m,win,amt){rollover();D.st.net+=win;D.st.best=Math.max(D.st.best,m);D.st.xp+=20;
     if(amt>=.5)D.day.best=Math.max(D.day.best,m);if(m>=3)D.day.x3++;if(m>=10)D.week.x10++;

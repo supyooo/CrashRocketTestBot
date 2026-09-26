@@ -190,3 +190,8 @@
 .twal.bad{color:var(--red)}
 .twal span{flex:1}
 .twal button{height:30px;padding:0 12px;border-radius:9px;border:1px solid var(--line);background:var(--panel);color:var(--text);font-weight:700;font-size:12px}
+
+/* round details */
+.rsheet .rbig{align-self:center;height:auto;padding:10px 22px;font-size:30px;border-radius:14px;margin:2px 0 4px}
+.rchk{font-size:13px;font-weight:700;padding:8px 12px;border-radius:10px;background:rgba(43,255,136,.08);color:var(--green)}
+.rchk.bad{background:rgba(255,59,107,.1);color:var(--red)}
