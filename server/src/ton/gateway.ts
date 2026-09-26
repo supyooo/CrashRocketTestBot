@@ -118,11 +118,12 @@ export class TonGateway extends EventEmitter {
     if (this.busyDep) return;
     this.busyDep = true;
     try {
-      const cur = await this.db.query("SELECT value FROM kv WHERE key = 'ton_cursor'");
+      // v2: transfers to the not-yet-deployed house wallet were skipped before; reading them again credits them once
+      const cur = await this.db.query("SELECT value FROM kv WHERE key = 'ton_cursor_v2'");
       const lastLt = BigInt(cur.rows[0]?.value?.lt ?? '0');
       const txs = (await this.chain.incoming(50)).filter((t) => BigInt(t.lt) > lastLt).reverse(); // oldest first
       for (const t of txs) await this.processIncoming(t);
-      if (txs.length) await this.db.query("INSERT INTO kv (key, value) VALUES ('ton_cursor', $1) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value", [{ lt: txs[txs.length - 1]!.lt }]);
+      if (txs.length) await this.db.query("INSERT INTO kv (key, value) VALUES ('ton_cursor_v2', $1) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value", [{ lt: txs[txs.length - 1]!.lt }]);
     } finally { this.busyDep = false; }
   }
 

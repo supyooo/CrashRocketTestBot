@@ -53,11 +53,14 @@ export function parseTestnetAddress(input: string): string {
 export function toInTx(tx: Transaction): InTx | null {
   const msg = tx.inMessage;
   if (!msg || msg.info.type !== 'internal') return null;
-  const aborted = tx.description.type === 'generic' && tx.description.aborted;
+  // "aborted" alone does not mean the money went back: every transfer to a wallet that has not sent anything yet
+  // (not deployed) is aborted, and the coins stay. They go back only when the transaction has a bounce phase.
+  const d = tx.description;
+  const returned = d.type === 'generic' && d.bouncePhase?.type === 'ok';
   return {
     hash: tx.hash().toString('hex'), lt: tx.lt.toString(),
     source: msg.info.src.toRawString(), nano: msg.info.value.coins,
-    comment: readComment(msg.body), ok: !aborted && !msg.info.bounced
+    comment: readComment(msg.body), ok: !returned && !msg.info.bounced
   };
 }
 
