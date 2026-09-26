@@ -83,7 +83,7 @@ const TL={
   ru:{dep:'Пополнить',wd:'Вывести',tnet:'Тестовая сеть TON. Отправляйте только тестовые TON — настоящие пропадут.',amount:'Сумма',
     pay:'Оплатить через кошелёк',connect:'Подключить кошелёк',manual:'Или переводом вручную',addr:'Адрес',comment:'Комментарий (обязательно)',
     noComment:'Без этого комментария перевод не зачислится.',min:'Минимум',copied:'Скопировано',sentW:'Отправлено из кошелька, ждём зачисления (до минуты)',
-    mainnet:'Кошелёк в основной сети. Переключите его на testnet.',to:'На кошелёк',noAddr:'Вывод идёт только на кошелёк, с которого вы пополняли. Сначала пополните баланс.',
+    mainnet:'Подключён кошелёк основной сети. Нажмите «Сменить» и выберите в Tonkeeper тестовый аккаунт (метка Testnet).',change:'Сменить',to:'На кошелёк',noAddr:'Вывод идёт только на кошелёк, с которого вы пополняли. Сначала пополните баланс.',
     max:'Макс',limit:'Лимит в сутки',history:'Последние переводы',empty:'Переводов пока нет',credited:'+{a} TON зачислено',
     st:{credited:'зачислено',unmatched:'без кода',too_small:'меньше минимума',pending:'в очереди',sending:'отправляется',sent:'отправлено',failed:'вернули на баланс'},
     wdQueued:'Вывод {a} TON принят',wdSent:'Вывод {a} TON отправлен',wdFailed:'Вывод {a} TON не прошёл, сумма вернулась на баланс',
@@ -93,7 +93,7 @@ const TL={
   en:{dep:'Top up',wd:'Withdraw',tnet:'TON testnet. Send test TON only — real TON will be lost.',amount:'Amount',
     pay:'Pay with wallet',connect:'Connect wallet',manual:'Or transfer manually',addr:'Address',comment:'Comment (required)',
     noComment:'Without this comment the transfer will not be credited.',min:'Minimum',copied:'Copied',sentW:'Sent from your wallet, waiting to be credited (up to a minute)',
-    mainnet:'Your wallet is on mainnet. Switch it to testnet.',to:'To wallet',noAddr:'Withdrawals go only to a wallet you topped up from. Top up first.',
+    mainnet:'A mainnet wallet is connected. Tap Change and pick your Tonkeeper testnet account.',change:'Change',to:'To wallet',noAddr:'Withdrawals go only to a wallet you topped up from. Top up first.',
     max:'Max',limit:'Daily limit',history:'Recent transfers',empty:'No transfers yet',credited:'+{a} TON credited',
     st:{credited:'credited',unmatched:'no code',too_small:'below minimum',pending:'queued',sending:'sending',sent:'sent',failed:'returned'},
     wdQueued:'Withdrawal of {a} TON accepted',wdSent:'Withdrawal of {a} TON sent',wdFailed:'Withdrawal of {a} TON failed, returned to your balance',
@@ -125,7 +125,7 @@ function render(){
   else if(dep){
     h+=`<div class="lbl">${tl('amount')} · ${tl('min')} ${i.minDeposit} TON</div>
     <div class="tchips">${[1,5,10,25].map(v=>`<button class="tchip${v===depAmt?' on':''}" data-t="amt" data-v="${v}">${v}</button>`).join('')}<input id="tAmt" class="tinp" inputmode="decimal" value="${depAmt}" aria-label="${tl('amount')}"></div>
-    <button class="btn green tbig" data-t="pay">${tc&&tc.connected?tl('pay'):tl('connect')}</button>
+    <button class="btn green tbig" data-t="pay">${tc&&tc.connected?tl('pay'):tl('connect')}</button>${walletLine()}
     <div class="lbl">${tl('manual')}</div>
     <div class="tcopy box" data-t="copy" data-v="${esc(i.house)}"><span>${tl('addr')}</span><b>${esc(short(i.house))}</b><i>⧉</i></div>
     <div class="tcopy box" data-t="copy" data-v="${esc(i.code)}"><span>${tl('comment')}</span><b class="tcode">${esc(i.code)}</b><i>⧉</i></div>
@@ -141,6 +141,13 @@ function render(){
   tsh.innerHTML=h+'</div>';
 }
 
+// the connected wallet, its network, and a way to switch to another one
+function walletLine(){
+  if(!tc||!tc.connected||!tc.account)return '';
+  const test=tc.account.chain==='-3';
+  let a=tc.account.address;try{a=TON_CONNECT_UI.toUserFriendlyAddress(a,test)}catch(e){}
+  return `<div class="twal${test?'':' bad'}"><span>${test?'Testnet':'Mainnet'} · ${esc(short(a))}</span><button data-t="disc">${tl('change')}</button></div>${test?'':`<div class="tnote">${tl('mainnet')}</div>`}`;
+}
 async function copy(v){try{await navigator.clipboard.writeText(v)}catch(e){const t=document.createElement('textarea');t.value=v;document.body.appendChild(t);t.select();try{document.execCommand('copy')}catch(_){}t.remove()}toast(tl('copied'));haptic('light')}
 
 function loadTc(){
@@ -175,6 +182,7 @@ function tonAct(e){const b=e.target.closest('[data-t]');if(!b)return;const t=b.d
   else if(t==='amt'){depAmt=+b.dataset.v;render()}
   else if(t==='copy')copy(b.dataset.v);
   else if(t==='pay')pay();
+  else if(t==='disc'){if(tc)tc.disconnect().catch(()=>{}).then(render)}
   else if(t==='max'){$('tWd').value=Math.floor(S.bal*100)/100}
   else if(t==='wd')withdraw(b);
 }

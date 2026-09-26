@@ -186,3 +186,7 @@
 .ttx .s-failed,.ttx .s-unmatched,.ttx .s-too_small{color:var(--red)}
 .ttx b{min-width:70px;text-align:right;font-variant-numeric:tabular-nums}
 .ttx b.in{color:var(--green)}
+.twal{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:700;color:var(--cyan)}
+.twal.bad{color:var(--red)}
+.twal span{flex:1}
+.twal button{height:30px;padding:0 12px;border-radius:9px;border:1px solid var(--line);background:var(--panel);color:var(--text);font-weight:700;font-size:12px}
