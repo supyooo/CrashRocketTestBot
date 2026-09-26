@@ -41,6 +41,7 @@ Without `?server=` the game runs its offline demo rounds.
 | `DATABASE_URL` | — | Postgres connection. When set, data lives in Postgres; the schema is applied on start and an existing `DATA_FILE` is imported once into an empty database |
 | `DATA_FILE` | data/dev-db.json | Dev storage file used without `DATABASE_URL` |
 | `TON_MNEMONIC` | — | 24 words of the **testnet** house wallet. When set, balances are test TON only: play money is reset once, no free refills. Needs `DATABASE_URL` |
+| `TON_WALLET` | auto | `w5-testnet`, `w5` or `v4`. By default the server checks every wallet the mnemonic can have and uses the one holding test TON (remembered after that) |
 | `TONCENTER_API_KEY` | — | testnet key from @tonapibot (without it toncenter allows 1 request/s) |
 | `TON_NETWORK` | testnet | The server refuses to start with anything else |
 | `TON_MIN_DEPOSIT` / `TON_MIN_WITHDRAW` / `TON_MAX_WITHDRAW_DAY` | 0.1 / 0.5 / 100 | Limits in TON |

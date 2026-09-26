@@ -16,9 +16,9 @@ import { Wallet } from './wallet/wallet.js';
 import { Engine } from './game/engine.js';
 import { createApi, type EngineRef } from './http.js';
 import { attachWs } from './ws.js';
-import { ToncenterChain } from './ton/chain.js';
+import { ToncenterChain, friendly } from './ton/chain.js';
 import { TonGateway } from './ton/gateway.js';
-import { fromUnits } from './config.js';
+import { fromUnits, NANO_PER_UNIT } from './config.js';
 
 const DRAIN_MAX_MS = Number(process.env.DRAIN_MAX_MS ?? 150_000);
 
@@ -39,9 +39,14 @@ const ref: EngineRef = { engine: null };
 // test TON gateway (config.ts guarantees testnet and Postgres when it is on)
 let ton: TonGateway | undefined;
 if (config.ton.enabled && store instanceof PgStore) {
-  const chain = await ToncenterChain.create(config.ton.endpoint, config.ton.apiKey, config.ton.mnemonic);
+  // the wallet kind is remembered once it holds test TON, so the house address never changes between restarts
+  const saved = (await store.db.query("SELECT value FROM kv WHERE key = 'ton_wallet'")).rows[0]?.value as string | undefined;
+  const chain = await ToncenterChain.create(config.ton.endpoint, config.ton.apiKey, config.ton.mnemonic, process.env.TON_WALLET || saved);
+  for (const c of chain.candidates) console.log(`  ${c.kind.padEnd(10)} ${friendly(c.address)}  ${fromUnits(Number(c.nano / NANO_PER_UNIT))} TON`);
+  const funded = chain.candidates.find((c) => c.kind === chain.kind && c.nano > 0n);
+  if (funded) await store.db.query("INSERT INTO kv (key, value) VALUES ('ton_wallet', $1) ON CONFLICT (key) DO NOTHING", [JSON.stringify(chain.kind)]);
   ton = new TonGateway(config, store.db, chain);
-  console.log(`test TON gateway · house wallet ${chain.house}`);
+  console.log(`test TON gateway · house wallet ${friendly(chain.house)} (${chain.kind}${funded || !chain.candidates.length ? '' : ', empty: send test TON to it'})`);
 }
 
 const api = createApi({ cfg: config, store, wallet, ref, ton });

@@ -2,7 +2,7 @@
  * The blockchain side of the TON gateway, behind a small interface so the gateway logic can be tested
  * against a fake chain. `ToncenterChain` talks to the real TON testnet through toncenter.com.
  */
-import { TonClient, WalletContractV4, internal, SendMode } from '@ton/ton';
+import { TonClient, WalletContractV4, WalletContractV5R1, internal, SendMode } from '@ton/ton';
 import { mnemonicToPrivateKey, type KeyPair } from '@ton/crypto';
 import { Address, beginCell, Cell, type Transaction } from '@ton/core';
 
@@ -61,17 +61,48 @@ export function toInTx(tx: Transaction): InTx | null {
   };
 }
 
+/**
+ * One mnemonic gives a different address per wallet version. Tonkeeper creates W5 wallets (and a W5 wallet id also
+ * depends on the network), older wallets are v4. The server looks at all of them and uses the one holding test TON.
+ */
+export const WALLET_KINDS = ['w5-testnet', 'w5', 'v4'] as const;
+export type WalletKind = (typeof WALLET_KINDS)[number];
+type HouseWallet = WalletContractV4 | WalletContractV5R1;
+/** toncenter answers 429 above its rate limit (1 request/s without an API key): wait and try again. */
+async function retry<T>(f: () => Promise<T>, tries = 5): Promise<T> {
+  for (let i = 1; ; i++) {
+    try { return await f(); } catch (err) { if (i >= tries) throw err; await new Promise((r) => setTimeout(r, 1500 * i)); }
+  }
+}
+function makeWallet(kind: WalletKind, publicKey: Buffer): HouseWallet {
+  if (kind === 'v4') return WalletContractV4.create({ workchain: 0, publicKey });
+  return WalletContractV5R1.create({ publicKey, walletId: { networkGlobalId: kind === 'w5-testnet' ? -3 : -239, context: { workchain: 0, subwalletNumber: 0, walletVersion: 'v5r1' } } });
+}
+
 export class ToncenterChain implements TonChain {
-  private constructor(private client: TonClient, private key: KeyPair, private wallet: WalletContractV4) {}
+  private constructor(private client: TonClient, private key: KeyPair, private wallet: HouseWallet, readonly kind: WalletKind,
+    /** Every address this mnemonic can have, with its test TON balance (empty when the kind was pinned). */
+    readonly candidates: { kind: WalletKind; address: string; nano: bigint }[]) {}
   get house() { return this.wallet.address.toRawString(); }
 
-  static async create(endpoint: string, apiKey: string, mnemonic: string): Promise<ToncenterChain> {
+  /** `pin` forces a wallet kind; otherwise the one with the largest balance wins (W5 testnet when all are empty). */
+  static async create(endpoint: string, apiKey: string, mnemonic: string, pin?: string): Promise<ToncenterChain> {
     const key = await mnemonicToPrivateKey(mnemonic.trim().split(/\s+/));
-    const wallet = WalletContractV4.create({ workchain: 0, publicKey: key.publicKey });
-    return new ToncenterChain(new TonClient({ endpoint, apiKey: apiKey || undefined }), key, wallet);
+    const client = new TonClient({ endpoint, apiKey: apiKey || undefined });
+    if (pin) {
+      if (!(WALLET_KINDS as readonly string[]).includes(pin)) throw new Error(`TON_WALLET must be one of ${WALLET_KINDS.join(', ')}`);
+      return new ToncenterChain(client, key, makeWallet(pin as WalletKind, key.publicKey), pin as WalletKind, []);
+    }
+    const found: { kind: WalletKind; address: string; nano: bigint }[] = [];
+    for (const kind of WALLET_KINDS) {
+      const w = makeWallet(kind, key.publicKey);
+      found.push({ kind, address: w.address.toRawString(), nano: await retry(() => client.getBalance(w.address)) });
+    }
+    const best = found.reduce((a, b) => (b.nano > a.nano ? b : a));
+    return new ToncenterChain(client, key, makeWallet(best.kind, key.publicKey), best.kind, found);
   }
 
-  seqno() { return this.client.open(this.wallet).getSeqno(); }
+  seqno() { return this.client.open(this.wallet as WalletContractV4).getSeqno(); }
   balance() { return this.client.getBalance(this.wallet.address); }
 
   async incoming(limit: number, before?: { lt: string; hash: string }): Promise<InTx[]> {
@@ -80,10 +111,12 @@ export class ToncenterChain implements TonChain {
   }
 
   async send(seqno: number, toRaw: string, nano: bigint, comment: string) {
-    await this.client.open(this.wallet).sendTransfer({
+    const args = {
       seqno, secretKey: this.key.secretKey,
       sendMode: SendMode.PAY_GAS_SEPARATELY + SendMode.IGNORE_ERRORS,
       messages: [internal({ to: Address.parseRaw(toRaw), value: nano, bounce: false, body: commentCell(comment) })]
-    });
+    };
+    if (this.wallet instanceof WalletContractV5R1) await this.client.open(this.wallet).sendTransfer(args);
+    else await this.client.open(this.wallet).sendTransfer(args);
   }
 }
