@@ -1,8 +1,8 @@
 /**
- * How the multiplier grows with time. Must match the client (app/index.html uses K = 0.12 per second),
- * so the rocket on screen and the server agree on what the multiplier was at a given moment.
+ * How the multiplier grows with time. The server sends K to the app (hello / run), so the rocket on screen and
+ * the server agree on what the multiplier was at a given moment. 0.10: 2x after 6.9 s, 10x after 23 s.
  */
-export const K_PER_SEC = 0.12;
+export const K_PER_SEC = 0.10;
 
 /** Multiplier x100 after `ms` of flight, floored. */
 export function x100At(ms: number): number {

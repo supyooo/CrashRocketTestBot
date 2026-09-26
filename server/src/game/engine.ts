@@ -18,6 +18,9 @@ import type { Wallet } from '../wallet/wallet.js';
 import { crashPoint, makeChain, newSeed } from './fair.js';
 import { msTo, x100At } from './curve.js';
 
+/** How far back a tap may be dated: covers slow mobile networks; older claims are counted from this limit. */
+export const MAX_TAP_LAG_MS = 3000;
+
 export type Phase = 'betting' | 'running' | 'crashed';
 export type Bet = { uid: string; name: string; amount: number; autoX100?: number; cashX100?: number; payout?: number; ref: string };
 export class GameError extends Error {}
@@ -134,15 +137,19 @@ export class Engine extends EventEmitter {
     return balance;
   }
 
-  /** Cash out at the multiplier of this very moment. Throws if the rocket has already exploded. */
-  cashout(uid: string, now: number): Promise<{ x100: number; payout: number; balance: number }> {
+  /**
+   * Cash out. `at` is when the player tapped (server clock, estimated by the app): they get the multiplier they saw,
+   * not a higher one that the network delay would add. That is never more than the multiplier of this moment, so it
+   * cannot be abused; and the request must still arrive before the explosion, so seeing the crash first does not help.
+   */
+  cashout(uid: string, now: number, at?: number): Promise<{ x100: number; payout: number; balance: number }> {
     if (this.phase !== 'running') throw new GameError('the rocket is not flying');
     const b = this.bets.get(uid);
     if (!b) throw new GameError('no bet in this round');
     if (b.cashX100) throw new GameError('already cashed out');
-    const elapsed = now - this.phaseAt;
-    if (elapsed >= msTo(this.crashX100)) throw new GameError('too late, the rocket exploded');
-    return this.settle(b, Math.min(x100At(elapsed), this.crashX100));
+    if (now - this.phaseAt >= msTo(this.crashX100)) throw new GameError('too late, the rocket exploded');
+    const tapped = typeof at === 'number' && Number.isFinite(at) ? Math.min(now, Math.max(at, now - MAX_TAP_LAG_MS, this.phaseAt)) : now;
+    return this.settle(b, Math.min(x100At(tapped - this.phaseAt), this.crashX100));
   }
 
   snapshot(now: number) {

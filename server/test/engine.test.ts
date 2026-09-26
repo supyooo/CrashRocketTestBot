@@ -12,8 +12,8 @@ import { config, toUnits } from '../src/config.js';
 import { FileStore, InsufficientFunds, type Store } from '../src/store/store.js';
 import { PgStore } from '../src/store/pg.js';
 import { Wallet } from '../src/wallet/wallet.js';
-import { Engine, GameError } from '../src/game/engine.js';
-import { msTo } from '../src/game/curve.js';
+import { Engine, GameError, MAX_TAP_LAG_MS } from '../src/game/engine.js';
+import { msTo, x100At } from '../src/game/curve.js';
 import { startPg } from './pg-helper.js';
 
 let pgUrl = '', stopPg: () => Promise<void> = async () => {};
@@ -250,6 +250,31 @@ test('[postgres] only one server holds the leader lock at a time', async () => {
   await a.close();                        // the old server exits
   await bTurn; assert.equal(bLeads, true);
   await b.close();
+});
+
+test('[file] a cash-out pays the multiplier at the tap: never more than now, never after the explosion', async () => {
+  const { store } = await freshFile();
+  const wallet = new Wallet(store);
+  const cfg = cfgWith();
+  const engine = await Engine.create(cfg, store, wallet);
+  const users = ['a', 'b', 'c', 'd'];
+  for (const u of users) await grantU(store, wallet, u, toUnits(1000), 'g:' + u);
+  let t = 1_000; await engine.start(t);
+  for (;;) {                                   // a round that reaches 3x, so there is time to test
+    for (const u of users) await engine.placeBet(u, u, toUnits(1));
+    t += cfg.bettingMs; engine.step(t);
+    if (crashOf(engine) >= 300) break;
+    for (let k = 0; k < 4000 && engine.phase === 'running'; k++) { t += 50; engine.step(t); await tick(); }
+    await engine.settled();
+    t += cfg.crashedMs; engine.step(t); await untilBetting(engine);
+  }
+  const start = engine.snapshot(t).phaseAt;
+  const tap = start + msTo(200), now = tap + 400;          // 400 ms of network delay
+  assert.equal((await engine.cashout('a', now, tap)).x100, x100At(msTo(200)));            // what the player saw
+  assert.equal((await engine.cashout('b', now, now + 5_000)).x100, x100At(now - start));  // a tap "from the future" counts as now
+  assert.equal((await engine.cashout('c', now, start - 10_000)).x100, x100At(Math.max(now - MAX_TAP_LAG_MS, start) - start));
+  const boom = start + msTo(crashOf(engine));
+  await assert.rejects(async () => engine.cashout('d', boom + 20, boom - 50), /too late/); // arrived after the explosion
 });
 
 test('game errors are GameError instances', () => { assert.ok(new GameError('x') instanceof Error); });

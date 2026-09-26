@@ -145,6 +145,7 @@ html.tg .device>.app{border-radius:0}
 .main:active{transform:translateY(3px);box-shadow:0 2px 0 #b8901a}
 .main b{font:700 15px/1.1 'Unbounded',sans-serif;text-transform:uppercase}
 .main small{font-size:12px;font-weight:700;opacity:.75;font-variant-numeric:tabular-nums}
+.main.cash.locked{animation:none;filter:saturate(.7) brightness(.92)}
 .main.cash{background:var(--green);color:#04150d;box-shadow:0 5px 0 #0f9a50;animation:pulse 1s ease-in-out infinite}
 .main.cancel{background:var(--panel-2);color:var(--text);box-shadow:0 5px 0 var(--line)}
 @keyframes pulse{50%{filter:brightness(1.15)}}
@@ -281,6 +282,7 @@ const T=k=>I18N[lang][k];
 const fmtInt=n=>n.toLocaleString(lang==='ru'?'ru-RU':'en-US');
 const fmtTon=n=>n.toLocaleString(lang==='ru'?'ru-RU':'en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
 const x2=m=>m.toFixed(2);
+const xf=m=>Math.floor(m*100+1e-6)/100; // the multiplier as the server counts it: 1.999 is 1.99, never rounded up
 
 
 /* =====================================================================
@@ -308,7 +310,7 @@ const AU={ctx:null,on:false,m:null,eng:null,engG:null,noiseB:null,
 /* =====================================================================
    Round simulation (demo only; the real round comes from the server)
    ===================================================================== */
-const K=0.12,WAIT=5,HOLD=3.4,MILES=[2,3,5,10,20,50,100];
+let K=0.10;const WAIT=5,HOLD=3.4,MILES=[2,3,5,10,20,50,100];
 const NAMES=['crypto_king','whale_99','ivan_kick','moon_boy','degen_anna','hodl_masha','pepe_lord','satoshi_fan','bear_market','long_x100','sol_sister','ton_tiger','dima_pump','rekt_again','alpha_lena','gm_frens'];
 function sampleCrash(){const u=Math.random();return Math.min(60,Math.max(1,Math.floor(97/(1-u))/100))}
 const S={phase:'wait',t0:performance.now(),t:0,m:1,crash:1,hist:[],bots:[],bet:null,next:null,bal:25,pend:0,online:1240,mi:0};
@@ -331,7 +333,8 @@ function doCrash(ts){S.phase='crash';S.t0=ts;S.m=S.crash;S.hist.unshift(S.crash)
 function newRound(ts){S.phase='wait';S.t0=ts;S.m=1;S.t=0;S.bet=null;S.bots=makeBots();S.online+=Math.round((Math.random()-.45)*30);
   if(S.next){S.bet={amt:S.next.amt,out:0};S.next=null}
   SC.onReset();renderPlayers();lastCount=-1}
-function cashOut(m){const b=S.bet;if(!b||b.out||S.phase!=='fly')return;b.out=m;const win=b.amt*m;S.bal+=win;S.pend+=win;
+function cashOut(m,confirmed){const b=S.bet;if(!b||b.out||(S.phase!=='fly'&&!confirmed))return;  // confirmed: the server paid it, show it even if the crash message came first
+  b.out=m;const win=b.amt*m;S.bal+=win;S.pend+=win;
   SC.onMyCash(m,win);AU.cash();haptic('success');window.ECO&&ECO.cash(m,win,b.amt);
   const big=m>=5;$('winL').textContent=big?T('bigL'):T('winL');$('winV').textContent='+'+fmtTon(win)+' TON';$('winS').textContent=T('on')(x2(m));
   pop('win');$('stage').classList.add('winning');setTimeout(()=>$('stage').classList.remove('winning'),2400);feed(T('you'),m,win-b.amt,true);if(big){$('bigwin').textContent=T('bigwin');pop('bigwin');pop('rays')}
@@ -566,12 +569,13 @@ function updateHud(ts){
   set('bal','textContent',fmtTon(Math.max(0,S.bal-S.pend)));
   if(S.phase==='wait'){set('mult','textContent','1.00x');set('mult','className','mult waiting');set('sub','textContent',T('startIn')(Math.max(0,WAIT-el).toFixed(1)));
     const left=Math.ceil(WAIT-el);if(left<=3&&left>=1&&left!==lastCount){lastCount=left;showCount(String(left));AU.beep()}}
-  else{const mu=$('mult');set('mult','textContent',x2(S.m)+'x');
+  else{const mu=$('mult');set('mult','textContent',x2(S.phase==='fly'?xf(S.m):S.m)+'x');
     const cls='mult'+(S.phase==='crash'?' crashed':'');if(!mu.classList.contains('punch')&&!mu.classList.contains('glitch'))set('mult','className',cls);else{mu.classList.toggle('crashed',S.phase==='crash');mu.classList.remove('waiting')}
     if(S.phase==='fly'){const h=heat(S.m);app.style.setProperty('--heat',h[1]);app.style.setProperty('--heat-glow',h[2])}
     set('sub','textContent',S.phase==='crash'?T('boom')(x2(S.crash)):T('alt')(S.m))}
   let cls='main',b,s='';
-  if(S.phase==='fly'&&S.bet&&!S.bet.out){cls+=' cash';b=T('cash');s=fmtTon(S.bet.amt*S.m)+' TON'}
+  if(S.phase==='fly'&&S.bet&&!S.bet.out&&S.bet.lock){cls+=' cash locked';b='x'+x2(S.bet.lock);s=fmtTon(S.bet.amt*S.bet.lock)+' TON'}  // tapped, waiting for the server to confirm
+  else if(S.phase==='fly'&&S.bet&&!S.bet.out){cls+=' cash';b=T('cash');s=fmtTon(S.bet.amt*xf(S.m))+' TON'}
   else if(S.phase==='wait'&&S.bet){cls+=' cancel';b=T('cancel');s=T('accepted')+' · '+fmtTon(S.bet.amt)+' TON'}
   else if(S.phase!=='wait'&&S.next){cls+=' cancel';b=T('cancel');s=T('nextQueued')+' · '+fmtTon(S.next.amt)+' TON'}
   else if(S.phase==='wait'){b=T('bet');s=fmtTon(getAmt())+' TON'}
