@@ -7,7 +7,7 @@ const CR_SERVER = 'https://crashrockettestbot-production.up.railway.app'; // pro
 const q=new URLSearchParams(location.search);
 let base=q.get('server')||'';try{if(base)localStorage.setItem('cr.server',base);else base=localStorage.getItem('cr.server')||''}catch(e){}
 base=(base||CR_SERVER).replace(/\/$/,'');
-if(!base){window.BOOT&&BOOT.done('net');return}   // no server: the demo is ready at once
+if(!base){window.BOOT&&(BOOT.done('net'),BOOT.done('round'));return}   // no server: the demo is ready at once
 
 const NET={token:'',uid:'',ws:null,retry:0,off:0,synced:false,rtt:0,req:0,wait:new Map(),busy:false,phaseAt:0};
 window.NET=NET;NET.base=base;NET.hist=[];  // NET.hist[i]: {no, hash?} of S.hist[i], for round details
@@ -47,7 +47,8 @@ function connect(){
 function botFrom(b){return{uid:b.uid,n:clean(b.name),bet:b.amount,target:Infinity,out:b.cashX100?b.cashX100/100:(b.x||0)}}
 
 function on(m){const now=performance.now();
-  if(m.t==='hello')window.BOOT&&BOOT.done('net');   // the first state from the server: the loading screen can go
+  // loading screen: the server has answered; open now, unless a round is mid-flight - then on the next countdown
+  if(window.BOOT){if(m.t==='hello'){BOOT.done('net');if(m.phase!=='running')BOOT.done('round')}else if(m.t==='betting')BOOT.done('round')}
   if(m.t==='pong'){onPong(m);return}
   if(m.t==='ok'||m.t==='err'){const w=NET.wait.get(m.id);if(w){NET.wait.delete(m.id);m.t==='ok'?w.res(m):w.rej(new Error(m.error))}return}
   if(m.t==='hello'&&m.phase==='waiting'){ // a fresh server waits for the previous one to finish its round
@@ -220,5 +221,5 @@ function onTon(m){const a=fmtTon(m.amount);
   if(tsh&&tsh.classList.contains('on'))load();
 }
 
-login().then(connect).catch(e=>{console.warn('online mode unavailable:',e.message);window.BOOT&&BOOT.done('net');toast(lang==='ru'?'Сервер недоступен, демо-режим':'Server unavailable, demo mode')});
+login().then(connect).catch(e=>{console.warn('online mode unavailable:',e.message);window.BOOT&&(BOOT.done('net'),BOOT.done('round'));toast(lang==='ru'?'Сервер недоступен, демо-режим':'Server unavailable, demo mode')});
 })();
