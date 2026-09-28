@@ -1,0 +1,194 @@
+<title>Медведь 2.0</title>
+<meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600;800&family=Golos+Text:wght@400;600;700&display=swap">
+<style>
+  /* one look on purpose: the game's own night-synthwave palette, same in light and dark hosts */
+  :root{color-scheme:dark;--bg:#12092a;--panel:#161a2f;--panel2:#1f2440;--line:#2b3155;--text:#f3f1ff;--muted:#8f93b8;--green:#2bff88;--pink:#ff3ea5;--gold:#ffd23f}
+  body{background:var(--bg);color:var(--text);font:15px/1.5 'Golos Text',system-ui,sans-serif;padding:24px 16px 40px}
+  .wrap{max-width:980px;margin:0 auto;display:flex;flex-direction:column;gap:22px}
+  header h1{margin:0;font:800 clamp(26px,5vw,40px)/1.1 'Unbounded',sans-serif;letter-spacing:-.01em;text-wrap:balance}
+  header p{margin:6px 0 0;color:var(--muted);max-width:62ch}
+  .lbl{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+  .hero{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:18px;align-items:start}
+  @media (max-width:760px){.hero{grid-template-columns:1fr}}
+  .stage{position:relative;border-radius:22px;overflow:hidden;border:1px solid var(--line);background:#0e0724;aspect-ratio:1/1;max-width:100%}
+  .stage canvas{position:absolute;inset:0;width:100%;height:100%}
+  .ctl{display:flex;flex-direction:column;gap:14px}
+  .segs{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:6px}
+  .segs button{height:42px;border-radius:12px;border:1px solid var(--line);background:var(--panel);color:var(--muted);font:700 13.5px 'Golos Text',sans-serif;cursor:pointer}
+  .segs button[aria-pressed="true"]{border-color:var(--green);color:var(--text);background:var(--panel2)}
+  .segs button:focus-visible,.row input:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+  .row{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:14px;background:var(--panel);border:1px solid var(--line)}
+  .row span{flex:1;font-weight:600}
+  .row b{font:600 14px 'Unbounded',sans-serif;min-width:3ch;text-align:right;font-variant-numeric:tabular-nums}
+  .row input{flex:1.6;accent-color:var(--green)}
+  .note{color:var(--muted);font-size:13.5px;margin:0}
+  .cmp{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media (max-width:520px){.cmp{grid-template-columns:1fr}}
+  figure{margin:0;display:flex;flex-direction:column;gap:8px}
+  figure .stage{aspect-ratio:4/3}
+  figcaption{display:flex;justify-content:space-between;align-items:baseline}
+  figcaption b{font:800 16px 'Unbounded',sans-serif}
+  figcaption.new b{color:var(--green)}
+  ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px;max-width:70ch}
+  li::marker{color:var(--green)}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Медведь 2.0</h1>
+    <p>Макет новой рисовки: контуры, светотень и анимация по частям. Рисуется кодом прямо в игре, без картинок, поэтому на любом экране остаётся чётким.</p>
+  </header>
+
+  <section class="hero">
+    <div class="stage" id="big" aria-label="Новый медведь крупно"><canvas></canvas></div>
+    <div class="ctl">
+      <div class="lbl">Что показать</div>
+      <div class="segs" id="states">
+        <button data-s="round" aria-pressed="true">Раунд</button>
+        <button data-s="calm" aria-pressed="false">Спокойно</button>
+        <button data-s="fly" aria-pressed="false">Полёт</button>
+        <button data-s="hot" aria-pressed="false">Азарт</button>
+        <button data-s="scared" aria-pressed="false">Страх</button>
+        <button data-s="win" aria-pressed="false">Победа</button>
+        <button data-s="chute" aria-pressed="false">Парашют</button>
+        <button data-s="fall" aria-pressed="false">Падение</button>
+      </div>
+      <label class="row" for="mood"><span>Азарт</span><input id="mood" type="range" min="0" max="100" value="55"><b id="moodV">55</b></label>
+      <label class="row" for="slow"><span>Замедлить в 4 раза</span><input id="slow" type="checkbox" style="flex:0;width:20px;height:20px"></label>
+      <p class="note">«Раунд» проигрывает игру целиком: отсчёт, взлёт, разгон коэффициента, затем по очереди выход на парашюте или взрыв. Остальные кнопки показывают позы по отдельности: переключайте их и смотрите, как медведь плавно переходит из одной в другую.</p>
+    </div>
+  </section>
+
+  <section style="display:flex;flex-direction:column;gap:10px">
+    <div class="lbl">В игре, в реальном размере телефона</div>
+    <div class="cmp">
+      <figure><div class="stage" id="old"><canvas></canvas></div><figcaption><b>Сейчас</b><span class="note">плоские фигуры</span></figcaption></figure>
+      <figure><div class="stage" id="new"><canvas></canvas></div><figcaption class="new"><b>Новый</b><span class="note">тот же размер</span></figcaption></figure>
+    </div>
+  </section>
+
+  <section style="display:flex;flex-direction:column;gap:10px">
+    <div class="lbl">Что поменялось</div>
+    <ul>
+      <li>Тёмный контур и тени на каждой детали: персонаж читается на любом фоне и в маленьком размере.</li>
+      <li>Появились ноги в кроссовках с неоновой подошвой, руки сгибаются в локтях.</li>
+      <li>Живое лицо: моргает, брови и рот меняются с азартом, при страхе глаза округляются и выступает пот.</li>
+      <li>Фирменные очки на лбу; с ростом коэффициента медведь надевает их.</li>
+      <li>Ветер: галстук, пола пиджака, уши и чуб отстают и треплются, сильнее на высоких множителях.</li>
+      <li>Голова движется чуть позже тела, поэтому покачивание выглядит мягким.</li>
+      <li>Смена состояния идёт переходом, а не рывком: руки, ноги и голова доходят до новой позы примерно за четверть секунды, очки съезжают чуть медленнее.</li>
+      <li>На парашюте держится за стропы и болтает ногами; при взрыве кувыркается, а очки улетают отдельно.</li>
+    </ul>
+  </section>
+</div>
+
+<script src="art.js?v=20260926"></script>
+<script src="chars2.js?v=20260928"></script>
+<script>
+(()=>{
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const sm=x=>x*x*(3-2*x);
+let state='round',moodSet=.55,slow=false;
+const st=document.getElementById('states');
+st.onclick=e=>{const b=e.target.closest('button');if(!b)return;state=b.dataset.s;st.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b));if(state==='round')R.reset()};
+const mood=document.getElementById('mood'),moodV=document.getElementById('moodV');
+mood.oninput=()=>{moodSet=mood.value/100;moodV.textContent=mood.value;state='custom';st.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed','false'))};
+document.getElementById('slow').onchange=e=>slow=e.target.checked;
+
+function fit(el){const cv=el.querySelector('canvas'),r=el.getBoundingClientRect(),d=Math.min(2,devicePixelRatio||1);
+  const w=Math.max(1,Math.round(r.width*d)),h=Math.max(1,Math.round(r.height*d));if(cv.width!==w||cv.height!==h){cv.width=w;cv.height=h}
+  const c=cv.getContext('2d');c.setTransform(d,0,0,d,0,0);return{c,w:r.width,h:r.height}}
+function sky(c,w,h,t){
+  const g=c.createLinearGradient(0,0,0,h);g.addColorStop(0,'#1a0b3d');g.addColorStop(.62,'#3a1462');g.addColorStop(1,'#12092a');c.fillStyle=g;c.fillRect(0,0,w,h);
+  c.save();c.globalAlpha=.55;for(let i=0;i<40;i++){const x=(i*97.3+t*18*(1+i%3))%(w+20)-10,y=(i*53.7)%(h*.7);c.fillStyle=i%5?'#fff':'#29e6ff';c.fillRect(w-x,y,1.4,1.4)}c.restore();
+  c.save();c.strokeStyle='rgba(255,62,165,.35)';c.lineWidth=1;const hz=h*.82;
+  for(let i=0;i<9;i++){const k=((i/9)+(t*.35)%(1/9))%1,y=hz+Math.pow(k,2)*(h-hz);c.beginPath();c.moveTo(0,y);c.lineTo(w,y);c.stroke()}
+  for(let i=-8;i<=8;i++){c.beginPath();c.moveTo(w/2+i*18,hz);c.lineTo(w/2+i*80,h);c.stroke()}c.restore()}
+const RK=ROCKETS.candle;
+function rocket(c,x,y,k,ang,t,power,tint,rider){
+  c.save();c.translate(x,y);c.rotate(ang);c.scale(k,k);drawFlame(c,RK.trail,power,t,RK.tail);RK.draw(c);
+  if(tint){c.globalCompositeOperation='source-atop';c.fillStyle='rgba(255,40,60,.4)';c.fillRect(-70,-40,150,80);c.globalCompositeOperation='source-over'}
+  if(rider){c.save();c.translate(RK.seat[0],RK.seat[1]);c.rotate(-ang*.85);rider(c);c.restore()}c.restore()}
+/** Where the seat is on screen, and how the rider is turned there. */
+function seatAt(x,y,k,ang){const [sx,sy]=RK.seat,co=Math.cos(ang),si=Math.sin(ang);return{x:x+(sx*co-sy*si)*k,y:y+(sx*si+sy*co)*k,a:ang*.15}}
+function shadesPiece(c){[-5.3,5.3].forEach(x=>{c.fillStyle='#0b1320';c.strokeStyle='#140a26';c.lineWidth=1.5;rr(c,x-4.6,-2.9,9.2,6,2.4);c.fill();c.stroke();c.strokeStyle='#2bff88';c.lineWidth=.9;rr(c,x-3.9,-2.2,7.8,4.6,1.9);c.stroke()});
+  c.strokeStyle='#140a26';c.lineWidth=1.6;c.beginPath();c.moveTo(-1.5,0);c.lineTo(1.2,0);c.stroke()}
+function chuteRig(c,o){c.save();c.translate(0,-86);c.scale(o,o);drawCanopy(c,'rainbow');c.restore();
+  c.strokeStyle='rgba(255,255,255,.75)';c.lineWidth=.9;c.beginPath();c.moveTo(-27*o,-86);c.lineTo(-8,-54);c.moveTo(27*o,-86);c.lineTo(9,-54);c.stroke()}
+const heat=x=>x<2?'#eafff3':x<5?'#fff6c2':'#ffd9b0';
+
+/* ---------- one scripted round, like in the game ---------- */
+const PAD=2.4,LIFT=1.1,K=.17;
+const R={
+  rig:makeBear2(),n:0,t:0,bgt:0,parts:[],
+  reset(){this.t=0;this.n++;this.win=this.n%2===1;this.flight=this.win?5.3:6.6;this.jump=null;this.fall=null;this.parts=[]},
+  draw(c,w,h,t,dt){
+    this.t+=dt;const T=this.t,k=w/150,fl=T-PAD;                       // fl: seconds of flight
+    const flying=fl>0,x=flying?Math.exp(K*Math.min(fl,this.flight)):1,m=clamp(Math.log(x)/Math.log(3.2),0,1);
+    const over=fl>=this.flight;                                        // cashed out (win) or exploded
+    const lift=sm(clamp(fl/LIFT,0,1)),shake=flying&&fl<.6?Math.sin(T*70)*1.4*(1-fl/.6):0;
+    let rx=lerp(w*.4,w*.53,lift),ry=lerp(h*.82,h*.68,lift)+Math.sin(T*1.6)*3*lift+shake,ang=lerp(-.06,-.34,lift)+Math.sin(T*1.3)*.04*lift;
+    const leave=this.win&&over?fl-this.flight:0;rx+=leave*leave*w*.35;ry-=leave*leave*h*.3;   // after a cash-out the rocket races off
+    const stall=!this.win&&fl>this.flight-.7&&!over;
+    this.bgt+=dt*(flying?(over&&!this.win?.2:1+m*2.5):.25);sky(c,w,h,this.bgt);
+    const st=!flying?'pad':(fl<.45||stall)?'scared':'fly';
+    const power=!flying?.12:stall?(Math.random()<.4?.35:0):.8+m*.6;
+    if(!over)rocket(c,rx,ry,k,ang,t,power,stall&&Math.sin(t*50)>0,c2=>this.rig.draw(c2,flying?m:0,t,st,dt));
+    else if(this.win){
+      if(!this.jump){const p=seatAt(rx,ry,k,ang);this.jump={x:p.x,y:p.y,a:p.a,vx:-w*.14,vy:-h*.24,t:0}}
+      rocket(c,rx,ry,k,ang,t,1.4,false,null);
+      const j=this.jump;j.t+=dt;const open=clamp((j.t-.5)/.45,0,1);
+      j.vy+=(open>0?(h*.15-j.vy)*3:h*1.1)*dt;j.vx*=1-dt*1.5;j.x+=j.vx*dt;j.y+=j.vy*dt;
+      c.save();c.translate(j.x,j.y);c.rotate(j.a*(1-open)+Math.sin(t*2.4)*.12*open);c.scale(k,k);
+      if(open>0)chuteRig(c,easeBack(open));
+      this.rig.draw(c,1,t,open>0?'chute':'win',dt);c.restore();
+    }else{
+      if(!this.fall){const p=seatAt(rx,ry,k,ang);this.fall={x:p.x,y:p.y,a:p.a,vx:w*.12,vy:-h*.42,sx:p.x+4*k,sy:p.y-45*k,svx:-w*.2,svy:-h*.6,sa:0};
+        for(let i=0;i<46;i++){const a=Math.random()*6.283,v=rnd(40,260)*k/2.4;this.parts.push({x:rx,y:ry,vx:Math.cos(a)*v,vy:Math.sin(a)*v,r:rnd(2,6)*k/2,life:rnd(.5,1.2),t:0,col:['#ffd23f','#ff7a1a','#ff3ea5','#fff'][i%4]})}}
+      const f=this.fall;f.vy+=h*1.1*dt;f.x+=f.vx*dt;f.y+=f.vy*dt;f.a+=dt*6;f.svy+=h*1.4*dt;f.sx+=f.svx*dt;f.sy+=f.svy*dt;f.sa+=dt*9;
+      const bt=fl-this.flight;if(bt<.18){c.fillStyle=`rgba(255,240,200,${.5*(1-bt/.18)})`;c.fillRect(0,0,w,h)}
+      c.save();c.globalCompositeOperation='lighter';for(const q of this.parts){q.t+=dt;q.x+=q.vx*dt;q.y+=q.vy*dt;q.vx*=1-dt*2;q.vy*=1-dt*2;const a=1-q.t/q.life;if(a<=0)continue;
+        c.globalAlpha=a;c.fillStyle=q.col;c.beginPath();c.arc(q.x,q.y,q.r*(1+q.t*2),0,6.283);c.fill()}c.restore();c.globalAlpha=1;
+      c.save();c.translate(f.x,f.y);c.rotate(f.a);c.scale(k,k);c.translate(0,20);this.rig.draw(c,1,t,'fall',dt);c.restore();
+      c.save();c.translate(f.sx,f.sy);c.rotate(f.sa);c.scale(k,k);shadesPiece(c);c.restore();
+    }
+    // the multiplier, like the game's HUD
+    c.textAlign='center';c.textBaseline='middle';
+    const Y1=h*.13,Y2=h*.215;
+    if(!flying){c.fillStyle='rgba(243,241,255,.35)';c.font=`800 ${Math.round(w*.12)}px Unbounded,sans-serif`;c.fillText('1.00x',w/2,Y1);
+      c.fillStyle='#8f93b8';c.font=`600 ${Math.round(w*.035)}px 'Golos Text',sans-serif`;c.fillText('Старт через '+Math.max(0,PAD-T).toFixed(1)+' с',w/2,Y2)}
+    else{const crashed=over&&!this.win,col=crashed?'#ff3b6b':heat(x);c.save();c.shadowColor=crashed?'rgba(255,59,107,.7)':'rgba(43,255,136,.6)';c.shadowBlur=18;
+      c.fillStyle=col;c.font=`800 ${Math.round(w*.12)}px Unbounded,sans-serif`;c.fillText(x.toFixed(2)+'x',w/2,Y1);c.restore();
+      c.font=`700 ${Math.round(w*.038)}px 'Golos Text',sans-serif`;
+      if(over&&this.win){c.fillStyle='#2bff88';c.fillText('Забрал на '+x.toFixed(2)+'x · +'+(x-1).toFixed(2)+' TON',w/2,Y2)}
+      else if(crashed){c.fillStyle='#ff3b6b';c.fillText('Взрыв на '+x.toFixed(2)+'x',w/2,Y2)}}
+    if(fl>this.flight+(this.win?3.6:2.4))this.reset();
+  }
+};
+R.reset();window.mockRound=R;   // for checking a moment: mockRound.t = seconds
+
+const big=document.getElementById('big'),oldEl=document.getElementById('old'),newEl=document.getElementById('new');
+const rig=makeBear2();let tt=0,last=performance.now();
+function frame(now){
+  const dt=Math.min(.05,(now-last)/1000)*(slow?.25:1);last=now;tt+=dt;const t=tt;
+  const cyc=(t%9)/9,flightMood=.12+.88*cyc*cyc;
+  let m=moodSet,s='fly';
+  if(state==='calm'){m=.1}else if(state==='hot'){m=1}else if(state==='fly'||state==='round'){m=flightMood}
+  else if(state==='scared'){s='scared';m=1}else if(state==='win'){s='win';m=1}else if(state==='fall'){s='fall';m=1}else if(state==='chute'){s='chute';m=1}
+  if(state!=='custom'&&state!=='round'){mood.value=Math.round(m*100);moodV.textContent=mood.value}
+  {const {c,w,h}=fit(big);
+    if(state==='round')R.draw(c,w,h,t,dt);
+    else{sky(c,w,h,t);const k=w/88,ang=-.32+Math.sin(t*1.3)*.04;
+      if(s==='fall'){c.save();c.translate(w*.5,h*.5+Math.sin(t*2)*6);c.rotate(t*2.2);c.scale(k*1.15,k*1.15);c.translate(0,24);rig.draw(c,1,t,'fall',dt);c.restore()}
+      else if(s==='chute'){c.save();c.translate(w*.5,h*.8+Math.sin(t*1.2)*6);c.rotate(Math.sin(t*2.4)*.1);c.scale(k*.6,k*.6);chuteRig(c,1);rig.draw(c,1,t,'chute',dt);c.restore()}
+      else rocket(c,w*.5+12*k,h*.7,k,ang,t,s==='scared'?(Math.random()<.4?.3:0):.7+m*.6,false,c2=>rig.draw(c2,m,t,s,dt))}}
+  // side by side at phone scale (the rocket is ~140 px long on a phone)
+  const k=1.55,cs=s==='fall'||s==='chute'?'fly':s;
+  [[oldEl,c2=>CHARS.bear.draw(c2,m,t)],[newEl,c2=>drawBear2(c2,m,t,cs)]].forEach(([el,rider])=>{
+    const {c,w,h}=fit(el);sky(c,w,h,t);rocket(c,w*.52,h*.6,k,-.32+Math.sin(t*1.3)*.04,t,.7+m*.6,false,rider)});
+  if(!reduce||slow)requestAnimationFrame(frame)}
+requestAnimationFrame(frame);
+})();
+</script>

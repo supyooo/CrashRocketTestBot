@@ -147,11 +147,14 @@ function drawBuild(cv,L,t,key){const{c,w,h}=prep(cv);const k=Math.min(w/360,h/20
   const s=1.15*Math.min(w/390,h/210),ang=-.62,x=w*.58,y=h*.52+Math.sin(t*2)*3,R=ROCKETS[L.rocket];
   drawTrailPreview(c,L.trail,x+Math.cos(ang)*R.tail*s,y+Math.sin(ang)*R.tail*s,ang,s,34,t);
   c.save();c.translate(x,y);c.rotate(ang);c.scale(s,s);drawFlame(c,R.trail,1,t,R.tail);R.draw(c);c.save();c.translate(R.seat[0],R.seat[1]);c.rotate(-ang*.85);CHARS[L.char].draw(c,.6,t);c.restore();c.restore();
-  c.save();c.translate(w*.16,h*.26+Math.sin(t*1.5)*4);c.rotate(Math.sin(t*1.2)*.1);c.scale(s*.62,s*.62);drawCanopy(c,L.chute);c.strokeStyle='rgba(255,255,255,.55)';c.lineWidth=.8;c.beginPath();c.moveTo(-26,0);c.lineTo(-5,30);c.moveTo(26,0);c.lineTo(5,30);c.stroke();
-  c.translate(0,62);c.scale(.8,.8);CHARS[L.char].draw(c,1,t);c.restore();
+  c.save();c.translate(w*.16,h*.26+Math.sin(t*1.5)*4);c.rotate(Math.sin(t*1.2)*.1);c.scale(s*.62,s*.62);drawCanopy(c,L.chute);c.strokeStyle='rgba(255,255,255,.55)';c.lineWidth=.8;c.beginPath();
+  const cg=CHARS[L.char].chute;   // characters that hold the straps say where; the rest hang at the old spot
+  if(cg){c.moveTo(-26,0);c.lineTo(cg.l[0],cg.l[1]-cg.y);c.moveTo(26,0);c.lineTo(cg.r[0],cg.r[1]-cg.y);c.stroke();c.translate(0,-cg.y);CHARS[L.char].draw(c,1,t,'chute')}
+  else{c.moveTo(-26,0);c.lineTo(-5,30);c.moveTo(26,0);c.lineTo(5,30);c.stroke();c.translate(0,62);c.scale(.8,.8);CHARS[L.char].draw(c,1,t)}
+  c.restore();
   if(L.emote!=='cheer')emoteFx(c,L.emote,w,h,t)}
 function drawThumb(cv,k,id){const{c,w,h}=prep(cv),s=Math.min(w/90,h/92);
-  if(k==='char'){c.save();c.translate(w/2-3,h*.93);c.scale(1.45*s,1.45*s);CHARS[id].draw(c,.55,1.1);c.restore()}
+  if(k==='char'){const ts=1.45*s*(CHARS[id].thumb||1);c.save();c.translate(w/2-3,h*.93);c.scale(ts,ts);CHARS[id].draw(c,.55,1.1);c.restore()}
   else if(k==='rocket'){c.save();c.translate(w/2+4,h/2);c.rotate(-.62);c.scale(.62*s,.62*s);drawFlame(c,ROCKETS[id].trail,.9,1,ROCKETS[id].tail);ROCKETS[id].draw(c);c.restore()}
   else if(k==='trail'){drawTrailPreview(c,id,w*.76,h*.3,-.6,.62*s,30,1);c.save();c.translate(w*.86,h*.2);c.rotate(-.6);c.scale(.34*s,.34*s);ROCKETS.candle.draw(c);c.restore()}
   else if(k==='chute'){c.save();c.translate(w/2,h*.55);c.scale(1.3*s,1.3*s);drawCanopy(c,id);c.restore()}

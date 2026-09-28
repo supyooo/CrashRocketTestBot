@@ -256,7 +256,8 @@ html.tg .device>.app{border-radius:0}
   </div>
 </div>
 
-<script src="art.js?v=20260926"></script>
+<script src="art.js?v=20260928"></script>
+<script src="chars2.js?v=20260928e"></script>
 <script>
 /* =====================================================================
    i18n
@@ -458,17 +459,19 @@ const SC={
     if(rk.vis){const r=ROCKETS[SEL.rocket],fly=S.phase==='fly',st=rk.stall>0;c.save();c.translate(rk.x,rk.y);c.rotate(rk.ang);c.scale(k,k);
       drawFlame(c,r.trail,st?(Math.random()<.4?.3:0):fly?.7+I*.6:(S.phase==='wait'?.12:0),t,r.tail);
       r.draw(c);if(st&&Math.sin(t*50)>0){c.globalCompositeOperation='source-atop';c.fillStyle='rgba(255,40,60,.35)';c.fillRect(-70,-40,150,80);c.globalCompositeOperation='source-over'}
-      if(rk.rider){const mood=fly?clamp(I*.9+.1,0,1):st?1:0;c.save();c.translate(r.seat[0],r.seat[1]);c.rotate(-rk.ang*.85);CHARS[SEL.char].draw(c,mood,t);c.restore()}
+      if(rk.rider){const mood=fly?clamp(I*.9+.1,0,1):st?1:0;c.save();c.translate(r.seat[0],r.seat[1]);c.rotate(-rk.ang*.85);
+        rider(c,mood,t,st?'scared':fly?(S.t<.45?'scared':'fly'):'pad',dt);c.restore()}   // a startled grab at lift-off
       c.restore()}
     // bot chutes
     for(const ch of this.chutes)chute(c,ch,t,k,false);
     // me: ejected rider with parachute
     const j=this.jumper;if(j){c.save();c.translate(j.x,j.y);c.rotate(j.rot+Math.sin(t*2)*.1*j.open);c.scale(k,k);
-      if(j.open>0){const o=easeBack(j.open);c.save();c.translate(0,-58);c.scale(o,o);drawCanopy(c,SEL.chute);c.restore();c.strokeStyle='rgba(255,255,255,.6)';c.lineWidth=.8;c.beginPath();c.moveTo(-26*easeBack(j.open),-58);c.lineTo(-6,-30);c.moveTo(26*easeBack(j.open),-58);c.lineTo(6,-30);c.stroke()}
-      CHARS[SEL.char].draw(c,1,t);c.restore();
+      const cg=CHARS[SEL.char].chute||{y:-58,l:[-6,-30],r:[6,-30]};   // canopy height and where the straps meet the rider
+      if(j.open>0){const o=easeBack(j.open);c.save();c.translate(0,cg.y);c.scale(o,o);drawCanopy(c,SEL.chute);c.restore();c.strokeStyle='rgba(255,255,255,.6)';c.lineWidth=.8;c.beginPath();c.moveTo(-26*o,cg.y);c.lineTo(cg.l[0],cg.l[1]);c.moveTo(26*o,cg.y);c.lineTo(cg.r[0],cg.r[1]);c.stroke()}
+      rider(c,1,t,j.open>0?'chute':'win',dt);c.restore();
       if(j.open>.5){c.save();c.font=`800 ${Math.round(13*Math.max(1,k))}px Unbounded,sans-serif`;c.textAlign='center';c.fillStyle='#ffd23f';c.shadowColor='rgba(0,0,0,.8)';c.shadowBlur=6;c.fillText('+'+fmtTon(j.win)+' TON',j.x,j.y+22*k);c.restore()}}
     // tumble after explosion
-    const tb=this.tumble;if(tb){c.save();c.translate(tb.x,tb.y);c.rotate(tb.rot);c.scale(k,k);CHARS[SEL.char].draw(c,1,t);c.restore();
+    const tb=this.tumble;if(tb){c.save();c.translate(tb.x,tb.y);c.rotate(tb.rot);c.scale(k,k);rider(c,1,t,'fall',dt);c.restore();
       const d=tb.drop;c.save();c.translate(d.x,d.y);c.rotate(d.rot);c.scale(k*1.3,k*1.3);const dk=CHARS[SEL.char].drop;if(dk==='horn'){c.strokeStyle='#f1e6c8';c.lineWidth=4;c.lineCap='round';c.beginPath();c.moveTo(0,0);c.quadraticCurveTo(-10,-1,-9,-12);c.stroke()}else if(dk==='hair'){c.fillStyle='#f3cf63';c.beginPath();c.moveTo(-12,4);c.quadraticCurveTo(-13,-8,0,-9);c.quadraticCurveTo(12,-9,14,-1);c.quadraticCurveTo(4,-3,-12,4);c.fill()}else if(dk==='bat'){c.fillStyle='#d6a25e';c.beginPath();c.moveTo(-1.2,8);c.lineTo(1.2,8);c.lineTo(3.2,-12);c.quadraticCurveTo(0,-16,-3.2,-12);c.closePath();c.fill()}else if(dk==='shades')shades(c,0,-3,'#2bff88');c.restore()}
     if(zoned)this.zones.drawFront(c,E);
     // fireballs
@@ -495,6 +498,8 @@ function stepP(list,dt,grow){for(let i=list.length-1;i>=0;i--){const p=list[i];p
 function drawP(c,list){for(const p of list){const a=clamp(p.life/p.max,0,1),r=p.s*(p.shrink?a:1);c.globalAlpha=a;c.fillStyle=p.c;
   if(p.shape==='glyph'){c.font=`900 ${Math.max(6,Math.round(r*2.2))}px Unbounded,sans-serif`;c.textAlign='center';c.textBaseline='middle';c.fillText(p.glyph,p.x,p.y)}
   else if(p.shape==='sq')c.fillRect(p.x-r*.8,p.y-r*.8,r*1.6,r*1.6);else{c.beginPath();c.arc(p.x,p.y,r,0,6.283);c.fill()}}c.globalAlpha=1}
+/** The player's character in a given moment of the round; characters with a rig blend between poses. */
+function rider(c,mood,t,state,dt){const ch=CHARS[SEL.char];if(ch.rig)ch.rig.draw(c,mood,t,state,dt);else ch.draw(c,mood,t)}
 function chute(c,ch,t,k){c.save();c.translate(ch.x,ch.y);c.rotate(Math.sin(t*2+ch.seed)*.18);c.scale(k*.9,k*.9);
   const cols=['#ff3ea5','#ffd23f','#2bff88','#29e6ff','#8a5cff'];for(let i=0;i<5;i++){c.fillStyle=cols[i];c.beginPath();c.moveTo(0,0);c.arc(0,0,13,Math.PI+i*Math.PI/5,Math.PI+(i+1)*Math.PI/5);c.closePath();c.fill()}
   c.strokeStyle='rgba(255,255,255,.55)';c.lineWidth=.7;c.beginPath();c.moveTo(-13,0);c.lineTo(0,18);c.lineTo(13,0);c.stroke();c.fillStyle='#f4f1ff';c.beginPath();c.arc(0,19,3,0,6.283);c.fill();c.fillRect(-2,21,4,6);c.restore()}
@@ -640,6 +645,6 @@ function tick(ts){
 requestAnimationFrame(tick);
 </script>
 <!-- ?v=: bump on every release so Telegram does not keep old copies -->
-<script src="screens.js?v=20260926"></script>
+<script src="screens.js?v=20260928e"></script>
 <script src="net.js?v=20260926"></script>
 <script src="round.js?v=20260926"></script>
