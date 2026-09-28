@@ -163,6 +163,11 @@
 
 /* test TON sheet */
 .tnet{font-size:8.5px;font-weight:800;letter-spacing:.08em;padding:2px 5px;border-radius:5px;background:rgba(41,230,255,.14);color:var(--cyan)}
+/* account switch next to the balance: real (TESTNET) / DEMO */
+.mode{border:1px solid rgba(41,230,255,.35);font:800 8.5px 'Golos Text',sans-serif;letter-spacing:.08em;padding:3px 6px;border-radius:6px;background:rgba(41,230,255,.12);color:var(--cyan);cursor:pointer}
+.mode.on{border-color:rgba(255,210,63,.55);background:rgba(255,210,63,.16);color:var(--gold)}
+.app.demo .bal .ton,.app.demo .amt .ton{display:none}
+.app.demo #bal{color:var(--gold)}
 .tsheet .segs button[aria-pressed="true"]{background:var(--panel-2);color:var(--text)}
 .tbody{overflow-y:auto;padding:0 16px 16px;display:flex;flex-direction:column;gap:10px}
 .twarn{font-size:12px;font-weight:600;line-height:1.4;padding:9px 12px;border-radius:10px;background:rgba(41,230,255,.08);border:1px solid rgba(41,230,255,.3);color:var(--cyan)}

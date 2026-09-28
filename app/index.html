@@ -5,7 +5,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700;800&family=Unbounded:wght@500;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap">
-<link rel="stylesheet" href="screens.css?v=20260926">
+<link rel="stylesheet" href="screens.css?v=20260930b">
 <style>
 :root{color-scheme:dark;
   --page:#0d0820;--ink:#ecebf5;--ink-2:#9490b3;--hair:#262143;
@@ -218,7 +218,7 @@ html.tg .device>.app{border-radius:0}
       /* Telegram and GitHub Pages may hand out a cached copy of this page after a release. Ask the site for the
          current version, bypassing every cache; if it is newer, reload once with it in the address (the #hash with
          Telegram's login data is kept). Bump APP_VER here and in version.json on every release. */
-      (()=>{const APP_VER='20260930';
+      (()=>{const APP_VER='20260930b';
         fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(r=>r.json()).then(d=>{
           if(!d||!d.v||d.v===APP_VER)return;const u=new URL(location.href);
           if(u.searchParams.get('v')===d.v)return;          // already asked for it once: never loop
@@ -344,6 +344,7 @@ const T=k=>I18N[lang][k];
 const fmtInt=n=>n.toLocaleString(lang==='ru'?'ru-RU':'en-US');
 const fmtTon=n=>n.toLocaleString(lang==='ru'?'ru-RU':'en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
 const x2=m=>m.toFixed(2);
+const CUR=()=>window.NET&&NET.demo?' DEMO':' TON';   // the player's own amounts: virtual in demo mode
 const xf=m=>Math.floor(m*100)/100; // the multiplier as the server counts it (floor(100*m)): 1.999 is 1.99, never rounded up
 
 
@@ -383,7 +384,7 @@ S.bots=makeBots();
 
 function startFlight(ts){S.phase='fly';S.t0=ts;S.t=0;S.m=1;S.mi=0;S.crash=sampleCrash();
   if(S.next){S.bet={amt:S.next.amt,out:0};S.next=null}
-  if(S.bet&&window.ECO)ECO.bet(S.bet.amt);
+  if(S.bet&&!S.bet.demo&&window.ECO)ECO.bet(S.bet.amt);   // demo bets earn no coins or stats
   SC.onStart();showCount(T('go'),true);AU.go();AU.engine(true,1);renderPlayers();haptic('medium')}
 function doCrash(ts){S.phase='crash';S.t0=ts;S.m=S.crash;S.hist.unshift(S.crash);S.hist.length=Math.min(S.hist.length,20);
   const lost=!!(S.bet&&!S.bet.out),cashed=!!(S.bet&&S.bet.out);
@@ -391,15 +392,15 @@ function doCrash(ts){S.phase='crash';S.t0=ts;S.m=S.crash;S.hist.unshift(S.crash)
   if(lost){setTimeout(()=>{pop('stamp',T('rekt'));AU.lose()},320);haptic('error')}
   else if(cashed){setTimeout(()=>pop('safe',T('safe')(x2(S.bet.out))),350)}
   const mu=$('mult');mu.classList.remove('glitch');void mu.offsetWidth;mu.classList.add('glitch');
-  renderHist(true);renderPlayers();window.ECO&&ECO.roundEnd(S.bet,S.crash)}
+  renderHist(true);renderPlayers();window.ECO&&ECO.roundEnd(S.bet&&S.bet.demo?null:S.bet,S.crash)}
 function newRound(ts){S.phase='wait';S.t0=ts;S.m=1;S.t=0;S.bet=null;S.bots=makeBots();S.online+=Math.round((Math.random()-.45)*30);
   if(S.next){S.bet={amt:S.next.amt,out:0};S.next=null}
   else if(!window.NET_ON){const a=autoBetDue();if(a){S.bal-=a;S.bet={amt:a,out:0}}}
   SC.onReset();renderPlayers();lastCount=-1}
 function cashOut(m,confirmed){const b=S.bet;if(!b||b.out||(S.phase!=='fly'&&!confirmed))return;  // confirmed: the server paid it, show it even if the crash message came first
   b.out=m;const win=b.amt*m;S.bal+=win;S.pend+=win;
-  SC.onMyCash(m,win);AU.cash();haptic('success');window.ECO&&ECO.cash(m,win,b.amt);
-  const big=m>=5;$('winL').textContent=big?T('bigL'):T('winL');$('winV').textContent='+'+fmtTon(win)+' TON';$('winS').textContent=T('on')(x2(m));
+  SC.onMyCash(m,win);AU.cash();haptic('success');window.ECO&&!b.demo&&ECO.cash(m,win,b.amt);
+  const big=m>=5;$('winL').textContent=big?T('bigL'):T('winL');$('winV').textContent='+'+fmtTon(win)+CUR();$('winS').textContent=T('on')(x2(m));
   pop('win');$('stage').classList.add('winning');setTimeout(()=>$('stage').classList.remove('winning'),2400);feed(T('you'),m,win-b.amt,true);if(big){$('bigwin').textContent=T('bigwin');pop('bigwin');pop('rays')}
   renderPlayers()}
 
@@ -526,7 +527,7 @@ const SC={
       const cg=CHARS[SEL.char].chute||{y:-58,l:[-6,-30],r:[6,-30]};   // canopy height and where the straps meet the rider
       if(j.open>0){const o=easeBack(j.open);c.save();c.translate(0,cg.y);c.scale(o,o);drawCanopy(c,SEL.chute);c.restore();c.strokeStyle='rgba(255,255,255,.6)';c.lineWidth=.8;c.beginPath();c.moveTo(-26*o,cg.y);c.lineTo(cg.l[0],cg.l[1]);c.moveTo(26*o,cg.y);c.lineTo(cg.r[0],cg.r[1]);c.stroke()}
       rider(c,1,t,j.open>0?'chute':'win',dt);c.restore();
-      if(j.open>.5){c.save();c.font=`800 ${Math.round(13*Math.max(1,k))}px Unbounded,sans-serif`;c.textAlign='center';c.fillStyle='#ffd23f';c.shadowColor='rgba(0,0,0,.8)';c.shadowBlur=6;c.fillText('+'+fmtTon(j.win)+' TON',j.x,j.y+22*k);c.restore()}}
+      if(j.open>.5){c.save();c.font=`800 ${Math.round(13*Math.max(1,k))}px Unbounded,sans-serif`;c.textAlign='center';c.fillStyle='#ffd23f';c.shadowColor='rgba(0,0,0,.8)';c.shadowBlur=6;c.fillText('+'+fmtTon(j.win)+CUR(),j.x,j.y+22*k);c.restore()}}
     // tumble after explosion
     const tb=this.tumble;if(tb){c.save();c.translate(tb.x,tb.y);c.rotate(tb.rot);c.scale(k,k);rider(c,1,t,'fall',dt);c.restore();
       const d=tb.drop;c.save();c.translate(d.x,d.y);c.rotate(d.rot);c.scale(k*1.3,k*1.3);const dk=CHARS[SEL.char].drop;if(dk==='horn'){c.strokeStyle='#f1e6c8';c.lineWidth=4;c.lineCap='round';c.beginPath();c.moveTo(0,0);c.quadraticCurveTo(-10,-1,-9,-12);c.stroke()}else if(dk==='hair'){c.fillStyle='#f3cf63';c.beginPath();c.moveTo(-12,4);c.quadraticCurveTo(-13,-8,0,-9);c.quadraticCurveTo(12,-9,14,-1);c.quadraticCurveTo(4,-3,-12,4);c.fill()}else if(dk==='bat'){c.fillStyle='#d6a25e';c.beginPath();c.moveTo(-1.2,8);c.lineTo(1.2,8);c.lineTo(3.2,-12);c.quadraticCurveTo(0,-16,-3.2,-12);c.closePath();c.fill()}else if(dk==='shades')shades(c,0,-3,'#2bff88');c.restore()}
@@ -582,10 +583,11 @@ function renderHist(fresh){$('hist').innerHTML=S.hist.map((c,i)=>`<span class="c
 let psTab='round';
 $('psTabs').onclick=e=>{const b=e.target.closest('button');if(!b)return;psTab=b.dataset.v;$('psTabs').querySelectorAll('button').forEach(x=>x.setAttribute('aria-selected',x===b));$('phL').parentElement.style.display=psTab==='mine'?'none':'';renderPlayers();haptic('select')};
 function renderPlayers(){
-  const rows=[...S.bots];if(S.bet)rows.unshift({n:T('you'),bet:S.bet.amt,out:S.bet.out,me:true});
+  const rows=[...S.bots];if(S.bet)rows.unshift({n:T('you'),bet:S.bet.amt,out:S.bet.out,me:true,demo:S.bet.demo});
   rows.sort((a,b)=>(b.me?1e9:0)-(a.me?1e9:0)||(b.out?1:0)-(a.out?1:0)||b.bet-a.bet);
-  const pool=rows.reduce((s,r)=>s+r.bet,0);set('phL','textContent',T('players')(rows.length));set('phR','textContent',T('pool')(fmtTon(pool)));
-  set('plN','textContent',String(rows.length));set('plPool','textContent',fmtTon(pool)+' TON');
+  const real=rows.filter(r=>!r.demo),pool=real.reduce((s,r)=>s+r.bet,0);   // a demo bet is not in the round's real pool
+  set('phL','textContent',T('players')(real.length));set('phR','textContent',T('pool')(fmtTon(pool)));
+  set('plN','textContent',String(real.length));set('plPool','textContent',fmtTon(pool)+' TON');
   if(psTab==='mine'){  // my last rounds: time, stake, multiplier, result
     const h=window.ECO&&ECO.hist?ECO.hist():[];
     $('plist').innerHTML=h.length?h.map(r=>`<div class="pl my ${r.win?'won':'lost'}"><span class="n">${r.time}</span><span class="b">${fmtTon(r.amt)}</span><span class="r">${x2(r.x)}x · ${r.win?'+'+fmtTon(r.win-r.amt):'−'+fmtTon(r.amt)}</span></div>`).join(''):`<div class="pl my"><span class="n">${T('noMine')}</span></div>`;return}
@@ -607,7 +609,7 @@ function autoChip(){const on=$('autoOn').checked,ab=$('autoBet').checked;$('auto
 $('autoOn').onchange=autoChip;$('autoBet').onchange=autoChip;
 /** Auto-bet: the same amount every round until it is switched off or the balance runs short. */
 function autoBetDue(){if(!$('autoBet').checked||S.bet||S.next)return 0;const a=getAmt();
-  if(S.bal<a){$('autoBet').checked=false;autoChip();toast(T('autoStop'),'bad');window.NET&&NET.ton&&NET.openTon('deposit');return 0}return a}
+  if(S.bal<a){$('autoBet').checked=false;autoChip();toast(T('autoStop'),'bad');window.NET&&NET.ton&&!NET.demo&&NET.openTon('deposit');return 0}return a}
 $('autoX').onchange=()=>{let v=parseFloat($('autoX').value.replace(',','.'));if(!isFinite(v)||v<1.01)v=1.01;$('autoX').value=v.toFixed(2);autoChip()};
 function closePops(){document.querySelectorAll('.pop.on').forEach(p=>p.classList.remove('on'))}
 function togglePop(id){const p=$(id),was=p.classList.contains('on');closePops();if(!was)p.classList.add('on');haptic('select')}
@@ -650,12 +652,13 @@ function updateHud(ts){
     if(S.phase==='fly'){const h=heat(S.m);app.style.setProperty('--heat',h[1]);app.style.setProperty('--heat-glow',h[2])}
     set('sub','textContent',S.phase==='crash'?T('boom')(x2(S.crash)):T('alt')(S.m))}
   let cls='main',b,s='';
-  if(S.phase==='fly'&&S.bet&&!S.bet.out&&S.bet.lock){cls+=' cash locked';b='x'+x2(S.bet.lock);s=fmtTon(S.bet.amt*S.bet.lock)+' TON'}  // tapped, waiting for the server to confirm
-  else if(S.phase==='fly'&&S.bet&&!S.bet.out){cls+=' cash';b=T('cash');s=fmtTon(S.bet.amt*xf(S.m))+' TON'}
-  else if(S.phase==='wait'&&S.bet){cls+=' cancel';b=T('cancel');s=T('accepted')+' · '+fmtTon(S.bet.amt)+' TON'}
-  else if(S.phase!=='wait'&&S.next){cls+=' cancel';b=T('cancel');s=T('nextQueued')+' · '+fmtTon(S.next.amt)+' TON'}
-  else if(S.phase==='wait'){b=T('bet');s=fmtTon(getAmt())+' TON'}
-  else{b=T('betNext');s=fmtTon(getAmt())+' TON'}
+  const cu=CUR();
+  if(S.phase==='fly'&&S.bet&&!S.bet.out&&S.bet.lock){cls+=' cash locked';b='x'+x2(S.bet.lock);s=fmtTon(S.bet.amt*S.bet.lock)+cu}  // tapped, waiting for the confirmation
+  else if(S.phase==='fly'&&S.bet&&!S.bet.out){cls+=' cash';b=T('cash');s=fmtTon(S.bet.amt*xf(S.m))+cu}
+  else if(S.phase==='wait'&&S.bet){cls+=' cancel';b=T('cancel');s=T('accepted')+' · '+fmtTon(S.bet.amt)+cu}
+  else if(S.phase!=='wait'&&S.next){cls+=' cancel';b=T('cancel');s=T('nextQueued')+' · '+fmtTon(S.next.amt)+cu}
+  else if(S.phase==='wait'){b=T('bet');s=fmtTon(getAmt())+cu}
+  else{b=T('betNext');s=fmtTon(getAmt())+cu}
   set('main','className',cls);set('mainB','textContent',b);set('mainS','textContent',s)}
 $('mult').addEventListener('animationend',e=>e.target.classList.remove('punch','glitch'));
 
@@ -707,5 +710,5 @@ requestAnimationFrame(tick);
 </script>
 <!-- ?v=: bump on every release so Telegram does not keep old copies (and APP_VER + version.json for the page itself) -->
 <script src="screens.js?v=20260930"></script>
-<script src="net.js?v=20260929d"></script>
+<script src="net.js?v=20260930b"></script>
 <script src="round.js?v=20260926"></script>

@@ -11,6 +11,8 @@ if(!base){window.BOOT&&(BOOT.done('net'),BOOT.done('round'));return}   // no ser
 
 const NET={token:'',uid:'',ws:null,retry:0,off:0,synced:false,rtt:0,req:0,wait:new Map(),busy:false,phaseAt:0};
 window.NET=NET;NET.base=base;NET.hist=[];  // NET.hist[i]: {no, hash?} of S.hist[i], for round details
+// The balance on the server (TON). In demo mode the screen shows the DEMO balance and this one waits in the background.
+NET.real=0;const setReal=v=>{NET.real=v;if(!NET.demo)S.bal=v};
 const clean=n=>String(n||'').replace(/^@/,'');
 // Clock: NET.off = server time - performance.now(). Measured from ping round-trips (the reply is stamped roughly in
 // the middle), keeping the fastest recent sample: that one has the least network noise. So the rocket on screen
@@ -31,8 +33,8 @@ async function login(){
   const body=TG&&TG.initData?{initData:TG.initData}:{dev:q.get('dev')||(()=>{let n='';try{n=localStorage.getItem('cr.dev')||''}catch(e){}if(!n){n='guest-'+Math.random().toString(36).slice(2,7);try{localStorage.setItem('cr.dev',n)}catch(e){}}return n})()};
   const r=await fetch(base+'/api/auth',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
   if(!r.ok)throw new Error((await r.json().catch(()=>({}))).error||'login failed');
-  const d=await r.json();NET.token=d.token;NET.uid=d.user.id;S.bal=d.balance;
-  NET.ton=!!(d.mode&&d.mode.currency==='tton');if(NET.ton)tonMode();
+  const d=await r.json();NET.token=d.token;NET.uid=d.user.id;setReal(d.balance);
+  NET.ton=!!(d.mode&&d.mode.currency==='tton');if(NET.ton)tonMode();paintMode();
 }
 function connect(){
   const ws=new WebSocket(base.replace(/^http/,'ws')+'/ws?token='+encodeURIComponent(NET.token));NET.ws=ws;
@@ -52,13 +54,14 @@ function on(m){const now=performance.now();
   if(m.t==='pong'){onPong(m);return}
   if(m.t==='ok'||m.t==='err'){const w=NET.wait.get(m.id);if(w){NET.wait.delete(m.id);m.t==='ok'?w.res(m):w.rej(new Error(m.error))}return}
   if(m.t==='hello'&&m.phase==='waiting'){ // a fresh server waits for the previous one to finish its round
-    rough(m.serverNow);if(m.k)K=m.k;window.NET_ON=true;S.bal=m.balance;S.pend=0;S.bots=[];S.bet=null;S.phase='crash';S.crash=1;S.m=1;S.t0=now;renderPlayers();
+    rough(m.serverNow);if(m.k)K=m.k;window.NET_ON=true;setReal(m.balance);S.pend=0;S.bots=[];if(!(S.bet&&S.bet.demo))S.bet=null;S.phase='crash';S.crash=1;S.m=1;S.t0=now;renderPlayers();
     toast(lang==='ru'?'Сервер обновляется, следующий раунд через пару секунд':'Server is updating, next round in a few seconds');return}
   if(m.t==='hello'){NET.retry=0;
-    rough(m.serverNow);if(m.k)K=m.k;NET.phaseAt=m.phaseAt;window.NET_ON=true;S.bal=m.balance;S.pend=0;
+    rough(m.serverNow);if(m.k)K=m.k;NET.phaseAt=m.phaseAt;window.NET_ON=true;setReal(m.balance);S.pend=0;
     S.hist=m.history.map(h=>h.crash);NET.hist=m.history.map(h=>({no:h.no}));renderHist();
     S.bots=m.bets.filter(b=>b.uid!==NET.uid).map(botFrom);
-    const mine=m.bets.find(b=>b.uid===NET.uid);S.bet=mine?{amt:mine.amount,out:mine.cashX100?mine.cashX100/100:0}:null;
+    const mine=m.bets.find(b=>b.uid===NET.uid);
+    if(!(S.bet&&S.bet.demo))S.bet=mine?{amt:mine.amount,out:mine.cashX100?mine.cashX100/100:0}:null;   // a demo bet lives on this device
     if(m.phase==='betting'){S.phase='wait';S.t0=local(m.phaseAt)}
     else if(m.phase==='running'){S.phase='fly';S.t0=local(m.phaseAt);S.crash=Infinity;S.mi=0;SC.onStart()}
     else{S.phase='crash';S.t0=local(m.phaseAt);S.crash=m.crashX100?m.crashX100/100:1;S.m=S.crash}
@@ -66,28 +69,73 @@ function on(m){const now=performance.now();
   if(m.t==='betting'){const queued=S.next;S.next=null;newRound(now);S.bet=null;NET.phaseAt=m.phaseAt;S.t0=local(m.phaseAt);S.bots=[];
     if(queued)sendBet(queued.amt,true);else{const a=autoBetDue();if(a)sendBet(a,true)}renderPlayers();return}
   if(m.t==='run'){rough(m.serverNow);if(m.k)K=m.k;NET.phaseAt=m.startedAt;startFlight(now);S.crash=Infinity;S.t0=local(m.startedAt);return}
-  if(m.t==='crash'){S.crash=m.crash;S.m=m.crash;if(window.BOOT&&BOOT.on)BOOT.ended(m.crash);if(S.phase!=='crash'){NET.hist.unshift({no:m.no,hash:m.hash});NET.hist.length=Math.min(NET.hist.length,20);doCrash(now)}return}  // doCrash adds to S.hist: keep both in step
+  if(m.t==='crash'){if(S.bet&&S.bet.demo&&S.bet.lock&&!S.bet.out)demoSettle(S.bet.lock<m.crash);   // before the loss is shown
+    S.crash=m.crash;S.m=m.crash;if(window.BOOT&&BOOT.on)BOOT.ended(m.crash);if(S.phase!=='crash'){NET.hist.unshift({no:m.no,hash:m.hash});NET.hist.length=Math.min(NET.hist.length,20);doCrash(now)}return}  // doCrash adds to S.hist: keep both in step
   if(m.t==='bet'){if(m.uid===NET.uid)return;const i=S.bots.findIndex(b=>b.uid===m.uid);const b=botFrom(m);if(i<0)S.bots.push(b);else S.bots[i]=b;renderPlayers();return}
   if(m.t==='cancel'){S.bots=S.bots.filter(b=>b.uid!==m.uid);renderPlayers();return}
   if(m.t==='cashout'){
     if(m.uid===NET.uid){if(S.bet&&!S.bet.out){S.m=Math.max(S.m,m.x);cashOut(m.x,true)}return}  // auto cash-out done by the server
     const b=S.bots.find(x=>x.uid===m.uid);if(b){b.out=m.x;SC.onBotCash(b.n,m.x);feed(b.n,m.x,b.bet*(m.x-1))}renderPlayers();return}
-  if(m.t==='balance'){S.bal=m.balance;return}
+  if(m.t==='balance'){setReal(m.balance);return}
   if(m.t==='ton'){onTon(m);return}
 }
 
+/* ---------- demo: the same live rounds with a virtual DEMO balance ----------
+   The server supplies the rounds; demo bets, cash-outs and the balance stay on this device and never reach it.
+   A demo cash-out counts only if the tap came before the explosion, like on the server: it is confirmed by the
+   crash point itself (locked at a lower multiplier = tapped before it) or, if no crash message arrives within a
+   network round-trip, the rocket was surely still flying when the finger landed. Demo bets earn no coins. */
+const DEMO_START=1000;
+const demoBal=()=>{try{const v=parseFloat(localStorage.getItem('cr.demoBal'));return isFinite(v)?v:DEMO_START}catch(e){return DEMO_START}};
+const demoSave=()=>{if(!NET.demo)return;S.bal=Math.round(S.bal*100)/100;try{localStorage.setItem('cr.demoBal',String(S.bal))}catch(e){}};
+try{NET.demo=localStorage.getItem('cr.demo')==='1'}catch(e){NET.demo=false}
+if(NET.demo)S.bal=demoBal();
+const DT={ru:{on:'Демо-режим: ставки виртуальные, выигрыши тоже',off:'Реальный счёт',busy:'Переключить можно после раунда',wait:'Пополнить демо можно после раунда',
+    refill:'Демо-баланс пополнен',full:'Демо-баланс уже полный',late:'Не успели: ракета взорвалась раньше'},
+  en:{on:'Demo mode: virtual bets, virtual wins',off:'Real account',busy:'You can switch after the round',wait:'You can top up demo after the round',
+    refill:'Demo balance topped up',full:'Demo balance is already full',late:'Too late: the rocket exploded first'}};
+const dt=k=>(DT[lang]||DT.en)[k];
+function demoBet(a,quiet){
+  if(S.bal<a){toast(T('noFunds'),'bad');return}
+  S.bal-=a;demoSave();S.bet={amt:a,out:0,demo:true};renderPlayers();if(!quiet)toast(T('accepted'));haptic('light')}
+function demoLock(b,x){
+  b.lock=x;const my=b;
+  setTimeout(()=>{if(S.bet===my&&my.lock&&!my.out&&S.phase==='fly')demoSettle(true)},Math.max(NET.rtt||0,120)+60)}
+function demoSettle(win){const b=S.bet;if(!b||!b.demo||b.out||!b.lock)return;
+  if(win){cashOut(b.lock,true);demoSave()}                               // cashOut adds the win to the balance
+  else{b.lock=0;toast(dt('late'),'bad');haptic('error')}}
+// auto cash-out for demo bets: exactly at the target, like the server does for real ones
+(function demoAuto(){requestAnimationFrame(demoAuto);const b=S.bet;
+  if(!NET.demo||!window.NET_ON||S.phase!=='fly'||!b||!b.demo||b.out||b.lock||!$('autoOn').checked)return;
+  const ax=Math.floor((parseFloat($('autoX').value)||2)*100)/100;if(xf(S.m)>=ax)demoLock(b,ax)})();
+/** Switch between the real account and demo; only between rounds, so a bet never changes currency. */
+NET.setDemo=on=>{
+  if(on===NET.demo)return;if(S.bet||S.next){toast(dt('busy'),'bad');return}
+  NET.demo=on;try{localStorage.setItem('cr.demo',on?'1':'0')}catch(e){}
+  S.bal=on?demoBal():NET.real;S.pend=0;paintMode();toast(on?dt('on'):dt('off'));haptic('select')};
+function paintMode(){
+  $('app').classList.toggle('demo',NET.demo);
+  const box=$('balBox');let b=box.querySelector('.mode');
+  if(!b){b=document.createElement('button');b.className='mode';b.type='button';b.onclick=e=>{e.stopPropagation();NET.setDemo(!NET.demo)};box.insertBefore(b,$('topup'))}
+  const tn=box.querySelector('.tnet');if(tn)tn.remove();                   // the mode badge replaces the TESTNET one
+  b.textContent=NET.demo?'DEMO':NET.ton?'TESTNET':'REAL';b.classList.toggle('on',NET.demo);
+  b.setAttribute('aria-label',NET.demo?(lang==='ru'?'Демо-режим, переключить на реальный счёт':'Demo mode, switch to the real account'):(lang==='ru'?'Реальный счёт, переключить на демо':'Real account, switch to demo'))}
+NET.paintMode=paintMode;
+
 async function sendBet(a,quiet){
+  if(NET.demo)return demoBet(a,quiet);
   const auto=$('autoOn').checked?parseFloat($('autoX').value)||2:undefined;
-  try{const r=await call({t:'bet',amount:a,auto});S.bet={amt:a,out:0};S.bal=r.balance;renderPlayers();if(!quiet)toast(T('accepted'));haptic('light')}
+  try{const r=await call({t:'bet',amount:a,auto});S.bet={amt:a,out:0};setReal(r.balance);renderPlayers();if(!quiet)toast(T('accepted'));haptic('light')}
   catch(e){toast(e.message,'bad');if(/insufficient/.test(e.message)&&NET.ton)NET.openTon('deposit')}
 }
 // the big button: bet / cancel / cash out, all confirmed by the server
 NET.main=async()=>{if(NET.busy)return;NET.busy=true;try{const a=getAmt();
   if(S.phase==='fly'&&S.bet&&!S.bet.out)return cashNow();
-  if(S.phase==='wait'&&S.bet){try{const r=await call({t:'cancel'});S.bet=null;S.bal=r.balance;renderPlayers()}catch(e){toast(e.message,'bad')}return}
+  if(S.phase==='wait'&&S.bet&&S.bet.demo){S.bal+=S.bet.amt;S.bet=null;demoSave();renderPlayers();return}
+  if(S.phase==='wait'&&S.bet){try{const r=await call({t:'cancel'});S.bet=null;setReal(r.balance);renderPlayers()}catch(e){toast(e.message,'bad')}return}
   if(S.phase!=='wait'&&S.next){S.next=null;return}
   if(S.phase==='wait')return sendBet(a);
-  if(S.bal<a){toast(T('noFunds'),'bad');if(NET.ton)NET.openTon('deposit');return}
+  if(S.bal<a){toast(T('noFunds'),'bad');if(NET.ton&&!NET.demo)NET.openTon('deposit');return}
   S.next={amt:a};toast(T('nextQueued'))}finally{NET.busy=false}};
 // Cash out at exactly the multiplier on screen when the finger lands: the number drawn in the last frame, dated with
 // that frame's time in server time, so the server's floor(100*e^(K*t)) gives the same hundredths. The amount locks
@@ -96,14 +144,18 @@ NET.main=async()=>{if(NET.busy)return;NET.busy=true;try{const a=getAmt();
 async function cashNow(){const b=S.bet;if(!b||b.out||b.lock)return;
   const sh=S.shown&&S.shown.at>=S.t0?S.shown:{x:xf(Math.exp(K*Math.max(0,(performance.now()-S.t0)/1000))),at:performance.now()};
   const x=Math.min(sh.x,S.crash);
-  b.lock=x;haptic('medium');pop('safe',(lang==='ru'?'Ваш выход: x':'Your cash-out: x')+x2(x));
-  try{const r=await call({t:'cashout',at:sh.at+NET.off});if(!b.out){S.m=Math.max(S.m,r.x);cashOut(r.x,true)}S.bal=r.balance}
+  haptic('medium');pop('safe',(lang==='ru'?'Ваш выход: x':'Your cash-out: x')+x2(x));
+  if(b.demo)return demoLock(b,x);
+  b.lock=x;
+  try{const r=await call({t:'cashout',at:sh.at+NET.off});if(!b.out){S.m=Math.max(S.m,r.x);cashOut(r.x,true)}setReal(r.balance)}
   catch(e){b.lock=0;toast(/too late|not flying/.test(e.message)?(lang==='ru'?'Не успели: ракета взорвалась раньше':'Too late: the rocket exploded first'):e.message,'bad');haptic('error')}}
 // react on touch-down, not on release: saves the ~100 ms a finger takes to lift
 const mainBtn=$('main'),mainClick=mainBtn.onclick;let downAt=0;
 mainBtn.addEventListener('pointerdown',e=>{if(window.NET_ON&&e.button<=0&&S.phase==='fly'&&S.bet&&!S.bet.out&&!S.bet.lock){downAt=performance.now();cashNow()}});
 mainBtn.onclick=e=>{if(performance.now()-downAt<1000)return;mainClick(e)};  // the click that follows the same touch
-NET.refill=async()=>{if(NET.ton)return NET.openTon('deposit');const r=await fetch(base+'/api/refill',{method:'POST',headers:{authorization:'Bearer '+NET.token}});const d=await r.json();if(r.ok){S.bal=d.balance;toast(T('refill'))}else toast(d.error,'bad')};
+NET.refill=async()=>{
+  if(NET.demo){if(S.bet||S.next){toast(dt('wait'));return}if(S.bal>=DEMO_START){toast(dt('full'));return}S.bal=DEMO_START;demoSave();toast(dt('refill'));haptic('success');return}
+  if(NET.ton)return NET.openTon('deposit');const r=await fetch(base+'/api/refill',{method:'POST',headers:{authorization:'Bearer '+NET.token}});const d=await r.json();if(r.ok){setReal(d.balance);toast(T('refill'))}else toast(d.error,'bad')};
 
 /* ---------- test TON: top up from a wallet, withdraw back to it ----------
    Deposits are matched by the player's personal comment; withdrawals go only to wallets they deposited from. */
@@ -144,7 +196,7 @@ function tonMode(){
 }
 function closeTon(){if(!tsh||!tsh.classList.contains('on'))return;tsh.classList.remove('on');if(!document.querySelector('.sheet.on'))$('scrim').classList.remove('on')}
 NET.openTon=async(which)=>{if(!NET.ton||!tsh)return;tab=which==='withdraw'?'withdraw':'deposit';render();tsh.classList.add('on');$('scrim').classList.add('on');haptic('select');await load()};
-async function load(){try{info=await api('/api/ton/info');S.bal=info.balance;render()}catch(e){toast(tl('loadErr'),'bad')}}
+async function load(){try{info=await api('/api/ton/info');setReal(info.balance);render()}catch(e){toast(tl('loadErr'),'bad')}}
 
 function render(){
   const i=info,dep=tab==='deposit';
@@ -203,7 +255,7 @@ async function pay(){
 async function withdraw(btn){
   const amt=parseFloat(($('tWd').value||'').replace(',','.'));const to=(tsh.querySelector('input[name="tTo"]:checked')||{}).value;
   if(!(amt>0)||!to)return;btn.disabled=true;
-  try{const d=await api('/api/ton/withdraw',{method:'POST',body:JSON.stringify({amount:amt,address:to})});S.bal=d.balance;haptic('success');await load()}
+  try{const d=await api('/api/ton/withdraw',{method:'POST',body:JSON.stringify({amount:amt,address:to})});setReal(d.balance);haptic('success');await load()}
   catch(e){toast(terr(e.message),'bad');haptic('error');btn.disabled=false}
 }
 function tonAct(e){const b=e.target.closest('[data-t]');if(!b)return;const t=b.dataset.t;
