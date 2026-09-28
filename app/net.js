@@ -66,7 +66,7 @@ function on(m){const now=performance.now();
   if(m.t==='betting'){const queued=S.next;S.next=null;newRound(now);S.bet=null;NET.phaseAt=m.phaseAt;S.t0=local(m.phaseAt);S.bots=[];
     if(queued)sendBet(queued.amt,true);else{const a=autoBetDue();if(a)sendBet(a,true)}renderPlayers();return}
   if(m.t==='run'){rough(m.serverNow);if(m.k)K=m.k;NET.phaseAt=m.startedAt;startFlight(now);S.crash=Infinity;S.t0=local(m.startedAt);return}
-  if(m.t==='crash'){S.crash=m.crash;S.m=m.crash;if(S.phase!=='crash'){NET.hist.unshift({no:m.no,hash:m.hash});NET.hist.length=Math.min(NET.hist.length,20);doCrash(now)}return}  // doCrash adds to S.hist: keep both in step
+  if(m.t==='crash'){S.crash=m.crash;S.m=m.crash;if(window.BOOT&&BOOT.on)BOOT.ended(m.crash);if(S.phase!=='crash'){NET.hist.unshift({no:m.no,hash:m.hash});NET.hist.length=Math.min(NET.hist.length,20);doCrash(now)}return}  // doCrash adds to S.hist: keep both in step
   if(m.t==='bet'){if(m.uid===NET.uid)return;const i=S.bots.findIndex(b=>b.uid===m.uid);const b=botFrom(m);if(i<0)S.bots.push(b);else S.bots[i]=b;renderPlayers();return}
   if(m.t==='cancel'){S.bots=S.bots.filter(b=>b.uid!==m.uid);renderPlayers();return}
   if(m.t==='cashout'){
@@ -89,13 +89,16 @@ NET.main=async()=>{if(NET.busy)return;NET.busy=true;try{const a=getAmt();
   if(S.phase==='wait')return sendBet(a);
   if(S.bal<a){toast(T('noFunds'),'bad');if(NET.ton)NET.openTon('deposit');return}
   S.next={amt:a};toast(T('nextQueued'))}finally{NET.busy=false}};
-// Cash out at the multiplier on screen at the moment of the tap. The number and the amount lock at once (with a
-// buzz); the win plays when the server confirms the same number a moment later.
+// Cash out at exactly the multiplier on screen when the finger lands: the number drawn in the last frame, dated with
+// that frame's time in server time, so the server's floor(100*e^(K*t)) gives the same hundredths. The amount locks
+// at once with a buzz and a "your cash-out" tag (the big number keeps running for everyone still in the round);
+// the win plays when the server confirms the same number a moment later.
 async function cashNow(){const b=S.bet;if(!b||b.out||b.lock)return;
-  const tap=performance.now(),x=Math.min(xf(Math.exp(K*Math.max(0,(tap-S.t0)/1000))),S.crash);
-  b.lock=x;haptic('medium');
-  try{const r=await call({t:'cashout',at:Math.round(tap+NET.off)});if(!b.out){S.m=Math.max(S.m,r.x);cashOut(r.x,true)}S.bal=r.balance}
-  catch(e){b.lock=0;toast(/too late/.test(e.message)?(lang==='ru'?'Не успели: ракета взорвалась раньше':'Too late: the rocket exploded first'):e.message,'bad');haptic('error')}}
+  const sh=S.shown&&S.shown.at>=S.t0?S.shown:{x:xf(Math.exp(K*Math.max(0,(performance.now()-S.t0)/1000))),at:performance.now()};
+  const x=Math.min(sh.x,S.crash);
+  b.lock=x;haptic('medium');pop('safe',(lang==='ru'?'Ваш выход: x':'Your cash-out: x')+x2(x));
+  try{const r=await call({t:'cashout',at:sh.at+NET.off});if(!b.out){S.m=Math.max(S.m,r.x);cashOut(r.x,true)}S.bal=r.balance}
+  catch(e){b.lock=0;toast(/too late|not flying/.test(e.message)?(lang==='ru'?'Не успели: ракета взорвалась раньше':'Too late: the rocket exploded first'):e.message,'bad');haptic('error')}}
 // react on touch-down, not on release: saves the ~100 ms a finger takes to lift
 const mainBtn=$('main'),mainClick=mainBtn.onclick;let downAt=0;
 mainBtn.addEventListener('pointerdown',e=>{if(window.NET_ON&&e.button<=0&&S.phase==='fly'&&S.bet&&!S.bet.out&&!S.bet.lock){downAt=performance.now();cashNow()}});

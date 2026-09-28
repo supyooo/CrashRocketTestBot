@@ -218,7 +218,7 @@ html.tg .device>.app{border-radius:0}
       /* Telegram and GitHub Pages may hand out a cached copy of this page after a release. Ask the site for the
          current version, bypassing every cache; if it is newer, reload once with it in the address (the #hash with
          Telegram's login data is kept). Bump APP_VER here and in version.json on every release. */
-      (()=>{const APP_VER='20260929c';
+      (()=>{const APP_VER='20260929d';
         fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(r=>r.json()).then(d=>{
           if(!d||!d.v||d.v===APP_VER)return;const u=new URL(location.href);
           if(u.searchParams.get('v')===d.v)return;          // already asked for it once: never loop
@@ -228,18 +228,20 @@ html.tg .device>.app{border-radius:0}
          round is half-way through: joining mid-flight, it shows the live multiplier and opens on the next countdown.
          At least MIN ms so it does not flash; loading gives up after MAX ms, waiting for a round after ROUND_MAX. */
       window.BOOT=(()=>{
-        const steps={fonts:0,frames:0,net:0,round:0},t0=performance.now(),MIN=700,MAX=8000,ROUND_MAX=60000;let gone=false,live='';
+        const steps={fonts:0,frames:0,net:0,round:0},t0=performance.now(),MIN=700,MAX=8000,ROUND_MAX=60000;let gone=false,live='',ended='';
         let en=false;try{en=localStorage.getItem('cr.lang')==='en'}catch(e){}
-        const L=en?{fonts:'Loading…',frames:'Warming up the engine…',net:'Connecting to the server…',round:x=>`Round in progress · ${x} · waiting for the next`,ok:'Ready!'}
-                  :{fonts:'Загрузка…',frames:'Прогреваем двигатель…',net:'Подключаемся к серверу…',round:x=>`Идёт раунд · ${x} · ждём следующий`,ok:'Готово!'};
+        const L=en?{fonts:'Loading…',frames:'Warming up the engine…',net:'Connecting to the server…',round:x=>`Round in progress · ${x} · waiting for the next`,ended:x=>`Round ended at ${x} · the next one is coming`,ok:'Ready!'}
+                  :{fonts:'Загрузка…',frames:'Прогреваем двигатель…',net:'Подключаемся к серверу…',round:x=>`Идёт раунд · ${x} · ждём следующий`,ended:x=>`Раунд закончился на ${x} · сейчас начнётся новый`,ok:'Готово!'};
         const bar=document.getElementById('bootBar'),msg=document.getElementById('bootMsg');
         function paint(){const n=Object.values(steps).filter(Boolean).length;bar.style.width=(12+n/4*88)+'%';
-          msg.textContent=!steps.fonts?L.fonts:!steps.frames?L.frames:!steps.net?L.net:!steps.round?L.round(live||'…'):L.ok}
+          msg.textContent=!steps.fonts?L.fonts:!steps.frames?L.frames:!steps.net?L.net:!steps.round?(ended?L.ended(ended):L.round(live||'…')):L.ok}
         function hide(){if(gone)return;gone=true;setTimeout(()=>{const b=document.getElementById('boot');b.classList.add('out');setTimeout(()=>b.remove(),450)},Math.max(0,MIN-(performance.now()-t0)))}
         const api={
           done(k){if(steps[k]||!(k in steps))return;steps[k]=1;paint();if(Object.values(steps).every(Boolean))hide()},
           /** Multiplier of the round in progress, shown while waiting for the next one. */
-          live(x){const s=x.toFixed(2)+'x';if(gone||s===live)return;live=s;paint()},
+          live(x){const s=x.toFixed(2)+'x';if(gone||ended||s===live)return;live=s;paint()},
+          /** The server's crash point of that round: the same number the history strip shows. */
+          ended(x){if(gone)return;ended=x.toFixed(2)+'x';paint()},
           get on(){return!gone}};
         // loading stuck (slow network, no server): open anyway; a round in progress is waited for a while longer
         setTimeout(()=>{if(gone)return;if(!steps.net)steps.round=1;for(const k of ['fonts','frames','net'])api.done(k)},MAX);
@@ -341,7 +343,7 @@ const T=k=>I18N[lang][k];
 const fmtInt=n=>n.toLocaleString(lang==='ru'?'ru-RU':'en-US');
 const fmtTon=n=>n.toLocaleString(lang==='ru'?'ru-RU':'en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
 const x2=m=>m.toFixed(2);
-const xf=m=>Math.floor(m*100+1e-6)/100; // the multiplier as the server counts it: 1.999 is 1.99, never rounded up
+const xf=m=>Math.floor(m*100)/100; // the multiplier as the server counts it (floor(100*m)): 1.999 is 1.99, never rounded up
 
 
 /* =====================================================================
@@ -610,7 +612,7 @@ document.addEventListener('click',closePops);
 $('topup').onclick=()=>{if(window.NET_ON)return NET.refill();if(S.bal<1){S.bal=25;toast(T('refill'))}else toast(T('topup'))};
 function placeBet(a){if(S.bal<a){toast(T('noFunds'),'bad');return false}S.bal-=a;if(S.phase==='wait')S.bet={amt:a,out:0};else S.next={amt:a};AU.tone(880,.08,'sine',.12);renderPlayers();return true}
 $('main').onclick=()=>{unlockAudio();if(window.NET_ON)return NET.main();const a=getAmt();
-  if(S.phase==='fly'&&S.bet&&!S.bet.out){cashOut(S.m);return}
+  if(S.phase==='fly'&&S.bet&&!S.bet.out){cashOut(S.shown?S.shown.x:xf(S.m));return}   // the number on screen
   if(S.phase==='wait'&&S.bet){S.bal+=S.bet.amt;S.bet=null;renderPlayers();return}
   if(S.phase!=='wait'&&S.next){S.bal+=S.next.amt;S.next=null;return}
   if(placeBet(a))toast(S.phase==='wait'?T('accepted'):T('nextQueued'))};
@@ -637,7 +639,8 @@ function updateHud(ts){
   set('bal','textContent',fmtTon(Math.max(0,S.bal-S.pend)));
   if(S.phase==='wait'){set('mult','textContent','1.00x');set('mult','className','mult waiting');set('sub','textContent',T('startIn')(Math.max(0,WAIT-el).toFixed(1)));
     const left=Math.ceil(WAIT-el);if(left<=3&&left>=1&&left!==lastCount){lastCount=left;showCount(String(left));AU.beep()}}
-  else{const mu=$('mult');set('mult','textContent',x2(S.phase==='fly'?xf(S.m):S.m)+'x');
+  else{const mu=$('mult'),shown=S.phase==='fly'?xf(S.m):S.m;set('mult','textContent',x2(shown)+'x');
+    if(S.phase==='fly')S.shown={x:shown,at:ts};   // exactly what is on screen and when it was drawn: a tap cashes out at this
     const cls='mult'+(S.phase==='crash'?' crashed':'');if(!mu.classList.contains('punch')&&!mu.classList.contains('glitch'))set('mult','className',cls);else{mu.classList.toggle('crashed',S.phase==='crash');mu.classList.remove('waiting')}
     if(S.phase==='fly'){const h=heat(S.m);app.style.setProperty('--heat',h[1]);app.style.setProperty('--heat-glow',h[2])}
     set('sub','textContent',S.phase==='crash'?T('boom')(x2(S.crash)):T('alt')(S.m))}
@@ -680,7 +683,7 @@ let last=performance.now(),bootFrames=0,bootT0=0;
 function tick(ts){
   // 20 frames (or 1.2 s on a slow phone) drawn under the loading screen: backdrops and canvases are warm by then
   if(bootFrames>=0){bootT0=bootT0||ts;if(++bootFrames>=20||ts-bootT0>1200){bootFrames=-1;BOOT.done('frames')}}
-  if(BOOT.on&&window.NET_ON&&S.phase==='fly')BOOT.live(Math.floor(S.m*100)/100);   // joined mid-round: show where it is
+  if(BOOT.on&&window.NET_ON&&NET.synced&&S.phase==='fly')BOOT.live(xf(S.m));   // joined mid-round: show where it is (once the clock is synced)
   const dt=clamp((ts-last)/1000,0,.05);last=ts;const el=(ts-S.t0)/1000;
   if(window.NET_ON){if(S.phase==='fly'){S.t=el;S.m=Math.min(Math.exp(K*Math.max(0,el)),S.crash)}}  // online: the server drives the round
   else if(S.phase==='wait'){if(el>=WAIT)startFlight(ts)}
@@ -699,5 +702,5 @@ requestAnimationFrame(tick);
 </script>
 <!-- ?v=: bump on every release so Telegram does not keep old copies (and APP_VER + version.json for the page itself) -->
 <script src="screens.js?v=20260926"></script>
-<script src="net.js?v=20260929c"></script>
+<script src="net.js?v=20260929d"></script>
 <script src="round.js?v=20260926"></script>
