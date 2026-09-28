@@ -5,7 +5,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700;800&family=Unbounded:wght@500;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap">
-<link rel="stylesheet" href="screens.css?v=20260930b">
+<link rel="stylesheet" href="screens.css?v=20260930c">
 <style>
 :root{color-scheme:dark;
   --page:#0d0820;--ink:#ecebf5;--ink-2:#9490b3;--hair:#262143;
@@ -218,7 +218,7 @@ html.tg .device>.app{border-radius:0}
       /* Telegram and GitHub Pages may hand out a cached copy of this page after a release. Ask the site for the
          current version, bypassing every cache; if it is newer, reload once with it in the address (the #hash with
          Telegram's login data is kept). Bump APP_VER here and in version.json on every release. */
-      (()=>{const APP_VER='20260930b';
+      (()=>{const APP_VER='20260930c';
         fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(r=>r.json()).then(d=>{
           if(!d||!d.v||d.v===APP_VER)return;const u=new URL(location.href);
           if(u.searchParams.get('v')===d.v)return;          // already asked for it once: never loop
@@ -235,13 +235,16 @@ html.tg .device>.app{border-radius:0}
         const bar=document.getElementById('bootBar'),msg=document.getElementById('bootMsg');
         function paint(){const n=Object.values(steps).filter(Boolean).length;bar.style.width=(12+n/4*88)+'%';
           msg.textContent=!steps.fonts?L.fonts:!steps.frames?L.frames:!steps.net?L.net:!steps.round?(ended?L.ended(ended):L.round(live||'…')):L.ok}
-        function hide(){if(gone)return;gone=true;setTimeout(()=>{const b=document.getElementById('boot');b.classList.add('out');setTimeout(()=>b.remove(),450)},Math.max(0,MIN-(performance.now()-t0)))}
+        const after=[];let revealed=false;   // run once the loading screen starts to fade (the mode picker opens then)
+        function hide(){if(gone)return;gone=true;setTimeout(()=>{const b=document.getElementById('boot');b.classList.add('out');revealed=true;after.splice(0).forEach(f=>{try{f()}catch(e){}});setTimeout(()=>b.remove(),450)},Math.max(0,MIN-(performance.now()-t0)))}
         const api={
           done(k){if(steps[k]||!(k in steps))return;steps[k]=1;paint();if(Object.values(steps).every(Boolean))hide()},
           /** Multiplier of the round in progress, shown while waiting for the next one. */
           live(x){const s=x.toFixed(2)+'x';if(gone||ended||s===live)return;live=s;paint()},
           /** The server's crash point of that round: the same number the history strip shows. */
           ended(x){if(gone)return;ended=x.toFixed(2)+'x';paint()},
+          /** Call fn when the game is revealed (at once if it already is). */
+          then(fn){if(revealed)fn();else after.push(fn)},
           get on(){return!gone}};
         // loading stuck (slow network, no server): open anyway; a round in progress is waited for a while longer
         setTimeout(()=>{if(gone)return;if(!steps.net)steps.round=1;for(const k of ['fonts','frames','net'])api.done(k)},MAX);
@@ -710,5 +713,5 @@ requestAnimationFrame(tick);
 </script>
 <!-- ?v=: bump on every release so Telegram does not keep old copies (and APP_VER + version.json for the page itself) -->
 <script src="screens.js?v=20260930"></script>
-<script src="net.js?v=20260930b"></script>
+<script src="net.js?v=20260930c"></script>
 <script src="round.js?v=20260926"></script>

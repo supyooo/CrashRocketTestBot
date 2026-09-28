@@ -35,6 +35,7 @@ async function login(){
   if(!r.ok)throw new Error((await r.json().catch(()=>({}))).error||'login failed');
   const d=await r.json();NET.token=d.token;NET.uid=d.user.id;setReal(d.balance);
   NET.ton=!!(d.mode&&d.mode.currency==='tton');if(NET.ton)tonMode();paintMode();
+  if(!NET.asked&&asking()&&window.BOOT){NET.asked=true;BOOT.then(()=>showPick(true))}   // ask once per launch, as the game opens
 }
 function connect(){
   const ws=new WebSocket(base.replace(/^http/,'ws')+'/ws?token='+encodeURIComponent(NET.token));NET.ws=ws;
@@ -116,11 +117,42 @@ NET.setDemo=on=>{
 function paintMode(){
   $('app').classList.toggle('demo',NET.demo);
   const box=$('balBox');let b=box.querySelector('.mode');
-  if(!b){b=document.createElement('button');b.className='mode';b.type='button';b.onclick=e=>{e.stopPropagation();NET.setDemo(!NET.demo)};box.insertBefore(b,$('topup'))}
+  if(!b){b=document.createElement('button');b.className='mode';b.type='button';b.onclick=e=>{e.stopPropagation();showPick(false)};box.insertBefore(b,$('topup'))}
   const tn=box.querySelector('.tnet');if(tn)tn.remove();                   // the mode badge replaces the TESTNET one
   b.textContent=NET.demo?'DEMO':NET.ton?'TESTNET':'REAL';b.classList.toggle('on',NET.demo);
-  b.setAttribute('aria-label',NET.demo?(lang==='ru'?'Демо-режим, переключить на реальный счёт':'Demo mode, switch to the real account'):(lang==='ru'?'Реальный счёт, переключить на демо':'Real account, switch to demo'))}
+  b.setAttribute('aria-label',(lang==='ru'?'Режим игры: ':'Game mode: ')+(NET.demo?(lang==='ru'?'демо':'demo'):(lang==='ru'?'реальный счёт':'real account'))+(lang==='ru'?'. Сменить':'. Change'))}
 NET.paintMode=paintMode;
+
+/* Mode picker: asked on entry (like casino games do) and from the badge next to the balance. */
+const PT={ru:{title:'Как будем играть?',sub:'Раунды одни и те же, выбирается только счёт',
+    real:'Реальный счёт',realTon:'Тестовые TON',realNote:'Ставки и выигрыши на вашем балансе, выигрыш можно вывести',
+    demo:'Демо-режим',demoNote:'Без риска: те же живые раунды, виртуальные деньги',bal:'Баланс',
+    ask:'Не спрашивать при входе',later:'Сменить режим можно по кнопке у баланса',now:'Сейчас'},
+  en:{title:'How do you want to play?',sub:'Same rounds either way, only the account differs',
+    real:'Real account',realTon:'Test TON',realNote:'Bets and wins on your balance, wins can be withdrawn',
+    demo:'Demo mode',demoNote:'No risk: the same live rounds, virtual money',bal:'Balance',
+    ask:'Do not ask on entry',later:'Switch any time with the badge next to the balance',now:'Now'}};
+const pt=k=>(PT[lang]||PT.en)[k];
+const asking=()=>{try{return localStorage.getItem('cr.modeAsk')!=='0'}catch(e){return true}};
+function showPick(entry){
+  let el=document.getElementById('pick');if(el)el.remove();
+  el=document.createElement('div');el.id='pick';el.className='pick';el.setAttribute('role','dialog');el.setAttribute('aria-modal','true');el.setAttribute('aria-labelledby','pickT');
+  const tonIcon='<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="12" fill="#0098ea"/><path d="M7.2 7.5h9.6c.7 0 1.1.8.8 1.4L12.6 17c-.3.5-.9.5-1.2 0L6.4 8.9c-.3-.6.1-1.4.8-1.4zm4.1 1.3H8.3l3 5.4V8.8zm1.4 0v5.4l3-5.4h-3z" fill="#fff"/></svg>';
+  const card=(on,icon,title,bal,note)=>`<button class="pcard${on?' demo':''}${NET.demo===on?' cur':''}" data-demo="${on?1:0}">
+      <span class="pi">${icon}</span><span class="pt"><b>${title}</b><small>${note}</small><em>${pt('bal')}: ${bal}</em></span>${NET.demo===on?`<i>${pt('now')}</i>`:''}</button>`;
+  el.innerHTML=`<div class="pbox"><h2 id="pickT">${pt('title')}</h2><p>${pt('sub')}</p>
+    ${card(false,tonIcon,NET.ton?pt('realTon'):pt('real'),fmtTon(NET.real)+' TON',pt('realNote'))}
+    ${card(true,'<span class="dm">D</span>',pt('demo'),fmtTon(NET.demo?S.bal:demoBal())+' DEMO',pt('demoNote'))}
+    <label class="pask"><input type="checkbox" id="pickAsk"${asking()?'':' checked'}> ${pt('ask')}</label>
+    <small class="plater">${pt('later')}</small></div>`;
+  $('app').appendChild(el);requestAnimationFrame(()=>el.classList.add('on'));haptic('select');
+  el.querySelector('#pickAsk').onchange=e=>{try{localStorage.setItem('cr.modeAsk',e.target.checked?'0':'1')}catch(_){}};
+  el.addEventListener('click',e=>{const c=e.target.closest('.pcard');
+    if(c){NET.setDemo(c.dataset.demo==='1');close()}
+    else if(e.target===el&&!entry)close()});                               // outside tap closes it, except on entry
+  function close(){el.classList.remove('on');setTimeout(()=>el.remove(),250)}
+}
+NET.showPick=showPick;
 
 async function sendBet(a,quiet){
   if(NET.demo)return demoBet(a,quiet);
