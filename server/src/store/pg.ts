@@ -26,7 +26,7 @@ export class PgStore implements Store {
   private constructor(url: string) {
     // Railway's internal network is plain TCP; public URLs need TLS
     const ssl = /sslmode=require|proxy\.rlwy\.net/.test(url) ? { rejectUnauthorized: false } : undefined;
-    this.pool = new pg.Pool({ connectionString: url, max: 10, ssl, idleTimeoutMillis: 30_000 });
+    this.pool = new pg.Pool({ connectionString: url, max: 20, ssl, idleTimeoutMillis: 30_000 });
     this.pool.on('error', (err) => console.error('postgres pool error:', err.message));
   }
 
@@ -87,6 +87,7 @@ export class PgStore implements Store {
 
   async applyLedger(moves: LedgerMove[]): Promise<LedgerEntry[]> {
     for (const m of moves) if (!Number.isSafeInteger(m.delta)) throw new Error('amounts must be integer units');
+    if (moves.length === 1) { const one = await this.applyOne(moves[0]!); if (one) return [one]; }
     const refs = moves.map((m) => m.ref);
     const c = await this.pool.connect();
     try {
@@ -113,6 +114,34 @@ export class PgStore implements Store {
       }
       throw err;
     } finally { c.release(); }
+  }
+
+  /**
+   * A single move in one statement (one round trip instead of six): the balance changes only if it stays >= 0,
+   * and the ledger row with its unique ref is written in the same statement, so both happen or neither does.
+   * A ref already used returns the stored entry (a retry never moves money twice). Returns undefined when the
+   * player has no account row yet; the full transaction below creates it.
+   */
+  private async applyOne(m: LedgerMove): Promise<LedgerEntry | undefined> {
+    try {
+      const { rows } = await this.pool.query<LedgerRow & { ok: boolean }>(
+        `WITH upd AS (UPDATE accounts SET balance = balance + $2 WHERE user_id = $1 AND balance + $2 >= 0 RETURNING balance)
+         INSERT INTO ledger (user_id, delta, balance, kind, ref) SELECT $1, $2, balance, $3, $4 FROM upd RETURNING *`,
+        [m.uid, m.delta, m.kind, m.ref]);
+      if (rows[0]) return toEntry(rows[0]);
+      // nothing changed: either no account yet, or not enough money
+      const acc = await this.pool.query('SELECT 1 FROM accounts WHERE user_id = $1', [m.uid]);
+      if (!acc.rows.length) return undefined;
+      const done = await this.pool.query<LedgerRow>('SELECT * FROM ledger WHERE ref = $1', [m.ref]);
+      if (done.rows[0]) return toEntry(done.rows[0]);
+      throw new InsufficientFunds('insufficient funds');
+    } catch (err) {
+      if ((err as { code?: string }).code === '23505') {             // the ref was used before (or in parallel)
+        const done = await this.pool.query<LedgerRow>('SELECT * FROM ledger WHERE ref = $1', [m.ref]);
+        if (done.rows[0]) return toEntry(done.rows[0]);
+      }
+      throw err;
+    }
   }
 
   async ledgerOf(uid: string, limit: number) {

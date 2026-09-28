@@ -27,9 +27,16 @@ export function attachWs(server: Server, cfg: Config, wallet: Wallet) {
   const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 4096 });
   const clients = new Set<Client>();
   let engine: Engine | null = null;
+  const byUser = new Map<string, Set<Client>>();         // a player's open connections, for private messages
   const send = (c: Client, m: unknown) => { if (c.readyState === WebSocket.OPEN) c.send(JSON.stringify(m)); };
   const all = (m: unknown) => { const s = JSON.stringify(m); for (const c of clients) if (c.readyState === WebSocket.OPEN) c.send(s); };
-  const toUser = (uid: string, m: unknown) => { for (const c of clients) if (c.uid === uid) send(c, m); };
+  const toUser = (uid: string, m: unknown) => { const set = byUser.get(uid); if (set) for (const c of set) send(c, m); };
+  /* Other players' bets, cancels and cash-outs go out in batches every 100 ms: sent one by one, every bet would be a
+     message to every player (300 players betting = 90 000 messages in a couple of seconds). Round events flush the
+     batch first, so the order is kept. */
+  let batch: unknown[] = [], batchT: NodeJS.Timeout | undefined;
+  const flush = () => { if (batchT) { clearTimeout(batchT); batchT = undefined; } if (!batch.length) return; const b = batch; batch = []; all(b.length === 1 ? b[0] : { t: 'batch', m: b }); };
+  const publish = (m: unknown) => { batch.push(m); batchT ??= setTimeout(flush, 100); };
 
   async function hello(c: Client) {
     const balance = fromUnits(await wallet.balance(c.uid));
@@ -43,15 +50,15 @@ export function attachWs(server: Server, cfg: Config, wallet: Wallet) {
   /** Called once this server runs rounds. Money is sent in TON; internal units never leave the server. */
   function setEngine(e: Engine) {
     engine = e;
-    e.on('betting', (ev) => all({ t: 'betting', ...ev }));
-    e.on('run', (ev) => all({ t: 'run', ...ev, k: K_PER_SEC, serverNow: Date.now() }));
-    e.on('crash', (ev) => all({ t: 'crash', no: ev.no, crash: ev.crashX100 / 100, hash: ev.hash }));
-    e.on('bet', (ev: Ev) => { all({ t: 'bet', uid: ev.uid, name: ev.name, amount: fromUnits(ev.amount as number) }); toUser(ev.uid!, { t: 'balance', balance: fromUnits(ev.balance!) }); });
-    e.on('cancel', (ev: Ev) => { all({ t: 'cancel', uid: ev.uid }); toUser(ev.uid!, { t: 'balance', balance: fromUnits(ev.balance!) }); });
-    e.on('cashout', (ev: Ev) => {
-      all({ t: 'cashout', uid: ev.uid, name: ev.name, x: (ev.x100 as number) / 100, payout: fromUnits(ev.payout as number) });
-      toUser(ev.uid!, { t: 'balance', balance: fromUnits(ev.balance!) });
-    });
+    e.on('betting', (ev) => { flush(); all({ t: 'betting', ...ev }); });
+    e.on('run', (ev) => { flush(); all({ t: 'run', ...ev, k: K_PER_SEC, serverNow: Date.now() }); });
+    e.on('crash', (ev) => { flush(); all({ t: 'crash', no: ev.no, crash: ev.crashX100 / 100, hash: ev.hash }); });
+    e.on('bet', (ev: Ev) => { publish({ t: 'bet', uid: ev.uid, name: ev.name, amount: fromUnits(ev.amount as number) }); toUser(ev.uid!, { t: 'balance', balance: fromUnits(ev.balance!) }); });
+    e.on('cancel', (ev: Ev) => { publish({ t: 'cancel', uid: ev.uid }); toUser(ev.uid!, { t: 'balance', balance: fromUnits(ev.balance!) }); });
+    // a cash-out is announced when decided (the player at once, everyone else in the next batch); the new balance
+    // follows once the payout is written
+    e.on('cashout', (ev: Ev) => { const m = { t: 'cashout', uid: ev.uid, name: ev.name, x: (ev.x100 as number) / 100, payout: fromUnits(ev.payout as number) }; toUser(ev.uid!, m); publish(m); });
+    e.on('paid', (ev: Ev) => toUser(ev.uid!, { t: 'balance', balance: fromUnits(ev.balance!) }));
     for (const c of clients) void hello(c);
   }
 
@@ -61,8 +68,9 @@ export function attachWs(server: Server, cfg: Config, wallet: Wallet) {
     if (!s) { ws.close(4001, 'not signed in'); return; }
     const c = Object.assign(ws, { uid: s.uid, name: s.name, msgs: 0, alive: true }) as Client;
     clients.add(c);
+    let mine = byUser.get(c.uid); if (!mine) byUser.set(c.uid, mine = new Set()); mine.add(c);
     c.on('pong', () => { c.alive = true; });
-    c.on('close', () => clients.delete(c));
+    c.on('close', () => { clients.delete(c); const s = byUser.get(c.uid); if (s) { s.delete(c); if (!s.size) byUser.delete(c.uid); } });
     c.on('message', async (raw) => {
       if (++c.msgs > 30) { c.close(4008, 'too many messages'); return; }
       let m: { t?: string; id?: number; amount?: number; auto?: number; at?: number };
@@ -77,7 +85,11 @@ export function attachWs(server: Server, cfg: Config, wallet: Wallet) {
           const bal = await engine.placeBet(c.uid, c.name, toUnits(m.amount), auto);
           reply(true, { balance: fromUnits(bal) });
         } else if (m.t === 'cancel') reply(true, { balance: fromUnits(await engine.cancelBet(c.uid)) });
-        else if (m.t === 'cashout') { const r = await engine.cashout(c.uid, Date.now(), m.at); reply(true, { x: r.x100 / 100, payout: fromUnits(r.payout), balance: fromUnits(r.balance) }); }
+        else if (m.t === 'cashout') {   // answered at once: the result is final; the balance comes in a 'balance' message
+          const r = engine.cashoutNow(c.uid, Date.now(), m.at);
+          r.paid.catch((err) => console.error('payout failed', err));
+          reply(true, { x: r.x100 / 100, payout: fromUnits(r.payout) });
+        }
       } catch (err) {
         if (err instanceof GameError || err instanceof InsufficientFunds) reply(false, { error: err.message });
         else { console.error(err); reply(false, { error: 'server error' }); }
@@ -100,7 +112,7 @@ export function attachWs(server: Server, cfg: Config, wallet: Wallet) {
     /** Private message to every connection of one player (deposit credited, payout sent…). */
     toUser,
     /** Ends every connection with a reason the app understands (1012 = server update, reconnect soon). */
-    closeAll(code: number, reason: string) { clearInterval(loop); clearInterval(ping); for (const c of clients) c.close(code, reason); wss.close(); },
+    closeAll(code: number, reason: string) { flush(); clearInterval(loop); clearInterval(ping); for (const c of clients) c.close(code, reason); wss.close(); },
     get size() { return clients.size; }
   };
 }

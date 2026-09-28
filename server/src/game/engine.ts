@@ -22,7 +22,7 @@ import { msTo, x100At } from './curve.js';
 export const MAX_TAP_LAG_MS = 3000;
 
 export type Phase = 'betting' | 'running' | 'crashed';
-export type Bet = { uid: string; name: string; amount: number; autoX100?: number; cashX100?: number; payout?: number; ref: string };
+export type Bet = { uid: string; name: string; amount: number; autoX100?: number; cashX100?: number; payout?: number; paid?: boolean; ref: string };
 export class GameError extends Error {}
 
 export class Engine extends EventEmitter {
@@ -141,15 +141,11 @@ export class Engine extends EventEmitter {
    * Cash out. `at` is when the player tapped (server clock, estimated by the app): they get the multiplier they saw,
    * not a higher one that the network delay would add. That is never more than the multiplier of this moment, so it
    * cannot be abused; and the request must still arrive before the explosion, so seeing the crash first does not help.
+   * Resolves once the payout is written (cashoutNow answers at once and pays in the background).
    */
-  cashout(uid: string, now: number, at?: number): Promise<{ x100: number; payout: number; balance: number }> {
-    if (this.phase !== 'running') throw new GameError('the rocket is not flying');
-    const b = this.bets.get(uid);
-    if (!b) throw new GameError('no bet in this round');
-    if (b.cashX100) throw new GameError('already cashed out');
-    if (now - this.phaseAt >= msTo(this.crashX100)) throw new GameError('too late, the rocket exploded');
-    const tapped = typeof at === 'number' && Number.isFinite(at) ? Math.min(now, Math.max(at, now - MAX_TAP_LAG_MS, this.phaseAt)) : now;
-    return this.settle(b, Math.min(x100At(tapped - this.phaseAt), this.crashX100));
+  async cashout(uid: string, now: number, at?: number): Promise<{ x100: number; payout: number; balance: number }> {
+    const r = this.cashoutNow(uid, now, at);
+    return { x100: r.x100, payout: r.payout, balance: await r.paid };
   }
 
   snapshot(now: number) {
@@ -162,20 +158,47 @@ export class Engine extends EventEmitter {
     };
   }
 
-  /** Decides the win synchronously, then writes the payout (retrying: the ref makes retries safe). */
-  private async settle(b: Bet, x100: number) {
+  /**
+   * Cash-out decided now, paid right after: the result is final the moment it is decided (announced at once, so
+   * the player's reply does not wait for the database), then the payout is written, retried until it lands (the
+   * ref makes retries safe) and the new balance is announced as 'paid'.
+   */
+  cashoutNow(uid: string, now: number, at?: number): { x100: number; payout: number; paid: Promise<number> } {
+    if (this.phase !== 'running') throw new GameError('the rocket is not flying');
+    const b = this.bets.get(uid);
+    if (!b) throw new GameError('no bet in this round');
+    if (b.cashX100) throw new GameError('already cashed out');
+    if (now - this.phaseAt >= msTo(this.crashX100)) throw new GameError('too late, the rocket exploded');
+    const tapped = typeof at === 'number' && Number.isFinite(at) ? Math.min(now, Math.max(at, now - MAX_TAP_LAG_MS, this.phaseAt)) : now;
+    return this.decide(b, Math.min(x100At(tapped - this.phaseAt), this.crashX100));
+  }
+
+  private decide(b: Bet, x100: number) {
     const payout = Math.min(Math.floor((b.amount * x100) / 100), this.cfg.maxWin);
     b.cashX100 = x100; b.payout = payout;
-    let balance = 0;
+    this.saveOpen();
+    this.emit('cashout', { uid: b.uid, name: b.name, x100, payout });
+    const paid = this.pay(b, payout);
+    return { x100, payout, paid };
+  }
+
+  private async pay(b: Bet, payout: number): Promise<number> {
     for (let i = 0; ; i++) {
-      try { balance = await this.wallet.pay(b.uid, payout, 'win:' + b.ref); break; } catch (err) {
-        if (i >= 4) throw err;
-        await new Promise((r) => setTimeout(r, 100 * 2 ** i));
+      try {
+        const balance = await this.wallet.pay(b.uid, payout, 'win:' + b.ref);
+        b.paid = true; this.saveOpen();                       // only now is it marked paid for restart refunds
+        this.emit('paid', { uid: b.uid, balance });
+        return balance;
+      } catch (err) {
+        if (i >= 12) { console.error(`payout ${b.ref} still not written after retries:`, err); throw err; }
+        await new Promise((r) => setTimeout(r, Math.min(10_000, 100 * 2 ** i)));   // up to ~1 min in total
       }
     }
-    this.saveOpen();
-    this.emit('cashout', { uid: b.uid, name: b.name, x100, payout, balance });
-    return { x100, payout, balance };
+  }
+
+  private async settle(b: Bet, x100: number) {
+    const r = this.decide(b, x100);
+    return { x100: r.x100, payout: r.payout, balance: await r.paid };
   }
 
   private async openBetting(now: number) {
@@ -211,11 +234,22 @@ export class Engine extends EventEmitter {
     if (this.draining) this.draining();
   }
 
+  /**
+   * Keeps the open round (for refunds after a restart) in the store. Writes go one at a time; while one is
+   * running, later calls merge into a single next write of the latest state (with hundreds of bets a round this
+   * is a handful of writes, not one per bet).
+   */
+  private openQueued = false;
   private saveOpen() {
     // after the crash the round is final (its record is already queued); a late payout must not reopen it
-    if (this.phase === 'crashed') return;
-    const open = { no: this.no, bets: [...this.bets.values()].map((b) => ({ uid: b.uid, amount: b.amount, ref: b.ref, paid: !!b.cashX100 })) };
-    this.write(() => this.store.setOpenRound(open));
+    if (this.phase === 'crashed' || this.openQueued) return;
+    this.openQueued = true;
+    this.write(() => {
+      this.openQueued = false;
+      if (this.phase === 'crashed') return Promise.resolve();
+      const open = { no: this.no, bets: [...this.bets.values()].map((b) => ({ uid: b.uid, amount: b.amount, ref: b.ref, paid: !!b.paid })) };
+      return this.store.setOpenRound(open);
+    });
   }
 
   private write(fn: () => Promise<void>) {

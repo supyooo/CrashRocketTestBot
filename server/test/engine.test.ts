@@ -85,7 +85,8 @@ for (const kind of ['file', 'postgres'] as const) {
     await engine.placeBet('u1', 'Ann', toUnits(1));
     t += cfg.bettingMs; engine.step(t);
     const c = crashOf(engine);
-    assert.throws(() => engine.cashout('u1', t + msTo(c)), /too late/);
+    assert.throws(() => engine.cashoutNow('u1', t + msTo(c)), /too late/);          // what the socket uses
+    await assert.rejects(async () => engine.cashout('u1', t + msTo(c)), /too late/);
   });
 
   test(`[${kind}] auto cash-out settles at exactly its multiplier`, async () => {

@@ -24,7 +24,7 @@ const TX={
   sRounds:'Раундов сыграно',sBest:'Лучший множитель',sTurn:'Оборот',sNet:'Итог',
   coll:'Коллекция скинов',refH:'Приглашай друзей',refP:'1% с оборота каждого друга и 1 000 монет, когда он сыграет первый раунд.',
   copy:'Копировать',share:'Поделиться',copied:'Ссылка скопирована',invited:'Приглашено',earned:'Заработано',
-  hist:'Последние ставки',noHist:'Здесь появятся твои ставки',sound:'Звук',vibro:'Вибрация',langL:'Язык',langV:'Русский',
+  hist:'Последние ставки',noHist:'Здесь появятся твои ставки',sound:'Звук',vibro:'Вибрация',lite:'Плавный режим',liteSub:'Без эффектов, для слабых телефонов',liteOn:'Плавный режим включён',liteOff:'Эффекты включены',langL:'Язык',langV:'Русский',
   fair:'Честность раундов',fairV:'Проверить',support:'Поддержка',soonBack:'Появится вместе с бэкендом',
   shareText:'Лечу на ракете в Crash Rocket, залетай!',pilot:'Пилот',plusCoins:n=>`+${n} монет`},
  en:{hangar:'Hangar',tour:'Tournaments',profile:'Profile',coins:'coins',build:'Your build',beasts:'Crypto Beasts',retro:'Retro Space',bonus:'Complete it: +5% coins',bonusOn:'+5% coins bonus active',
@@ -44,7 +44,7 @@ const TX={
   sRounds:'Rounds played',sBest:'Best multiplier',sTurn:'Turnover',sNet:'Net',
   coll:'Skin collection',refH:'Invite friends',refP:'1% of each friend\'s turnover and 1,000 coins when they play their first round.',
   copy:'Copy',share:'Share',copied:'Link copied',invited:'Invited',earned:'Earned',
-  hist:'Recent bets',noHist:'Your bets will show up here',sound:'Sound',vibro:'Vibration',langL:'Language',langV:'English',
+  hist:'Recent bets',noHist:'Your bets will show up here',sound:'Sound',vibro:'Vibration',lite:'Smooth mode',liteSub:'No effects, for weaker phones',liteOn:'Smooth mode on',liteOff:'Effects on',langL:'Language',langV:'English',
   fair:'Provably fair',fairV:'Verify',support:'Support',soonBack:'Arrives with the backend',
   shareText:'I\'m riding a rocket in Crash Rocket, jump in!',pilot:'Pilot',plusCoins:n=>`+${n} coins`}
 };
@@ -253,7 +253,7 @@ function renderProfile(){const u=user(),name=u?(u.username?'@'+u.username:[u.fir
     <div class="row2"><button class="btn ghost" data-act="copy" style="border-color:var(--green);color:var(--green)">${tx('copy')}</button><button class="btn green" data-act="share">${tx('share')}</button></div>
     <div class="foot"><span>${tx('invited')} <b style="color:var(--text)">0</b></span><span>${tx('earned')} <b style="color:var(--green)">0,00 TON</b></span></div></div>
    <div class="sec"><b>${tx('hist')}</b></div><div class="hist2">${hist||`<div class="empty">${tx('noHist')}</div>`}</div>
-   <div class="box sets"><button data-act="sound"><span>${tx('sound')}</span><i class="tgl ${AU.on?'on':''}"></i></button><button data-act="vibro"><span>${tx('vibro')}</span><i class="tgl ${D.set.vibro?'on':''}"></i></button>
+   <div class="box sets"><button data-act="sound"><span>${tx('sound')}</span><i class="tgl ${AU.on?'on':''}"></i></button><button data-act="vibro"><span>${tx('vibro')}</span><i class="tgl ${D.set.vibro?'on':''}"></i></button><button data-act="lite"><span>${tx('lite')}<small class="sub">${tx('liteSub')}</small></span><i class="tgl ${window.isLite&&isLite()?'on':''}"></i></button>
     <button data-act="lang"><span>${tx('langL')}</span><em>${tx('langV')} ›</em></button><button data-act="soon"><span>${tx('fair')}</span><em>${tx('fairV')} ›</em></button><button data-act="soon"><span>${tx('support')}</span><em>›</em></button></div>`;
   paintThumbs(scr.profile)}
 
@@ -284,6 +284,7 @@ function act(e){const b=e.target.closest('[data-act]');if(!b)return;const a=b.da
   else if(a==='share'){const u='https://t.me/share/url?url='+encodeURIComponent(refLink())+'&text='+encodeURIComponent(tx('shareText'));if(TG&&TG.openTelegramLink)TG.openTelegramLink(u);else window.open(u,'_blank')}
   else if(a==='sound'){$('snd').click();setTimeout(renderProfile,30)}
   else if(a==='vibro'){D.set.vibro=!D.set.vibro;save();renderProfile();haptic('select')}
+  else if(a==='lite'){window.setLite(!isLite());renderProfile();haptic('select');toast(isLite()?tx('liteOn'):tx('liteOff'))}
   else if(a==='lang'){window.setLang(lang==='ru'?'en':'ru');render()}
   else if(a==='deposit'||a==='withdraw'){if(window.NET&&NET.ton)NET.openTon(a);else toast(tx('soonBack'))}
   else if(a==='soon')toast(tx('soonBack'))}

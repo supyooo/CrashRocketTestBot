@@ -5,7 +5,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700;800&family=Unbounded:wght@500;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap">
-<link rel="stylesheet" href="screens.css?v=20260930c">
+<link rel="stylesheet" href="screens.css?v=20261001">
 <style>
 :root{color-scheme:dark;
   --page:#0d0820;--ink:#ecebf5;--ink-2:#9490b3;--hair:#262143;
@@ -57,7 +57,7 @@ html.tg .device>.app{border-radius:0}
 
 .stage{position:relative;flex:1;min-height:170px;overflow:hidden}
 .stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
-.hud{position:absolute;inset:0;pointer-events:none;display:flex;flex-direction:column;align-items:center;padding-top:78px;z-index:2}
+.hud{position:absolute;inset:0;pointer-events:none;display:flex;flex-direction:column;align-items:center;padding-top:78px;z-index:2;contain:layout style}   /* the number changes every frame: keep its reflow inside */
 .online{position:absolute;left:12px;top:46px;display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:var(--muted);z-index:2;font-variant-numeric:tabular-nums}
 .online i{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green)}
 .mult{font:800 clamp(52px,17cqw,76px)/1 'Unbounded','Golos Text',sans-serif;color:var(--heat);text-shadow:0 0 18px var(--heat-glow),0 0 44px var(--heat-glow);font-variant-numeric:tabular-nums;letter-spacing:-.02em;will-change:transform}
@@ -218,7 +218,7 @@ html.tg .device>.app{border-radius:0}
       /* Telegram and GitHub Pages may hand out a cached copy of this page after a release. Ask the site for the
          current version, bypassing every cache; if it is newer, reload once with it in the address (the #hash with
          Telegram's login data is kept). Bump APP_VER here and in version.json on every release. */
-      (()=>{const APP_VER='20260930c';
+      (()=>{const APP_VER='20261001';
         fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(r=>r.json()).then(d=>{
           if(!d||!d.v||d.v===APP_VER)return;const u=new URL(location.href);
           if(u.searchParams.get('v')===d.v)return;          // already asked for it once: never loop
@@ -377,6 +377,12 @@ const AU={ctx:null,on:false,m:null,eng:null,engG:null,noiseB:null,
    Round simulation (demo only; the real round comes from the server)
    ===================================================================== */
 let K=0.10;const WAIT=5,HOLD=3.4,MILES=[2,3,5,10,20,50,100];
+/* Smooth mode ("Плавный режим" in Profile, or ?lite=1): the same game for weak phones with the effects off - a
+   still backdrop painted once, no particles, smoke, speed lines, shake, zone banners or bot parachutes, a rider
+   without animation, and canvases at 1.25x pixel density. The rocket, the multiplier, the parachute, the fall and
+   the coins to the balance stay. */
+let LITE=false;{const q=new URLSearchParams(location.search).get('lite');
+  try{if(q!==null)localStorage.setItem('cr.lite',q==='1'?'1':'0');LITE=localStorage.getItem('cr.lite')==='1'}catch(e){LITE=q==='1'}}
 const NAMES=['crypto_king','whale_99','ivan_kick','moon_boy','degen_anna','hodl_masha','pepe_lord','satoshi_fan','bear_market','long_x100','sol_sister','ton_tiger','dima_pump','rekt_again','alpha_lena','gm_frens'];
 function sampleCrash(){const u=Math.random();return Math.min(60,Math.max(1,Math.floor(97/(1-u))/100))}
 const S={phase:'wait',t0:performance.now(),t:0,m:1,crash:1,hist:[],bots:[],bet:null,next:null,bal:25,pend:0,online:1240,mi:0};
@@ -419,7 +425,13 @@ try{const s=JSON.parse(localStorage.getItem('cr.sel')||'{}');for(const k in SEL)
 const SC={
   sc:1,alt:0,bg:null,bgs:{},parts:[],smoke:[],debris:[],chutes:[],fire:[],rings:[],floats:[],lines:[],coins:[],confetti:[],
   rk:{x:0,y:0,ang:-.5,vis:true,rider:true,drop:0,stall:0},jumper:null,tumble:null,shake:0,punch:0,flash:0,zones:makeZones(),lvl:0,zi:0,
-  setBg(id){this.bg=this.bgs[id]||(this.bgs[id]=BGS[id].make());this.bg.resize(W,H)},
+  setBg(id){this.bg=this.bgs[id]||(this.bgs[id]=BGS[id].make());this.bg.resize(W,H);this.still=null},
+  /** Smooth mode: the backdrop painted once (as if on the pad) into an offscreen canvas, then only copied. */
+  drawStill(c,E){let s=this.still;
+    if(!s||s.w!==W||s.h!==H||s.dpr!==DPR){const cv=document.createElement('canvas');cv.width=Math.round(W*DPR);cv.height=Math.round(H*DPR);
+      const g=cv.getContext('2d');g.setTransform(DPR,0,0,DPR,0,0);
+      this.bg.draw(g,{...E,dt:0,t:0,alt:0,dAlt:0,sp:0,I:0,phase:'wait',m:1,moonM:1,lvl:0});s=this.still={cv,w:W,h:H,dpr:DPR}}
+    c.drawImage(s.cv,0,0,W,H)},
   resize(){this.sc=Math.min(W/330,H/300);if(this.bg)this.bg.resize(W,H);this.zones.resize(W,H)},
   groundY(){return H*.78+this.alt},
   pad(){return{x:W*.27,y:H*.78-22*this.sc}},
@@ -463,7 +475,7 @@ const SC={
     let tx=lerp(pd.x,W*.52,p),ty=lerp(pd.y,H*.58,p),ang=lerp(-.5,-.85,p);
     if(S.phase==='wait'){if(rk.drop>0){rk.drop=Math.max(0,rk.drop-dt*1.6);const e=1-easeBack(1-rk.drop);ty-=e*H*.9}
       const el=(performance.now()-S.t0)/1000,rum=clamp((el-(WAIT-2))/2,0,1);tx+=rnd(-1,1)*rum*2;ty+=rnd(-1,1)*rum*2;
-      if(rum>0&&Math.random()<rum*.8){const tp=this.tail();this.smoke.push({x:tp.x,y:tp.y+4*k,vx:rnd(-60,60),vy:rnd(-20,5),r:rnd(5,9)*k,gr:rnd(14,26),life:1.2,max:1.2})}}
+      if(!LITE&&rum>0&&Math.random()<rum*.8){const tp=this.tail();this.smoke.push({x:tp.x,y:tp.y+4*k,vx:rnd(-60,60),vy:rnd(-20,5),r:rnd(5,9)*k,gr:rnd(14,26),life:1.2,max:1.2})}}
     if(fly){const wob=.02+I*.05;ang+=Math.sin(t*7)*wob;tx+=Math.sin(t*2.2)*3*k+rnd(-1,1)*I*2.2;ty+=Math.cos(t*2.7)*3*k+rnd(-1,1)*I*2.2}
     if(rk.stall>0){rk.stall-=dt;tx=rk.x+rnd(-4,4);ty=rk.y+rnd(-4,4)+dt*20;ang=rk.ang+rnd(-.08,.08);if(rk.stall<=0)this.explode()}
     else if(S.phase==='crash'){tx=rk.x;ty=rk.y}
@@ -474,12 +486,12 @@ const SC={
     const lt=S.phase==='wait'?0:Math.log(S.m);this.lvl+=(lt-this.lvl)*Math.min(1,dt*(S.phase==='wait'?1.3:8));
     // exhaust
     const tp=this.tail(),dir={x:Math.cos(rk.ang),y:Math.sin(rk.ang)};
-    if(rk.vis&&fly&&rk.stall<=0){const n=2+Math.round(I*3);for(let i=0;i<n;i++){const v=rnd(100,200)*(1+I*.5);
+    if(!LITE&&rk.vis&&fly&&rk.stall<=0){const n=2+Math.round(I*3);for(let i=0;i<n;i++){const v=rnd(100,200)*(1+I*.5);
       const q=trailParticle(SEL.trail,i,t);
       this.parts.push({x:tp.x+rnd(-3,3),y:tp.y+rnd(-3,3),vx:-dir.x*v+rnd(-20,20),vy:-dir.y*v+rnd(-20,20)+60*sp,life:rnd(.35,.8),max:.8,s:rnd(4,9)*k*(1+I*.4),c:q.c,shape:q.shape,glyph:q.glyph,shrink:1,drag:1.5});
       if(q.smoke&&Math.random()<.5)this.smoke.push({x:tp.x-dir.x*20*k,y:tp.y-dir.y*20*k,vx:-dir.x*v*.4,vy:-dir.y*v*.4+60*sp,r:rnd(4,7)*k,gr:rnd(10,22),life:rnd(.6,1.1),max:1.1})}}
     // speed lines
-    if(fly&&I>.12&&Math.random()<I*1.6){const a=rk.ang;this.lines.push({x:rnd(-W*.2,W*1.2)+Math.cos(a)*W*.6,y:rnd(-H*.2,H*.9)+Math.sin(a)*H*.6,l:rnd(40,110)*k,v:rnd(900,1500)*(.6+I*.6),a})}
+    if(!LITE&&fly&&I>.12&&Math.random()<I*1.6){const a=rk.ang;this.lines.push({x:rnd(-W*.2,W*1.2)+Math.cos(a)*W*.6,y:rnd(-H*.2,H*.9)+Math.sin(a)*H*.6,l:rnd(40,110)*k,v:rnd(900,1500)*(.6+I*.6),a})}
     for(let i=this.lines.length-1;i>=0;i--){const L=this.lines[i];L.x-=Math.cos(L.a)*L.v*dt;L.y-=Math.sin(L.a)*L.v*dt;if(L.x<-200||L.y>H+200)this.lines.splice(i,1)}
     stepP(this.parts,dt);stepP(this.smoke,dt,true);
     for(let i=this.debris.length-1;i>=0;i--){const d=this.debris[i];d.life-=dt;d.vy+=520*dt;d.x+=d.vx*dt;d.y+=d.vy*dt;d.rot+=d.vr*dt;if(d.life<=0)this.debris.splice(i,1)}
@@ -487,12 +499,16 @@ const SC={
     const j=this.jumper;if(j){j.t+=dt;if(j.t<.42){j.vy+=900*dt;j.rot+=j.vr*dt}else{j.open=Math.min(1,j.open+dt/.35);j.rot*=1-Math.min(1,dt*8);j.vy+=((fly?75:45)-j.vy)*dt*2.2;j.vx*=1-dt*1.5}
       j.x+=j.vx*dt;j.y+=j.vy*dt;if(j.y>H+120)this.jumper=null}
     const tb=this.tumble;if(tb){tb.vy+=700*dt;tb.x+=tb.vx*dt;tb.y+=tb.vy*dt;tb.rot+=tb.vr*dt;const d=tb.drop;d.vy+=700*dt;d.x+=d.vx*dt;d.y+=d.vy*dt;d.rot+=d.vr*dt;
-      if(Math.random()<.6)this.smoke.push({x:tb.x,y:tb.y,vx:rnd(-20,20),vy:-20,r:4*k,gr:14,life:.8,max:.8,dark:1});if(tb.y>H+100&&d.y>H+100)this.tumble=null}
+      if(!LITE&&Math.random()<.6)this.smoke.push({x:tb.x,y:tb.y,vx:rnd(-20,20),vy:-20,r:4*k,gr:14,life:.8,max:.8,dark:1});if(tb.y>H+100&&d.y>H+100)this.tumble=null}
     for(let i=this.fire.length-1;i>=0;i--){const f=this.fire[i];f.t+=dt;if(f.t>f.d)this.fire.splice(i,1)}
     for(let i=this.rings.length-1;i>=0;i--){const r=this.rings[i];r.t+=dt;if(r.t>r.d)this.rings.splice(i,1)}
     for(let i=this.floats.length-1;i>=0;i--){const f=this.floats[i];f.t+=dt;f.y-=40*dt;if(f.t>1.1)this.floats.splice(i,1)}
     // fx layer (coins → balance, confetti)
-    const bb=$('balBox').getBoundingClientRect(),ar=app.getBoundingClientRect(),bx=bb.left-ar.left+22,by=bb.top-ar.top+bb.height/2;
+    // where the coins fly to: measured once when they take off (a layout read every frame forces the browser to
+    // recalculate the page layout each frame - a classic cause of stutter on phones)
+    if(!this.coins.length)this.coinTo=null;
+    else if(!this.coinTo){const bb=$('balBox').getBoundingClientRect(),ar=app.getBoundingClientRect();this.coinTo={x:bb.left-ar.left+22,y:bb.top-ar.top+bb.height/2}}
+    const bx=this.coinTo?this.coinTo.x:0,by=this.coinTo?this.coinTo.y:0;
     for(let i=this.coins.length-1;i>=0;i--){const c=this.coins[i];c.t+=dt;if(c.t>=c.d){S.pend=Math.max(0,S.pend-c.v);AU.coin(c.i%8);bump();this.coins.splice(i,1);continue}c.bx=bx;c.by=by}
     for(let i=this.confetti.length-1;i>=0;i--){const c=this.confetti[i];c.life-=dt;c.vy+=620*dt;c.vx*=1-dt*1.2;c.vy*=1-dt*1.2;c.x+=c.vx*dt;c.y+=c.vy*dt;c.rot+=c.vr*dt;if(c.life<=0||c.y>AH+20)this.confetti.splice(i,1)}
     this.shake=Math.max(0,this.shake-dt*1.6);this.punch=Math.max(0,this.punch-dt*2.5);this.flash=Math.max(0,this.flash-dt*3);
@@ -502,11 +518,11 @@ const SC={
   draw(c,t,dt){
     const rk=this.rk,k=this.sc,I=this.I||0;
     c.save();
-    const sh=this.shake*this.shake*9+(S.phase==='fly'?I*1.2:0);if(sh>0)c.translate(rnd(-1,1)*sh,rnd(-1,1)*sh);
-    if(this.punch>0){const z=1+this.punch*.035;c.translate(W/2,H/2);c.scale(z,z);c.translate(-W/2,-H/2)}
+    if(!LITE){const sh=this.shake*this.shake*9+(S.phase==='fly'?I*1.2:0);if(sh>0)c.translate(rnd(-1,1)*sh,rnd(-1,1)*sh);
+      if(this.punch>0){const z=1+this.punch*.035;c.translate(W/2,H/2);c.scale(z,z);c.translate(-W/2,-H/2)}}
     const gy=this.groundY();
     const E={w:W,h:H,sc:k,dt,t,alt:this.alt,dAlt:this.dAlt||0,sp:this.sp||.15,I,phase:S.phase,m:S.m,moonM:S.phase==='wait'?1:S.m,rx:rk.x,ry:rk.y,tx:this.tail().x,ty:this.tail().y,gy,lvl:this.lvl};
-    this.bg.draw(c,E);const zoned=SEL.bg==='synth';if(zoned)this.zones.draw(c,E);
+    if(LITE)this.drawStill(c,E);else this.bg.draw(c,E);const zoned=!LITE&&SEL.bg==='synth';if(zoned)this.zones.draw(c,E);
     // launch rail
     if(gy<H+80){const pd=this.pad(),y0=gy;c.save();c.translate(0,this.alt);c.strokeStyle='#3a3266';c.lineWidth=4*k;c.lineCap='round';
       c.beginPath();c.moveTo(pd.x-52*k,y0);c.lineTo(pd.x+30*k,y0-40*k);c.stroke();c.lineWidth=2*k;c.beginPath();for(let i=0;i<4;i++){const xx=pd.x-40*k+i*20*k;c.moveTo(xx,y0);c.lineTo(xx,y0-(xx-(pd.x-52*k))*.49)}c.stroke();
@@ -560,7 +576,9 @@ function drawP(c,list){for(const p of list){const a=clamp(p.life/p.max,0,1),r=p.
   if(p.shape==='glyph'){c.font=`900 ${Math.max(6,Math.round(r*2.2))}px Unbounded,sans-serif`;c.textAlign='center';c.textBaseline='middle';c.fillText(p.glyph,p.x,p.y)}
   else if(p.shape==='sq')c.fillRect(p.x-r*.8,p.y-r*.8,r*1.6,r*1.6);else{c.beginPath();c.arc(p.x,p.y,r,0,6.283);c.fill()}}c.globalAlpha=1}
 /** The player's character in a given moment of the round; characters with a rig blend between poses. */
-function rider(c,mood,t,state,dt){const ch=CHARS[SEL.char];if(ch.rig)ch.rig.draw(c,mood,t,state,dt);else ch.draw(c,mood,t)}
+function rider(c,mood,t,state,dt){const ch=CHARS[SEL.char];
+  if(LITE)ch.draw(c,.4,0);                                   // smooth mode: one still pose
+  else if(ch.rig)ch.rig.draw(c,mood,t,state,dt);else ch.draw(c,mood,t)}
 function chute(c,ch,t,k){c.save();c.translate(ch.x,ch.y);c.rotate(Math.sin(t*2+ch.seed)*.18);c.scale(k*.9,k*.9);
   const cols=['#ff3ea5','#ffd23f','#2bff88','#29e6ff','#8a5cff'];for(let i=0;i<5;i++){c.fillStyle=cols[i];c.beginPath();c.moveTo(0,0);c.arc(0,0,13,Math.PI+i*Math.PI/5,Math.PI+(i+1)*Math.PI/5);c.closePath();c.fill()}
   c.strokeStyle='rgba(255,255,255,.55)';c.lineWidth=.7;c.beginPath();c.moveTo(-13,0);c.lineTo(0,18);c.lineTo(13,0);c.stroke();c.fillStyle='#f4f1ff';c.beginPath();c.arc(0,19,3,0,6.283);c.fill();c.fillRect(-2,21,4,6);c.restore()}
@@ -644,6 +662,7 @@ window.setLang=l=>{lang=l;try{localStorage.setItem('cr.lang',l)}catch(e){}applyL
 const HEAT=[[1,'#eafff3','rgba(43,255,136,.75)'],[2,'#fff6c2','rgba(255,210,63,.75)'],[5,'#ffd9b0','rgba(255,122,26,.8)'],[10,'#ffd0ea','rgba(255,62,165,.85)'],[25,'#e6f9ff','rgba(41,230,255,.9)']];
 function heat(m){let h=HEAT[0];for(const x of HEAT)if(m>=x[0])h=x;return h}
 
+let lastHeat=null;
 function updateHud(ts){
   const el=(ts-S.t0)/1000;
   set('bal','textContent',fmtTon(Math.max(0,S.bal-S.pend)));
@@ -652,7 +671,7 @@ function updateHud(ts){
   else{const mu=$('mult'),shown=S.phase==='fly'?xf(S.m):S.m;set('mult','textContent',x2(shown)+'x');
     if(S.phase==='fly')S.shown={x:shown,at:ts};   // exactly what is on screen and when it was drawn: a tap cashes out at this
     const cls='mult'+(S.phase==='crash'?' crashed':'');if(!mu.classList.contains('punch')&&!mu.classList.contains('glitch'))set('mult','className',cls);else{mu.classList.toggle('crashed',S.phase==='crash');mu.classList.remove('waiting')}
-    if(S.phase==='fly'){const h=heat(S.m);app.style.setProperty('--heat',h[1]);app.style.setProperty('--heat-glow',h[2])}
+    if(S.phase==='fly'){const h=heat(S.m);if(h!==lastHeat){lastHeat=h;app.style.setProperty('--heat',h[1]);app.style.setProperty('--heat-glow',h[2])}}   // restyles the whole app: only when the colour changes
     set('sub','textContent',S.phase==='crash'?T('boom')(x2(S.crash)):T('alt')(S.m))}
   let cls='main',b,s='';
   const cu=CUR();
@@ -668,7 +687,7 @@ $('mult').addEventListener('animationend',e=>e.target.classList.remove('punch','
 /* =====================================================================
    Loop
    ===================================================================== */
-function resize(){const sr=$('stage').getBoundingClientRect(),ar=app.getBoundingClientRect();DPR=Math.min(2,window.devicePixelRatio||1);
+function resize(){const sr=$('stage').getBoundingClientRect(),ar=app.getBoundingClientRect();DPR=Math.min(LITE?1.25:2,window.devicePixelRatio||1);
   W=Math.max(1,sr.width);H=Math.max(1,sr.height);AW=Math.max(1,ar.width);AH=Math.max(1,ar.height);OX=sr.left-ar.left;OY=sr.top-ar.top;
   cv.width=Math.round(W*DPR);cv.height=Math.round(H*DPR);ctx.setTransform(DPR,0,0,DPR,0,0);
   fx.width=Math.round(AW*DPR);fx.height=Math.round(AH*DPR);fxc.setTransform(DPR,0,0,DPR,0,0);SC.resize();
@@ -688,10 +707,38 @@ if(TG){
   const lc=TG.initDataUnsafe&&TG.initDataUnsafe.user&&TG.initDataUnsafe.user.language_code;
   if(!saved&&lc)lang=/^(ru|uk|be|kk)/.test(lc)?'ru':'en';
 }
+// smooth mode: the events keep their logic (rocket hidden, rider falls or bails out, coins fly to the balance),
+// only the effects they would add are dropped
+for(const k of ['onStart','onBotCash','onMyCash','explode','milestone','zoneEnter']){const f=SC[k];
+  SC[k]=function(...a){if(LITE&&(k==='onBotCash'||k==='zoneEnter'))return;const r=f.apply(this,a);
+    if(LITE){for(const arr of ['parts','smoke','fire','rings','floats','debris','confetti','lines'])this[arr].length=0;this.shake=this.punch=this.flash=0}return r}}
+window.setLite=on=>{LITE=!!on;try{localStorage.setItem('cr.lite',LITE?'1':'0')}catch(e){}SC.still=null;resize()};
+window.isLite=()=>LITE;
 SC.setBg(SEL.bg);new ResizeObserver(resize).observe(app);resize();
 applyLang();renderHist();
 let last=performance.now(),bootFrames=0,bootT0=0;
+/* Performance meter: ?perf=1, or five quick taps on the multiplier. The gap between frames is the stutter a player
+   sees; the work time per part (logic, scene, effects, interface) shows where it comes from. PERF.report() gives
+   the numbers for tests. */
+const PERF={on:false,N:600,gap:[],w:{logic:[],scene:[],fx:[],hud:[]},prev:0,box:null,shown:0,
+  push(a,v){a.push(v);if(a.length>this.N)a.shift()},
+  frame(ts,w){if(this.prev)this.push(this.gap,ts-this.prev);this.prev=ts;for(const k in w)this.push(this.w[k],w[k]);
+    if(ts-this.shown>500){this.shown=ts;this.paint()}},
+  stat(a){if(!a.length)return{avg:0,p95:0,max:0};const s=[...a].sort((x,y)=>x-y);return{avg:a.reduce((x,y)=>x+y,0)/a.length,p95:s[Math.floor(s.length*.95)],max:s[s.length-1]}},
+  report(){const g=this.stat(this.gap),r={frames:this.gap.length,fps:g.avg?1000/g.avg:0,gapP95:g.p95,gapMax:g.max,
+      janks:this.gap.filter(x=>x>34).length,hitches:this.gap.filter(x=>x>100).length};
+    for(const k in this.w){const s=this.stat(this.w[k]);r[k]={avg:+s.avg.toFixed(2),p95:+s.p95.toFixed(2),max:+s.max.toFixed(2)}}
+    for(const k of['fps','gapP95','gapMax'])r[k]=+r[k].toFixed(1);return r},
+  paint(){if(!this.box)return;const r=this.report(),f=(o)=>o.avg.toFixed(1)+'/'+o.p95.toFixed(1);
+    this.box.textContent=`FPS ${r.fps.toFixed(0)} · кадр p95 ${r.gapP95.toFixed(0)} мс · макс ${r.gapMax.toFixed(0)}\nрывки >34мс: ${r.janks} · >100мс: ${r.hitches} (из ${r.frames})\nлогика ${f(r.logic)} · сцена ${f(r.scene)}\nэффекты ${f(r.fx)} · UI ${f(r.hud)} мс (сред/p95)`},
+  toggle(on){this.on=on;try{localStorage.setItem('cr.perf',on?'1':'0')}catch(e){}
+    if(on&&!this.box){this.box=document.createElement('pre');this.box.className='perf';app.appendChild(this.box)}
+    if(!on&&this.box){this.box.remove();this.box=null}this.gap.length=0;for(const k in this.w)this.w[k].length=0;this.prev=0}};
+{let on=new URLSearchParams(location.search).get('perf');try{if(on===null)on=localStorage.getItem('cr.perf')}catch(e){}if(on==='1')PERF.toggle(true)}
+{let taps=[];$('mult').addEventListener('pointerdown',()=>{const n=performance.now();taps=taps.filter(x=>n-x<1500);taps.push(n);if(taps.length>=5){taps=[];PERF.toggle(!PERF.on);toast(PERF.on?'Замер производительности включён':'Замер выключен')}})}
+window.PERF=PERF;
 function tick(ts){
+  const q0=performance.now();
   // 20 frames (or 1.2 s on a slow phone) drawn under the loading screen: backdrops and canvases are warm by then
   if(bootFrames>=0){bootT0=bootT0||ts;if(++bootFrames>=20||ts-bootT0>1200){bootFrames=-1;BOOT.done('frames')}}
   if(BOOT.on&&window.NET_ON&&NET.synced&&S.phase==='fly')BOOT.live(xf(S.m));   // joined mid-round: show where it is (once the clock is synced)
@@ -705,13 +752,18 @@ function tick(ts){
       for(const b of S.bots)if(!b.out&&m>=b.target){b.out=b.target;ch=true;SC.onBotCash(b.n,b.target);feed(b.n,b.target,b.bet*(b.target-1))}
       if(ch)renderPlayers()}}
   else if(S.phase==='crash'&&el>=HOLD)newRound(ts);
+  const q1=performance.now();
   SC.update(dt,ts/1000);
   if(!window.SCREEN_OPEN){ctx.clearRect(0,0,W,H);SC.draw(ctx,ts/1000,dt)}
+  const q2=performance.now();
   fxc.clearRect(0,0,AW,AH);SC.drawFx(fxc,ts/1000);
-  updateHud(ts);requestAnimationFrame(tick)}
+  const q3=performance.now();
+  updateHud(ts);
+  if(PERF.on)PERF.frame(ts,{logic:q1-q0,scene:q2-q1,fx:q3-q2,hud:performance.now()-q3});
+  requestAnimationFrame(tick)}
 requestAnimationFrame(tick);
 </script>
 <!-- ?v=: bump on every release so Telegram does not keep old copies (and APP_VER + version.json for the page itself) -->
-<script src="screens.js?v=20260930"></script>
-<script src="net.js?v=20260930c"></script>
+<script src="screens.js?v=20261001"></script>
+<script src="net.js?v=20261001"></script>
 <script src="round.js?v=20260926"></script>

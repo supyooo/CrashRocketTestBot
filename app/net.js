@@ -53,6 +53,7 @@ function on(m){const now=performance.now();
   // loading screen: the server has answered; open now, unless a round is mid-flight - then on the next countdown
   if(window.BOOT){if(m.t==='hello'){BOOT.done('net');if(m.phase!=='running')BOOT.done('round')}else if(m.t==='betting')BOOT.done('round')}
   if(m.t==='pong'){onPong(m);return}
+  if(m.t==='batch'){for(const x of m.m)on(x);return}   // other players' bets and cash-outs, sent together
   if(m.t==='ok'||m.t==='err'){const w=NET.wait.get(m.id);if(w){NET.wait.delete(m.id);m.t==='ok'?w.res(m):w.rej(new Error(m.error))}return}
   if(m.t==='hello'&&m.phase==='waiting'){ // a fresh server waits for the previous one to finish its round
     rough(m.serverNow);if(m.k)K=m.k;window.NET_ON=true;setReal(m.balance);S.pend=0;S.bots=[];if(!(S.bet&&S.bet.demo))S.bet=null;S.phase='crash';S.crash=1;S.m=1;S.t0=now;renderPlayers();
@@ -179,7 +180,7 @@ async function cashNow(){const b=S.bet;if(!b||b.out||b.lock)return;
   haptic('medium');pop('safe',(lang==='ru'?'Ваш выход: x':'Your cash-out: x')+x2(x));
   if(b.demo)return demoLock(b,x);
   b.lock=x;
-  try{const r=await call({t:'cashout',at:sh.at+NET.off});if(!b.out){S.m=Math.max(S.m,r.x);cashOut(r.x,true)}setReal(r.balance)}
+  try{const r=await call({t:'cashout',at:sh.at+NET.off});if(!b.out){S.m=Math.max(S.m,r.x);cashOut(r.x,true)}if(r.balance!==undefined)setReal(r.balance)}   // the server sends the new balance separately
   catch(e){b.lock=0;toast(/too late|not flying/.test(e.message)?(lang==='ru'?'Не успели: ракета взорвалась раньше':'Too late: the rocket exploded first'):e.message,'bad');haptic('error')}}
 // react on touch-down, not on release: saves the ~100 ms a finger takes to lift
 const mainBtn=$('main'),mainClick=mainBtn.onclick;let downAt=0;
