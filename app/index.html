@@ -189,11 +189,50 @@ html.tg .device>.app{border-radius:0}
 .card[aria-pressed="true"]{border-color:var(--gold);box-shadow:0 0 0 3px rgba(255,210,63,.15)}
 .card[aria-pressed="true"] i{background:var(--gold);color:#1a1204}
 @media (prefers-reduced-motion:reduce){.main.cash{animation:none}.mult.punch,.mult.glitch{animation:none}}
+/* ---------- loading screen ---------- */
+.boot{position:absolute;inset:0;z-index:60;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;overflow:hidden;
+  background:radial-gradient(110% 60% at 50% 105%,rgba(255,62,165,.35),transparent 60%),linear-gradient(#1a0b3d,var(--bg) 70%);transition:opacity .4s ease,visibility .4s}
+.boot::after{content:"";position:absolute;left:-20%;right:-20%;bottom:0;height:34%;pointer-events:none;opacity:.5;
+  background:repeating-linear-gradient(0deg,rgba(255,62,165,.55) 0 1px,transparent 1px 22px),repeating-linear-gradient(90deg,rgba(255,62,165,.55) 0 1px,transparent 1px 38px);
+  transform:perspective(220px) rotateX(58deg);transform-origin:bottom;-webkit-mask-image:linear-gradient(transparent,#000 70%);mask-image:linear-gradient(transparent,#000 70%)}
+.boot.out{opacity:0;visibility:hidden}
+.boot-logo{width:96px;height:96px;border-radius:26px;box-shadow:0 0 44px rgba(43,255,136,.35);animation:bootFloat 2.4s ease-in-out infinite;position:relative;z-index:1}
+.boot-name{position:relative;z-index:1;font:800 26px/1.05 'Unbounded','Golos Text',sans-serif;letter-spacing:.04em;text-align:center;color:var(--text);text-shadow:0 0 18px rgba(255,62,165,.6)}
+.boot-bar{position:relative;z-index:1;width:min(220px,60%);height:6px;margin-top:10px;border-radius:6px;background:rgba(255,255,255,.08);overflow:hidden}
+.boot-bar i{display:block;height:100%;width:12%;border-radius:inherit;background:linear-gradient(90deg,var(--green),var(--cyan));box-shadow:0 0 12px var(--green);transition:width .35s ease}
+.boot-msg{position:relative;z-index:1;font:600 12.5px 'Golos Text',sans-serif;color:var(--muted)}
+@keyframes bootFloat{50%{transform:translateY(-8px) rotate(-3deg)}}
+@media (prefers-reduced-motion:reduce){.boot-logo{animation:none}}
 </style>
 
 <div class="shell">
   <div class="device">
     <div class="app" id="app">
+      <div class="boot" id="boot" role="status" aria-live="polite">
+        <img class="boot-logo" src="icon.png" alt="" width="96" height="96">
+        <div class="boot-name">CRASH<br>ROCKET</div>
+        <div class="boot-bar"><i id="bootBar"></i></div>
+        <div class="boot-msg" id="bootMsg">Загрузка…</div>
+      </div>
+      <script>
+      /* Loading screen: painted before any script runs, it stays until the fonts are in, the game has drawn its
+         first frames (so the first seconds do not stutter) and the server answered or demo mode took over.
+         Shown at least MIN ms so it does not flash, never longer than MAX ms. */
+      window.BOOT=(()=>{
+        const steps={fonts:0,frames:0,net:0},t0=performance.now(),MIN=700,MAX=8000;let gone=false;
+        let en=false;try{en=localStorage.getItem('cr.lang')==='en'}catch(e){}
+        const L=en?{fonts:'Loading…',frames:'Warming up the engine…',net:'Connecting to the server…',ok:'Ready!'}
+                  :{fonts:'Загрузка…',frames:'Прогреваем двигатель…',net:'Подключаемся к серверу…',ok:'Готово!'};
+        const bar=document.getElementById('bootBar'),msg=document.getElementById('bootMsg');
+        function paint(){const n=Object.values(steps).filter(Boolean).length;bar.style.width=(12+n/3*88)+'%';
+          msg.textContent=L[!steps.fonts?'fonts':!steps.frames?'frames':!steps.net?'net':'ok']}
+        function hide(){if(gone)return;gone=true;setTimeout(()=>{const b=document.getElementById('boot');b.classList.add('out');setTimeout(()=>b.remove(),450)},Math.max(0,MIN-(performance.now()-t0)))}
+        setTimeout(hide,MAX);paint();
+        if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>api.done('fonts'));else setTimeout(()=>api.done('fonts'));
+        const api={done(k){if(steps[k]||!(k in steps))return;steps[k]=1;paint();if(Object.values(steps).every(Boolean))hide()},get on(){return!gone}};
+        return api;
+      })();
+      </script>
       <header class="top">
         <div class="bal" id="balBox">
           <svg class="ton" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="12" fill="#0098ea"/><path d="M7.2 7.5h9.6c.7 0 1.1.8.8 1.4L12.6 17c-.3.5-.9.5-1.2 0L6.4 8.9c-.3-.6.1-1.4.8-1.4zm4.1 1.3H8.3l3 5.4V8.8zm1.4 0v5.4l3-5.4h-3z" fill="#fff"/></svg>
@@ -621,8 +660,10 @@ if(TG){
 }
 SC.setBg(SEL.bg);new ResizeObserver(resize).observe(app);resize();
 applyLang();renderHist();
-let last=performance.now();
+let last=performance.now(),bootFrames=0,bootT0=0;
 function tick(ts){
+  // 20 frames (or 1.2 s on a slow phone) drawn under the loading screen: backdrops and canvases are warm by then
+  if(bootFrames>=0){bootT0=bootT0||ts;if(++bootFrames>=20||ts-bootT0>1200){bootFrames=-1;BOOT.done('frames')}}
   const dt=clamp((ts-last)/1000,0,.05);last=ts;const el=(ts-S.t0)/1000;
   if(window.NET_ON){if(S.phase==='fly'){S.t=el;S.m=Math.min(Math.exp(K*Math.max(0,el)),S.crash)}}  // online: the server drives the round
   else if(S.phase==='wait'){if(el>=WAIT)startFlight(ts)}
@@ -641,5 +682,5 @@ requestAnimationFrame(tick);
 </script>
 <!-- ?v=: bump on every release so Telegram does not keep old copies -->
 <script src="screens.js?v=20260926"></script>
-<script src="net.js?v=20260926"></script>
+<script src="net.js?v=20260929"></script>
 <script src="round.js?v=20260926"></script>
