@@ -9,12 +9,13 @@ Mapping of the cut files (from cut.py) to the game's names is per character belo
 import sys, os
 from PIL import Image
 
+# The body is the whole sitting figure from design.png with the head cut off at the collar: drawn in one piece it
+# looks the way the artist made it (parts glued on a skeleton did not). The heads go on top at the neck.
 KITS = {
     'musk': {
         'head-calm': ('heads-1.png', None), 'head-hype': ('heads-2.png', None), 'head-scared': ('heads-3.png', None), 'head-win': ('heads-4.png', None),
-        'torso': ('body-4.png', (0, 0, 580, 470)),      # t-shirt only, cut at the waist
-        'arm-upper': ('body-1.png', None), 'arm-open': ('body-2.png', None), 'arm-fist': ('body-3.png', None),
-        'leg-upper': ('body-5.png', None), 'leg-lower': ('body-6.png', None), 'item': ('item-1.png', None),
+        'body': ('design-1.png', (0, 440, 864, 1479)),  # from the collar down
+        'item': ('item-1.png', None),
     },
 }
 SCALE = .5

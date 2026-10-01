@@ -378,53 +378,35 @@ function render(c,p,t,face,X){
 function poseFor(X,st,m,t){const p=poseOf(st,m,t);if(X.pose)X.pose(p,st,m,t);return p}
 
 /* ---------------- characters drawn from an image kit ----------------
-   A kit is a set of transparent images made by an image generator (art/<id>/: four heads, torso, upper arm, forearm
-   with an open hand and with a fist, thigh, lower leg with the shoe, a prop) plus the points where the parts join.
-   The skeleton is the same as above: arms and legs are placed by two-bone IK from the pose's hand and foot targets
-   (each kit has its own proportions), the head swaps expressions with the moment of the round. Until the images
-   have loaded, the character is drawn with the vector version. */
+   A kit is a set of transparent images made by an image generator (art/<id>/): the whole sitting figure with the head
+   cut off at the collar, four heads (calm, hype, scared, win) and a prop. The figure is drawn in one piece, the way
+   the artist made it, and moves as a whole (bob, lean, bounce, sway, tumble); the head moves a beat behind it, tilts
+   and swaps expressions with the moment of the round. Until the images have loaded the vector version stands in. */
 const ART=(document.currentScript&&document.currentScript.src||'').replace(/[^/]*(\?.*)?$/,'')+'art/';
-const KIT_FILES=['head-calm','head-hype','head-scared','head-win','torso','arm-upper','arm-open','arm-fist','leg-upper','leg-lower','item'];
+const KIT_FILES=['head-calm','head-hype','head-scared','head-win','body','item'];
 function loadKit(K,id){
   K.img={};K.ready=false;let n=0;const files=KIT_FILES.filter(f=>f!=='item'||K.item);
   files.forEach(f=>{const im=new Image();im.decoding='async';im.onload=()=>{if(++n===files.length){K.ready=true;window.dispatchEvent(new CustomEvent('cr:kit',{detail:id}))}};im.src=ART+id+'/'+f+'.webp';K.img[f]=im});
 }
-/** Draw image part `im` so that its points a and b (px) land on skeleton points A and B; `w` = units per px across the
-    part; `trim` = px cut off at each end along the axis (the hollow joint openings). */
-function seg(c,im,a,b,A,B,w,trim){
-  const dx=B[0]-A[0],dy=B[1]-A[1],L=Math.hypot(dx,dy)||1e-3,ix=b[0]-a[0],iy=b[1]-a[1],il=Math.hypot(ix,iy);
-  c.save();c.translate(A[0],A[1]);c.rotate(Math.atan2(dy,dx));c.scale(L/il,w);
-  if(trim){c.beginPath();c.rect(trim[0],-1e4,il-trim[0]-trim[1],2e4);c.clip()}
-  c.rotate(-Math.atan2(iy,ix));c.translate(-a[0],-a[1]);c.drawImage(im,0,0);c.restore();
-}
-/** Two-bone IK: elbow/knee for a limb from S towards target H with segment lengths l1, l2, bent to the side of hint. */
-function ik(S,H,l1,l2,hint){
-  let dx=H[0]-S[0],dy=H[1]-S[1],d=Math.hypot(dx,dy)||1e-6;const max=(l1+l2)*.995,min=Math.abs(l1-l2)+.5;
-  if(d>max||d<min){const k=d>max?max/d:min/d;H=[S[0]+dx*k,S[1]+dy*k];dx=H[0]-S[0];dy=H[1]-S[1];d=Math.hypot(dx,dy)}
-  const a=(l1*l1-l2*l2+d*d)/(2*d),h=Math.sqrt(Math.max(0,l1*l1-a*a)),mx=S[0]+dx*a/d,my=S[1]+dy*a/d;
-  const e1=[mx-dy*h/d,my+dx*h/d],e2=[mx+dy*h/d,my-dx*h/d],D=e=>(e[0]-hint[0])**2+(e[1]-hint[1])**2;
-  return{E:D(e1)<=D(e2)?e1:e2,H};
-}
+/**
+ * K: s = units per px of the figure (half-size images), seat = px of the figure that sits on the rocket's seat,
+ * neck = px of the figure where the head goes, head = {n: neck px in the head images, s: units per px},
+ * hand = px of the figure's hand that holds the prop.
+ */
 function renderKit(c,p,t,face,X){
   const K=X.K,I=K.img,F={scared:face==='scared',fall:face==='fall',win:face==='win'||face==='chute',chute:face==='chute'};
-  const off=(P,from,to)=>[P[0]+to[0]-from[0],P[1]+to[1]-from[1]];   // move a pose point with the shoulder/hip it hangs from
-  c.save();c.translate(p.shiver,p.bob);if(K.scale)c.scale(K.scale,K.scale);
-  const arm=(sh,dsh,el,hd,open)=>{const r=ik(sh,off(hd,dsh,sh),K.arm.l1,K.arm.l2,off(el,dsh,sh)),H=r.H;
-    const fa=open?K.arm.open:K.arm.fist;seg(c,I[open?'arm-open':'arm-fist'],fa.a,fa.b,r.E,H,K.arm.w,[fa.trim,0]);
-    seg(c,I['arm-upper'],K.arm.up.a,K.arm.up.b,sh,r.E,K.arm.w,K.arm.up.trim)};
-  const leg=(hip,dh,kn,ft)=>{const r=ik(hip,off(ft,dh,hip),K.leg.l1,K.leg.l2,off(kn,dh,hip));
-    seg(c,I['leg-lower'],K.leg.low.a,K.leg.low.b,r.E,r.H,K.leg.w,[K.leg.low.trim,0]);
-    seg(c,I['leg-upper'],K.leg.up.a,K.leg.up.b,hip,r.E,K.leg.w,K.leg.up.trim)};
-  const open=F.win||F.fall;
-  leg(K.hipB,[-3,-2],p.bk,p.bf);arm(K.shB,[-6,-19],p.be,p.bh,open);
-  seg(c,I.torso,K.torso.a,K.torso.b,K.torso.A,K.torso.B,K.torso.w);
-  leg(K.hipF,[4,-2],p.fk,p.ff);
-  const ex=F.scared||F.fall?'head-scared':F.win?'head-win':p.heat>.55?'head-hype':'head-calm',hd=I[ex],hk=K.head;
-  c.save();c.translate(hk.at[0],hk.at[1]+p.lag-p.bob*.3);c.rotate(p.tilt);c.scale(hk.s,hk.s);c.drawImage(hd,-hk.n[0],-hk.n[1]);c.restore();
-  if(X.prop&&!F.fall&&!F.chute)X.prop(c,p,t,F,K);            // on the parachute both hands hold the straps
-  arm(K.shF,[6,-19],p.fe,p.fh,open||F.chute);
-  if(face==='win')for(let i=0;i<3;i++){const k=(t*1.3+i/3)%1;star(c,[-22,22,0][i],[-58,-56,-66][i]-k*6,(1-Math.abs(k*2-1))*3.2,['#ffd23f','#2bff88','#29e6ff'][i])}
+  // whole-body motion: lean back when scared, bounce on a win, a slow sway on the parachute, a lean into the speed
+  const lean=F.scared?-.14:F.fall?Math.sin(t*9)*.3:F.chute?Math.sin(t*2.4)*.08:F.win?.06+Math.sin(t*12)*.05:-.02-p.heat*.06+Math.sin(t*4.5)*.03*p.heat;
+  const hop=F.win&&!F.chute?-Math.abs(Math.sin(t*9))*3:0,sq=F.win&&!F.chute?1+Math.sin(t*18)*.025:1;
+  const toU=(px,py)=>[(px-K.seat[0])*K.s,(py-K.seat[1])*K.s];
+  c.save();c.translate(p.shiver,p.bob*.8+hop);c.rotate(lean);c.scale(2-sq,sq);
+  c.drawImage(I.body,-K.seat[0]*K.s,-K.seat[1]*K.s,I.body.width*K.s,I.body.height*K.s);
+  if(X.prop&&!F.fall&&!F.chute){const h=toU(K.hand[0],K.hand[1]);c.save();c.translate(h[0],h[1]);X.prop(c,p,t,F,K);c.restore()}
+  const nk=toU(K.neck[0],K.neck[1]),ex=F.scared||F.fall?'head-scared':F.win?'head-win':p.heat>.55?'head-hype':'head-calm',hd=I[ex];
+  c.save();c.translate(nk[0],nk[1]+p.lag*.8);c.rotate(p.tilt*1.2+(F.scared?-.1:0));
+  c.drawImage(hd,-K.head.n[0]*K.head.s,-K.head.n[1]*K.head.s,hd.width*K.head.s,hd.height*K.head.s);c.restore();
   c.restore();
+  if(face==='win')for(let i=0;i<3;i++){const k=(t*1.3+i/3)%1;star(c,[-24,24,0][i],[-58,-56,-66][i]-k*6,(1-Math.abs(k*2-1))*3.2,['#ffd23f','#2bff88','#29e6ff'][i])}
 }
 const pick=(X,c,p,t,face)=>X.K&&X.K.ready?renderKit(c,p,t,face,X):render(c,p,t,face,X);
 
@@ -444,14 +426,9 @@ const stateless=X=>(c,mood,t,st)=>{st=STATES.includes(st)?st:'fly';pick(X,c,pose
 
 /* Kits: where the parts join (px in the half-size images of art/<id>/), how big they are (units per px) and the
    limb lengths. Measured on the images made with the kit brief. */
-C.musk.K={
-  torso:{a:[150,15],b:[150,232],A:[.5,-24],B:[0,-1],w:.084},
-  shB:[-10,-13.5],shF:[10,-13.5],hipB:[-4.5,-2],hipF:[4.5,-2],
-  head:{n:[117,280],s:.116,at:[.5,-23]},
-  arm:{l1:10.5,l2:11,w:.1,up:{a:[28,20],b:[80,178],trim:[16,14]},open:{a:[28,22],b:[90,165],trim:16},fist:{a:[22,22],b:[65,168],trim:16}},
-  leg:{l1:10,l2:12,w:.09,up:{a:[23,22],b:[55,235],trim:[16,12]},low:{a:[48,15],b:[65,220],trim:14}},
-  item:true,scale:1.15,chute:{y:-106,l:[-11.5,-41.5],r:[11.5,-41.5]},thumb:.7};
-C.musk.prop=(c,p,t,F,K)=>{const [x,y]=p.fh;c.save();c.translate(x,y);c.rotate(-.12);   // the flamethrower, grip in the hand
+C.musk.K={s:.105,seat:[235,280],neck:[220,8],hand:[395,190],head:{n:[117,280],s:.085},
+  item:true,chute:{y:-80,l:[-12.6,-25],r:[9,-26]},thumb:.7};
+C.musk.prop=(c,p,t,F,K)=>{c.save();c.rotate(-.12);                                        // the flamethrower, grip in the fist
   c.save();c.scale(.08,.08);c.drawImage(K.img.item,-88,-130);c.restore();
   const fire=F.win?1:clamp((p.heat-.45)/.3,0,1);
   if(fire>0&&!F.scared){for(let i=0;i<8;i++){const k=((t*5)+i/8)%1,len=(10+fire*18)*k;c.globalAlpha=(1-k)*.95;
