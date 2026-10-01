@@ -52,7 +52,7 @@
   <header style="display:flex;flex-direction:column;gap:10px">
     <div class="lbl">Crash Rocket · рисовка персонажей</div>
     <h1>Киты персонажей</h1>
-    <p class="lead">Кит — это персонаж, разобранный на части: голова в четырёх выражениях, туловище, руки, ноги и фирменный предмет. Части рисует нейросеть, а игра собирает их на свой скелет и анимирует: позы, переходы, ветер, смена лица по ходу раунда, парашют и кувырок.</p>
+    <p class="lead">Кит — это персонаж целиком (сидит верхом), его голова в четырёх выражениях и фирменный предмет. Всё рисует нейросеть, а игра оживляет: фигура покачивается, откидывается в страхе, подпрыгивает при выигрыше, висит на парашюте и кувыркается, голова двигается отдельно и меняет лицо по ходу раунда.</p>
   </header>
 
   <section>
@@ -60,7 +60,7 @@
     <ol class="steps">
       <li><b>Новый чат на персонажа</b><span>В ChatGPT отдельный чат для каждого героя: так он помнит внешность и держит её во всех частях.</span></li>
       <li><b>Шаг 1: образ</b><span>Отправьте первый промпт. Перегенерируйте, пока персонаж не понравится. Дальше всё строится от него.</span></li>
-      <li><b>Шаги 2–4: части</b><span>В том же чате по очереди: головы, тело по частям, предмет. Если части вышли в другом стиле, напишите «same style as the first image».</span></li>
+      <li><b>Шаги 2–3: головы и предмет</b><span>В том же чате по очереди: четыре головы, затем предмет (если он есть у персонажа). Если вышло в другом стиле, напишите «same style as the first image».</span></li>
       <li><b>Сохранить и прислать</b><span>Скачайте PNG и положите в папку персонажа (имена ниже) или просто перетащите в наш чат.</span></li>
     </ol>
   </section>
@@ -70,9 +70,8 @@
     <div class="tbl"><table>
       <thead><tr><th>Файл</th><th>Что на нём</th><th>Зачем игре</th></tr></thead>
       <tbody>
-        <tr><td><code>design.png</code></td><td>Персонаж целиком, сидит верхом, вид 3/4 вправо</td><td>Образец, по нему я подгоняю части</td></tr>
+        <tr><td><code>design.png</code></td><td>Персонаж целиком, сидит верхом, вид 3/4 вправо</td><td>Тело персонажа в игре (голову я отрезаю и ставлю сменные)</td></tr>
         <tr><td><code>heads.png</code></td><td>4 головы в ряд: спокойный, азарт, страх, победа</td><td>Лицо меняется по ходу раунда</td></tr>
-        <tr><td><code>body.png</code></td><td>Туловище, плечо, предплечье с открытой кистью и с кулаком, бедро, голень с обувью</td><td>Руки и ноги двигаются отдельно</td></tr>
         <tr><td><code>item.png</code></td><td>Фирменный предмет отдельно (если есть)</td><td>Огнемёт, пульт, портфель и т.п. в руке</td></tr>
       </tbody>
     </table></div>
@@ -122,8 +121,7 @@ const RN={l:'Легендарный',e:'Эпический',r:'Редкий',c:'
 const P=c=>[
  ['Шаг 1 · образ','design.png',`${STYLE}\n\nCharacter design: ${c.who}. Full body, sitting astride as if riding a rocket (do not draw the rocket), legs hanging down, one hand forward as if holding on, the other relaxed. One character only.`],
  ['Шаг 2 · головы','heads.png',`Same character, same style as the first image. Four heads only (with a short neck stump, no body), in one row, evenly spaced, all the same size and the same angle (3/4 facing right): 1) calm, 2) excited, 3) scared, 4) winner. Expressions: ${c.heads}. Transparent background.`],
- ['Шаг 3 · тело по частям','body.png',`Same character, same style as the first image. A cut-out puppet kit: separate body parts laid out apart on a transparent background, all at the same scale as the first image: the torso with clothes (no head, no arms, no legs); an upper arm; a forearm with an open hand; a forearm with a fist; a thigh; a lower leg with the shoe. Arms and legs drawn straight with rounded joint ends so they can overlap. No faces, no extra items.`],
- ...(c.item?[['Шаг 4 · предмет','item.png',`Same style as the first image. ${c.item}, alone, side view, pointing right, at a size that fits the character's hand. Transparent background.`]]:[])];
+ ...(c.item?[['Шаг 3 · предмет','item.png',`Same style as the first image. ${c.item}, alone, side view, pointing right, at a size that fits the character's hand. Transparent background.`]]:[])];
 document.getElementById('style').textContent=STYLE;
 const box=document.getElementById('chars');
 CH.forEach(c=>{const a=document.createElement('article');a.className='ch';a.dataset.r=c.r;
