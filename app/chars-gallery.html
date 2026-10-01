@@ -1,0 +1,37 @@
+<!doctype html><meta charset="utf-8"><title>Персонажи · галерея</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  body{margin:0;background:#12092a;color:#f3f1ff;font:14px system-ui,sans-serif;padding:16px}
+  .bar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+  .bar button{padding:8px 12px;border-radius:10px;border:1px solid #2b3155;background:#161a2f;color:#f3f1ff;cursor:pointer}
+  .bar button[aria-pressed=true]{border-color:#2bff88}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
+  figure{margin:0;background:#0e0724;border:1px solid #2b3155;border-radius:14px;overflow:hidden}
+  canvas{width:100%;aspect-ratio:1;display:block}
+  figcaption{padding:6px 10px;font-weight:700;font-size:13px}
+  figcaption small{color:#8f93b8;font-weight:500}
+</style>
+<div class="bar" id="st"></div>
+<div class="grid" id="g"></div>
+<script src="art.js"></script>
+<script src="chars2.js?v=dev"></script>
+<script>
+const IDS=[['satoshi','легендарный'],['durov','эпический'],['musk','эпический'],['kim','редкий'],['wojak','редкий'],['hamster','редкий'],['bear','обычный'],['bull','обычный'],['whale','обычный'],['cryptan','обычный']];
+let state='fly',mood=.85;
+const modes=[['pad',0,'Площадка'],['fly',.25,'Полёт'],['fly',.9,'Азарт'],['scared',1,'Страх'],['win',1,'Победа'],['chute',1,'Парашют'],['fall',1,'Падение']];
+const st=document.getElementById('st');
+modes.forEach(([s,m,l],i)=>{const b=document.createElement('button');b.textContent=l;b.setAttribute('aria-pressed',i===2);b.onclick=()=>{state=s;mood=m;st.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b))};st.appendChild(b)});
+const cells=IDS.map(([id,r])=>{const f=document.createElement('figure');f.innerHTML=`<canvas></canvas><figcaption>${CHARS[id].ru} <small>· ${r}</small></figcaption>`;document.getElementById('g').appendChild(f);return{id,cv:f.querySelector('canvas')}});
+let last=performance.now();
+function frame(now){const dt=Math.min(.05,(now-last)/1000);last=now;const t=now/1000;
+  for(const {id,cv} of cells){const r=cv.getBoundingClientRect(),d=2;if(cv.width!==r.width*d){cv.width=r.width*d;cv.height=r.height*d}
+    const c=cv.getContext('2d');c.setTransform(d,0,0,d,0,0);const w=r.width,h=r.height;c.fillStyle='#1a0b3d';c.fillRect(0,0,w,h);
+    const k=w/95;c.save();c.translate(w*.5,h*.72);
+    if(state==='fall'){c.rotate(t*2);c.scale(k*.8,k*.8);c.translate(0,22);CHARS[id].rig.draw(c,mood,t,state,dt)}
+    else if(state==='chute'){c.translate(0,h*.1);c.scale(k*.62,k*.62);c.save();c.translate(0,-86);drawCanopy(c,'rainbow');c.restore();
+      c.strokeStyle='rgba(255,255,255,.7)';c.lineWidth=.9;c.beginPath();c.moveTo(-27,-86);c.lineTo(-8,-54);c.moveTo(27,-86);c.lineTo(9,-54);c.stroke();CHARS[id].rig.draw(c,mood,t,state,dt)}
+    else{const R=ROCKETS.candle,ang=-.32;c.translate(10*k*.5,0);c.rotate(ang);c.scale(k*.75,k*.75);drawFlame(c,R.trail,state==='pad'?.12:1,t,R.tail);R.draw(c);c.translate(R.seat[0],R.seat[1]);c.rotate(-ang*.85);CHARS[id].rig.draw(c,mood,t,state,dt)}
+    c.restore()}
+  requestAnimationFrame(frame)}
+requestAnimationFrame(frame);
+</script>

@@ -218,7 +218,7 @@ html.tg .device>.app{border-radius:0}
       /* Telegram and GitHub Pages may hand out a cached copy of this page after a release. Ask the site for the
          current version, bypassing every cache; if it is newer, reload once with it in the address (the #hash with
          Telegram's login data is kept). Bump APP_VER here and in version.json on every release. */
-      (()=>{const APP_VER='20261001';
+      (()=>{const APP_VER='20261001b';
         fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(r=>r.json()).then(d=>{
           if(!d||!d.v||d.v===APP_VER)return;const u=new URL(location.href);
           if(u.searchParams.get('v')===d.v)return;          // already asked for it once: never loop
@@ -317,7 +317,7 @@ html.tg .device>.app{border-radius:0}
 </div>
 
 <script src="art.js?v=20260926"></script>
-<script src="chars2.js?v=20260930"></script>
+<script src="chars2.js?v=20261001b"></script>
 <script>
 /* =====================================================================
    i18n
@@ -421,6 +421,7 @@ const app=$('app'),cv=$('cv'),ctx=cv.getContext('2d'),fx=$('fx'),fxc=fx.getConte
 let W=1,H=1,AW=1,AH=1,DPR=1,OX=0,OY=0;
 const SEL={char:'bear',rocket:'candle',bg:'synth',trail:'rainbow',chute:'rainbow',emote:'cheer'};
 try{const s=JSON.parse(localStorage.getItem('cr.sel')||'{}');for(const k in SEL)if(s[k]&&({char:CHARS,rocket:ROCKETS,bg:BGS,trail:TRAILS,chute:CHUTES,emote:EMOTES})[k][s[k]])SEL[k]=s[k]}catch(e){}
+if(!(CHARS[SEL.char]&&CHARS[SEL.char].gen2))SEL.char='bear';   // retired test riders (bear 2.0, trump, sahur) fall back to the bear
 
 const SC={
   sc:1,alt:0,bg:null,bgs:{},parts:[],smoke:[],debris:[],chutes:[],fire:[],rings:[],floats:[],lines:[],coins:[],confetti:[],
@@ -764,6 +765,6 @@ function tick(ts){
 requestAnimationFrame(tick);
 </script>
 <!-- ?v=: bump on every release so Telegram does not keep old copies (and APP_VER + version.json for the page itself) -->
-<script src="screens.js?v=20261001"></script>
+<script src="screens.js?v=20261001b"></script>
 <script src="net.js?v=20261001"></script>
 <script src="round.js?v=20260926"></script>

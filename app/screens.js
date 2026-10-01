@@ -55,7 +55,7 @@ const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',
 /* ---------------- catalog ---------------- */
 const RAR={c:'#8f93b8',r:'#29e6ff',e:'#b06bff',l:'#ffd23f',t:'#ff3ea5'};
 const CAT=[
- {k:'char',src:CHARS,items:[['bear','c',0],['bear2','t',0],['bull','c',0],['whale','r',2500],['trump','t',0],['musk','t',0],['sahur','t',0]],soon:[]},
+ {k:'char',src:CHARS,items:[['bear','c',0],['bull','c',0],['whale','c',0],['cryptan','c',0],['kim','r',2500],['wojak','r',2500],['hamster','r',2500],['durov','e',6000],['musk','e',6000],['satoshi','l',15000]],soon:[]},
  {k:'rocket',src:ROCKETS,items:[['candle','c',0],['retro','r',1800],['short','e',6000]],soon:['r','e','l']},
  {k:'trail',src:TRAILS,items:[['rainbow','c',0],['fire','c',0],['dollar','r',1200],['pixel','e',4000]],soon:['e','l']},
  {k:'chute',src:CHUTES,items:[['rainbow','c',0],['bag','e',7500],['gold','l',15000]],soon:['r','e','l']},
@@ -63,13 +63,16 @@ const CAT=[
  {k:'emote',src:EMOTES,items:[['cheer','c',0],['fireworks','r',1500],['money','e',5000]],soon:['r','e','l']}
 ];
 const DESC={
- bear:{ru:'Медвежий рынок в костюме. Флегматично верит, что всё упадёт, но на ракету сел.',en:'The bear market in a suit. Expects a crash, rides anyway.'},
- bull:{ru:'Бычий рынок с золотой цепью. Пыхтит паром, когда множитель растёт.',en:'The bull market with a gold chain. Snorts steam as the multiplier climbs.'},
- whale:{ru:'Крипто-кит. Бьёт фонтаном от восторга на высоких множителях.',en:'The crypto whale. Spouts with joy at high multipliers.'},
- bear2:{ru:'Тест новой рисовки: контуры, живое лицо, очки надевает на разгоне, на парашюте держится за стропы.',en:'New art test: outlines, a lively face, shades on as it speeds up, holds the straps on the parachute.'},
- trump:{ru:'Тестовый мем-персонаж. Уберём перед запуском.',en:'Test meme rider. Removed before launch.'},
- musk:{ru:'Тестовый мем-персонаж. Уберём перед запуском.',en:'Test meme rider. Removed before launch.'},
- sahur:{ru:'Тестовый мем-персонаж. Уберём перед запуском.',en:'Test meme rider. Removed before launch.'},
+ bear:{ru:'Медвежий рынок в костюме. Верит, что всё упадёт, но на ракету сел. Очки надевает на разгоне.',en:'The bear market in a suit. Expects a crash, rides anyway. Shades on as it speeds up.'},
+ bull:{ru:'Бычий рынок с золотой цепью и кольцом в носу. Пыхтит паром, когда множитель растёт.',en:'The bull market with a gold chain and a nose ring. Snorts steam as the multiplier climbs.'},
+ whale:{ru:'Кит в бабочке. Фонтан бьёт тем выше, чем выше множитель.',en:'The whale in a bow tie. The higher the multiplier, the higher the spout.'},
+ cryptan:{ru:'Базовый криптан в худи с биткоином. С этого все начинали.',en:'The basic cryptan in a bitcoin hoodie. Everyone started here.'},
+ kim:{ru:'Френч, пульт и большая красная кнопка. Жмёт, когда множитель растёт.',en:'Mao suit, a remote and a big red button. Presses it as the multiplier climbs.'},
+ wojak:{ru:'Зафиксировал прибыль слишком рано. Плачет, даже когда выигрывает.',en:'Took profit too early. Cries even when he wins.'},
+ hamster:{ru:'Хомяк-тапальщик в костюме и с портфелем. Тапает без остановки.',en:'The hamster tapper in a suit with a briefcase. Never stops tapping.'},
+ durov:{ru:'Всё чёрное и минимализм. На азарте запускает бумажные самолётики.',en:'All black, all minimal. Launches paper planes when the flight heats up.'},
+ musk:{ru:'Футболка «To the Mars» и огнемёт, который включается на разгоне.',en:'A "To the Mars" tee and a flamethrower that fires as the rocket speeds up.'},
+ satoshi:{ru:'Анонимный создатель в капюшоне. Вместо лица мерцающий пиксельный глитч.',en:'The anonymous creator in a hood. A flickering pixel glitch instead of a face.'},
  candle:{ru:'Зелёная свеча лонга. Радужный хвост в комплекте.',en:'The long green candle. Rainbow flame included.'},
  retro:{ru:'Хромированная классика пятидесятых. Летит на живом огне и разлетается серебряными обломками.',en:'Chrome fifties classic. Flies on real fire and bursts into silver debris.'},
  short:{ru:'Красная свеча шорта для тех, кто ставит против толпы. График на борту идёт вниз.',en:'The red short candle for contrarians. The chart on its side goes down.'},
