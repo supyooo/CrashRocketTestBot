@@ -1,0 +1,140 @@
+<title>Киты персонажей Crash Rocket</title>
+<meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600;800&family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+  /* one look on purpose: the game's own night-synthwave palette. Layout: a narrow reading column, steps, then one card per character. */
+  :root{color-scheme:dark;--bg:#12092a;--panel:#171334;--panel2:#1f1a44;--line:#2f2a5c;--text:#f3f1ff;--muted:#9a97c4;--green:#2bff88;--pink:#ff3ea5;--gold:#ffd23f;--cyan:#29e6ff;--violet:#b06bff;
+    --display:'Unbounded','Golos Text',system-ui,sans-serif;--body:'Golos Text',system-ui,sans-serif;--mono:'JetBrains Mono',ui-monospace,Consolas,monospace}
+  body{background:var(--bg);color:var(--text);font:15px/1.6 var(--body);padding:28px 16px 56px}
+  .wrap{max-width:860px;margin:0 auto;display:flex;flex-direction:column;gap:28px}
+  h1{margin:0;font:800 clamp(26px,5vw,38px)/1.1 var(--display);text-wrap:balance}
+  h2{margin:0 0 10px;font:800 19px/1.2 var(--display);text-wrap:balance}
+  p{margin:0;max-width:66ch}
+  .lead{color:var(--muted)}
+  .lbl{font:700 11px var(--body);letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+  ol.steps{margin:0;padding:0;list-style:none;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;counter-reset:s}
+  ol.steps li{counter-increment:s;padding:14px;border-radius:14px;background:var(--panel);border:1px solid var(--line);display:flex;flex-direction:column;gap:4px;min-width:0}
+  ol.steps li::before{content:counter(s);font:800 22px var(--display);color:var(--green)}
+  ol.steps b{font-weight:700}
+  ol.steps span{color:var(--muted);font-size:13.5px}
+  .note{padding:12px 14px;border-radius:12px;border:1px solid rgba(255,210,63,.35);background:rgba(255,210,63,.07);color:var(--text);font-size:14px}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  .tbl{overflow-x:auto}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{font:700 11px var(--body);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+  td code,p code{font:12.5px var(--mono);color:var(--cyan)}
+  .filters{display:flex;flex-wrap:wrap;gap:6px}
+  .filters button{padding:7px 12px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--muted);font:600 13px var(--body);cursor:pointer}
+  .filters button[aria-pressed="true"]{color:var(--text);border-color:var(--green)}
+  .chars{display:flex;flex-direction:column;gap:14px}
+  .ch{border-radius:18px;background:var(--panel);border:1px solid var(--line);overflow:hidden}
+  .ch>header{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line)}
+  .ch>header h3{margin:0;flex:1;font:800 17px var(--display)}
+  .rar{font:700 11px var(--body);letter-spacing:.1em;text-transform:uppercase;padding:4px 8px;border-radius:7px}
+  .rar.l{color:var(--gold);background:rgba(255,210,63,.12)}.rar.e{color:var(--violet);background:rgba(176,107,255,.14)}.rar.r{color:var(--cyan);background:rgba(41,230,255,.12)}.rar.c{color:var(--muted);background:rgba(154,151,196,.12)}
+  .ch .about{padding:12px 16px 4px;color:var(--muted);font-size:14px}
+  .ch .about b{color:var(--text);font-weight:600}
+  .prompts{display:flex;flex-direction:column;gap:10px;padding:12px 16px 16px}
+  .pr{border-radius:12px;background:var(--panel2);border:1px solid var(--line);min-width:0}
+  .pr .top{display:flex;align-items:center;gap:10px;padding:8px 10px 0 12px}
+  .pr .top b{flex:1;font-size:13px;font-weight:700}
+  .pr pre{margin:0;padding:8px 12px 12px;white-space:pre-wrap;word-break:break-word;font:12.5px/1.55 var(--mono);color:#dcd9ff}
+  .copy{padding:6px 12px;border-radius:9px;border:1px solid var(--green);background:transparent;color:var(--green);font:700 12.5px var(--body);cursor:pointer}
+  .copy.done{background:var(--green);color:#06210f}
+  button:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+  details{border-radius:12px;background:var(--panel);border:1px solid var(--line);padding:12px 14px}
+  summary{cursor:pointer;font-weight:700}
+  details[open] summary{margin-bottom:8px}
+</style>
+
+<div class="wrap">
+  <header style="display:flex;flex-direction:column;gap:10px">
+    <div class="lbl">Crash Rocket · рисовка персонажей</div>
+    <h1>Киты персонажей</h1>
+    <p class="lead">Кит — это персонаж, разобранный на части: голова в четырёх выражениях, туловище, руки, ноги и фирменный предмет. Части рисует нейросеть, а игра собирает их на свой скелет и анимирует: позы, переходы, ветер, смена лица по ходу раунда, парашют и кувырок.</p>
+  </header>
+
+  <section>
+    <h2>Как делать</h2>
+    <ol class="steps">
+      <li><b>Новый чат на персонажа</b><span>В ChatGPT отдельный чат для каждого героя: так он помнит внешность и держит её во всех частях.</span></li>
+      <li><b>Шаг 1: образ</b><span>Отправьте первый промпт. Перегенерируйте, пока персонаж не понравится. Дальше всё строится от него.</span></li>
+      <li><b>Шаги 2–4: части</b><span>В том же чате по очереди: головы, тело по частям, предмет. Если части вышли в другом стиле, напишите «same style as the first image».</span></li>
+      <li><b>Сохранить и прислать</b><span>Скачайте PNG и положите в папку персонажа (имена ниже) или просто перетащите в наш чат.</span></li>
+    </ol>
+  </section>
+
+  <section style="display:flex;flex-direction:column;gap:10px">
+    <h2>Что нужно от каждого персонажа</h2>
+    <div class="tbl"><table>
+      <thead><tr><th>Файл</th><th>Что на нём</th><th>Зачем игре</th></tr></thead>
+      <tbody>
+        <tr><td><code>design.png</code></td><td>Персонаж целиком, сидит верхом, вид 3/4 вправо</td><td>Образец, по нему я подгоняю части</td></tr>
+        <tr><td><code>heads.png</code></td><td>4 головы в ряд: спокойный, азарт, страх, победа</td><td>Лицо меняется по ходу раунда</td></tr>
+        <tr><td><code>body.png</code></td><td>Туловище, плечо, предплечье с открытой кистью и с кулаком, бедро, голень с обувью</td><td>Руки и ноги двигаются отдельно</td></tr>
+        <tr><td><code>item.png</code></td><td>Фирменный предмет отдельно (если есть)</td><td>Огнемёт, пульт, портфель и т.п. в руке</td></tr>
+      </tbody>
+    </table></div>
+    <p class="lead">Папка: <code>crash-rocket/art-kits/&lt;имя&gt;/</code>, имена указаны на карточках ниже. Прозрачный фон обязателен. Если ChatGPT отдал белый фон, попросите: «make the background transparent».</p>
+  </section>
+
+  <div class="note">Если ChatGPT откажется рисовать реального человека (чаще всего это касается политиков), отправьте тот же промпт в <b>Recraft</b> (recraft.ai): стиль Digital Illustration, фон Transparent. Промпты подходят без изменений.</div>
+
+  <section style="display:flex;flex-direction:column;gap:12px">
+    <h2>Промпты</h2>
+    <div class="filters" id="filters" role="group" aria-label="Редкость">
+      <button data-f="all" aria-pressed="true">Все</button><button data-f="l" aria-pressed="false">Легендарный</button><button data-f="e" aria-pressed="false">Эпические</button><button data-f="r" aria-pressed="false">Редкие</button><button data-f="c" aria-pressed="false">Обычные</button>
+    </div>
+    <div class="chars" id="chars"></div>
+  </section>
+
+  <details>
+    <summary>Общий стиль (уже вшит в каждый промпт)</summary>
+    <pre id="style" style="margin:0;white-space:pre-wrap;font:12.5px/1.55 var(--mono);color:#dcd9ff"></pre>
+  </details>
+</div>
+
+<script>
+const STYLE='Style: bold cartoon game character, thick dark outlines (deep purple-black #140a26), cel shading with two tones per colour, bright saturated colours, playful caricature, big expressive head (about one third of the body height), 3/4 view facing right, soft highlight from the top right. Synthwave crypto game "Crash Rocket" (accents: neon green #2bff88, hot pink #ff3ea5). Transparent background, no ground shadow, no text unless asked.';
+const CH=[
+ {id:'satoshi',r:'l',name:'Сатоши Накамото',who:'Satoshi Nakamoto as an anonymous figure: a dark grey hoodie with the hood up; where the face should be, a black void filled with a glowing glitch of green, cyan and pink pixels, two bright green pixel eyes; an orange bitcoin symbol glowing on the chest; dark gloves, dark trousers, white sneakers with orange soles',
+  move:'Лицо — мерцающий пиксельный глитч, ₿ на груди светится. Выражения рисуются пикселями: глаза-квадраты, рот-полоска.',heads:'the pixel eyes and mouth change: calm (small squares), excited (wide pixel grin), scared (red pixels, tall eyes), winner (gold pixels)',item:null},
+ {id:'durov',r:'e',name:'Павел Дуров',who:'a friendly caricature of Pavel Durov: slim, neat short dark brown hair with a side part, clean face, calm confident half-smile, dark eyes, all-black outfit: black t-shirt with a small white paper-plane icon on the chest, black jeans, white sneakers',
+  move:'Минимализм в чёрном. На азарте запускает бумажные самолётики.',heads:'calm half-smile; excited confident grin; scared raised eyebrows; winner relaxed smug smile',item:'a white paper plane, folded crisply, in flight'},
+ {id:'musk',r:'e',name:'Илон Маск',who:'a friendly caricature of Elon Musk: short swept dark brown hair, broad smile, strong jaw, black t-shirt with the white text "TO THE MARS" and a small red planet, dark jeans, black sneakers with red soles',
+  move:'Футболка «To the Mars», на разгоне палит из огнемёта.',heads:'calm smirk; excited laughing open mouth; scared surprised; winner triumphant grin',item:'a futuristic flamethrower (grey and black, compact, with a carry handle), side view pointing right, no flame'},
+ {id:'kim',r:'r',name:'Ким Чен Ын',who:'a friendly caricature of Kim Jong Un: round face, distinctive tall flat-top black hairstyle with shaved sides, dark grey Mao suit (high band collar, four pockets, gold buttons), dark trousers, black shoes',
+  move:'Френч и пульт с большой красной кнопкой. Жмёт, когда множитель растёт.',heads:'calm stern; excited mischievous grin; scared shocked; winner proud beaming',item:'a small dark remote control box with one big glossy red dome button on top'},
+ {id:'wojak',r:'r',name:'Плачущий Wojak',who:'a crying Wojak-style meme guy drawn in our cartoon style: bald, pale, simple face, sad shut eyes with streams of tears, grey t-shirt with a small red "SOLD" print, dark trousers, white sneakers',
+  move:'Зафиксировал прибыль рано. Плачет всегда, при выигрыше сильнее всего.',heads:'calm teary; excited crying with a shaky grin; scared sobbing; winner bawling with streams of tears (he sold too early)',item:null},
+ {id:'hamster',r:'r',name:'Хомяк-тапальщик',who:'a chubby orange-and-cream hamster with big puffy cheeks, two buck teeth, round ears, in a grey business suit with a blue tie, white sneakers',
+  move:'Тапает без остановки, с портфелем в руке.',heads:'calm focused; excited cheeks puffed, big smile; scared wide eyes; winner cheeks full, overjoyed',item:'a brown leather briefcase with a gold clasp'},
+ {id:'bear',r:'c',name:'Медведь в очках',who:'a brown bear in a navy suit with a red tie, white shirt; green-rimmed black sunglasses (can sit on the forehead); white sneakers with neon green soles',
+  move:'Очки на лбу, надевает их на разгоне. Уже есть в игре, можно перерисовать в новом качестве.',heads:'calm, sunglasses on the forehead; excited, sunglasses on, big grin; scared, sunglasses on the forehead, wide eyes; winner, sunglasses on, laughing',item:'green-rimmed black sunglasses alone'},
+ {id:'bull',r:'c',name:'Бык с кольцом',who:'a muscular brown bull with cream horns, a gold ring in the nose, black suit with a thick gold chain, black shoes with gold soles',
+  move:'Кольцо качается, на азарте пар из ноздрей.',heads:'calm, determined; excited, snorting steam; scared, eyes wide; winner, roaring with joy',item:null},
+ {id:'whale',r:'c',name:'Кит в бабочке',who:'a round friendly blue whale with a pale belly, in a navy suit with a red bow tie, small fins as hands, white sneakers',
+  move:'Фонтан бьёт тем выше, чем выше множитель.',heads:'calm smile; excited, water spout up; scared; winner, big spout and laugh',item:null},
+ {id:'cryptan',r:'c',name:'Базовый криптан',who:'a young guy with messy brown hair, green hoodie with an orange bitcoin badge and white drawstrings, blue jeans, white sneakers',
+  move:'Худи с биткоином, растрёпанные волосы.',heads:'calm; excited, mouth open; scared; winner, cheering',item:null}];
+const RN={l:'Легендарный',e:'Эпический',r:'Редкий',c:'Обычный'};
+const P=c=>[
+ ['Шаг 1 · образ','design.png',`${STYLE}\n\nCharacter design: ${c.who}. Full body, sitting astride as if riding a rocket (do not draw the rocket), legs hanging down, one hand forward as if holding on, the other relaxed. One character only.`],
+ ['Шаг 2 · головы','heads.png',`Same character, same style as the first image. Four heads only (with a short neck stump, no body), in one row, evenly spaced, all the same size and the same angle (3/4 facing right): 1) calm, 2) excited, 3) scared, 4) winner. Expressions: ${c.heads}. Transparent background.`],
+ ['Шаг 3 · тело по частям','body.png',`Same character, same style as the first image. A cut-out puppet kit: separate body parts laid out apart on a transparent background, all at the same scale as the first image: the torso with clothes (no head, no arms, no legs); an upper arm; a forearm with an open hand; a forearm with a fist; a thigh; a lower leg with the shoe. Arms and legs drawn straight with rounded joint ends so they can overlap. No faces, no extra items.`],
+ ...(c.item?[['Шаг 4 · предмет','item.png',`Same style as the first image. ${c.item}, alone, side view, pointing right, at a size that fits the character's hand. Transparent background.`]]:[])];
+document.getElementById('style').textContent=STYLE;
+const box=document.getElementById('chars');
+CH.forEach(c=>{const a=document.createElement('article');a.className='ch';a.dataset.r=c.r;
+  a.innerHTML=`<header><h3>${c.name}</h3><span class="rar ${c.r}">${RN[c.r]}</span></header>
+  <p class="about"><b>Фишка:</b> ${c.move} <b>Папка:</b> <code>art-kits/${c.id}/</code></p>
+  <div class="prompts">${P(c).map(([t,f,txt],i)=>`<div class="pr"><div class="top"><b>${t} → ${f}</b><button class="copy" data-i="${c.id}-${i}">Скопировать</button></div><pre id="p-${c.id}-${i}"></pre></div>`).join('')}</div>`;
+  box.appendChild(a);P(c).forEach(([,,txt],i)=>a.querySelector(`#p-${c.id}-${i}`).textContent=txt)});
+box.addEventListener('click',async e=>{const b=e.target.closest('.copy');if(!b)return;const pre=document.getElementById('p-'+b.dataset.i);
+  try{await navigator.clipboard.writeText(pre.textContent);b.textContent='Скопировано';b.classList.add('done');setTimeout(()=>{b.textContent='Скопировать';b.classList.remove('done')},1600)}
+  catch(err){const r=document.createRange();r.selectNodeContents(pre);const s=getSelection();s.removeAllRanges();s.addRange(r);b.textContent='Выделено: Ctrl+C'}});
+const fl=document.getElementById('filters');
+fl.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;fl.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b));
+  box.querySelectorAll('.ch').forEach(a=>a.hidden=b.dataset.f!=='all'&&a.dataset.r!==b.dataset.f)});
+</script>

@@ -178,6 +178,8 @@ function dealPick(){const pool=[];CAT.forEach(c=>c.items.forEach(i=>{if(i[2]>0&&
   const n=pool[(new Date().getDate()+new Date().getMonth()*31)%pool.length];return{k:n[0],id:n[1],r:n[2],price:n[3],now:Math.round(n[3]*.7/10)*10}}
 const priceOf=(k,id)=>{const c=CAT.find(x=>x.k===k),it=c.items.find(i=>i[0]===id),d=dealPick();return d&&d.k===k&&d.id===id?d.now:it[2]};
 function untilMidnight(){const n=new Date(),m=new Date(n);m.setHours(24,0,0,0);const s=Math.max(0,(m-n)/1000|0);return[s/3600|0,(s/60|0)%60,s%60].map(v=>String(v).padStart(2,'0')).join(':')}
+// a character's art kit finished loading: redraw the hangar cards that may still show its vector stand-in
+window.addEventListener('cr:kit',()=>{if(scr.hangar&&!scr.hangar.hidden)paintThumbs(scr.hangar)});
 function renderHangar(){const bc=COLLS[0],bn=bc.items.filter(([k,id])=>owns(k,id)).length,d=dealPick(),C=CAT.find(c=>c.k===cat);
   const items=C.items.map(([id,r])=>{const own=owns(cat,id),sel=SEL[cat]===id,p=priceOf(cat,id);return`<button class="item ${sel?'sel':own?'own':'buy'}" data-act="item" data-k="${cat}" data-id="${id}" style="border-color:${sel?'':RAR[r]+'66'}">
     <div class="pv" style="background:${RAR[r]}1a"><canvas data-th="${cat}:${id}"></canvas><span class="rl" style="color:${RAR[r]}">${tx('rar')[r]}</span></div><b>${esc(nameOf(cat,id))}</b>
@@ -270,6 +272,9 @@ function syncBack(){if(!TG||!TG.BackButton)return;if(sheetItem||tab!=='game')TG.
 if(TG&&TG.BackButton)TG.BackButton.onClick(()=>{if(sheetItem)closeItem();else go('game')});
 document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>go(b.dataset.tab));
 $('coinBtn').onclick=()=>go('hangar');
+// TEST ONLY (remove before launch): five quick taps on the coins give 10 000, to try paid skins on a phone
+{let taps=[];$('coinBtn').addEventListener('pointerdown',()=>{const n=performance.now();taps=taps.filter(x=>n-x<1500);taps.push(n);
+  if(taps.length>=5){taps=[];addCoins(10000);toast(lang==='ru'?'Тест: +10 000 монет':'Test: +10,000 coins')}})}
 
 function act(e){const b=e.target.closest('[data-act]');if(!b)return;const a=b.dataset.act;
   if(a==='cat'){cat=b.dataset.k;renderHangar();haptic('select')}

@@ -7,3 +7,4 @@ node_modules/
 brand/out/
 server/node_modules/
 server/data/
+art-kits/*/parts/
