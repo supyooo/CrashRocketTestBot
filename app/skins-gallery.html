@@ -1,0 +1,36 @@
+<!doctype html><meta charset="utf-8"><title>Скины · галерея</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  body{margin:0;background:#12092a;color:#f3f1ff;font:14px system-ui,sans-serif;padding:16px}
+  h2{margin:18px 0 8px;font-size:15px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+  .grid.wide{grid-template-columns:repeat(auto-fill,minmax(240px,1fr))}
+  figure{margin:0;background:#0e0724;border:1px solid #2b3155;border-radius:12px;overflow:hidden}
+  canvas{width:100%;aspect-ratio:1;display:block}.wide canvas{aspect-ratio:16/10}
+  figcaption{padding:5px 9px;font-weight:700;font-size:12px}
+</style>
+<div id="root"></div>
+<script src="art.js"></script>
+<script src="chars2.js"></script>
+<script src="skins.js"></script>
+<script>
+// dev page: every skin animated (not linked from the game)
+const W=360,H=240,AW=360,OY=0;
+const S={rocket:Object.keys(ROCKETS),trail:Object.keys(TRAILS),chute:Object.keys(CHUTES),emote:EMOTE_ORDER,bg:Object.keys(BGS)};
+const root=document.getElementById('root'),cells=[];
+for(const k in S){const h=document.createElement('h2');h.textContent=k;root.appendChild(h);const g=document.createElement('div');g.className='grid'+(k==='bg'?' wide':'');root.appendChild(g);
+  const only=new URLSearchParams(location.search).get('only');   // ?only=vault,dubai
+  for(const id of S[k]){if(only&&!only.split(',').includes(id))continue;const src={rocket:ROCKETS,trail:TRAILS,chute:CHUTES,emote:EMOTES,bg:BGS}[k][id];const f=document.createElement('figure');f.innerHTML=`<canvas></canvas><figcaption>${src.ru} <small style="color:#8f93b8">${id}</small></figcaption>`;g.appendChild(f);
+    cells.push({k,id,cv:f.querySelector('canvas'),bg:k==='bg'?BGS[id].make():null})}}
+let last=performance.now();
+function frame(now){const dt=Math.min(.05,(now-last)/1000);last=now;const t=now/1000;
+  for(const cl of cells){const r=cl.cv.getBoundingClientRect();if(r.bottom<0||r.top>innerHeight)continue;const d=2,w=r.width,h=r.height;if(cl.cv.width!==Math.round(w*d)){cl.cv.width=Math.round(w*d);cl.cv.height=Math.round(h*d);cl.bg&&cl.bg.resize(w,h)}
+    const c=cl.cv.getContext('2d');c.setTransform(d,0,0,d,0,0);c.fillStyle='#1a0b3d';c.fillRect(0,0,w,h);const s=w/150;
+    if(cl.k==='rocket'){const R=ROCKETS[cl.id];c.save();c.translate(w*.5,h*.55);c.rotate(-.5);c.scale(s*.8,s*.8);drawFlame(c,R.trail,1,t,R.tail);R.draw(c);c.translate(R.seat[0],R.seat[1]);c.rotate(.42);CHARS.bear.rig.draw(c,.5,t,'fly',dt);c.restore()}
+    else if(cl.k==='trail'){drawTrailPreview(c,cl.id,w*.8,h*.25,-.6,s*.7,34,t);c.save();c.translate(w*.86,h*.18);c.rotate(-.6);c.scale(s*.35,s*.35);ROCKETS.candle.draw(c);c.restore()}
+    else if(cl.k==='chute'){c.save();c.translate(w/2,h*.45);c.rotate(Math.sin(t*1.2)*.08);c.scale(s*1.1,s*1.1);drawCanopy(c,cl.id);c.strokeStyle='rgba(255,255,255,.6)';c.lineWidth=.8;c.beginPath();c.moveTo(-26,0);c.lineTo(-6,30);c.moveTo(26,0);c.lineTo(6,30);c.stroke();c.translate(0,58);c.scale(.8,.8);CHARS.bear.rig.draw(c,1,t,'chute',dt);c.restore()}
+    else if(cl.k==='emote')emotePreview(c,cl.id,w,h,t,w/2,h*.45,s*1.2);
+    else{const alt=cl.id===window.altBg?((Math.sin(t*.3)*.5+.5)*h*.6):0;cl.bg.draw(c,{w,h,sc:w/360,dt,t,alt,dAlt:0,sp:1.4,I:.4,phase:'fly',m:3,moonM:3,lvl:1,rx:w*.5,ry:h*.5,tx:w*.4,ty:h*.6,gy:h*.78+alt})}}
+  requestAnimationFrame(frame)}
+requestAnimationFrame(frame);
+</script>

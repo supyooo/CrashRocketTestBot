@@ -218,7 +218,7 @@ html.tg .device>.app{border-radius:0}
       /* Telegram and GitHub Pages may hand out a cached copy of this page after a release. Ask the site for the
          current version, bypassing every cache; if it is newer, reload once with it in the address (the #hash with
          Telegram's login data is kept). Bump APP_VER here and in version.json on every release. */
-      (()=>{const APP_VER='20261001d';
+      (()=>{const APP_VER='20261002';
         fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(r=>r.json()).then(d=>{
           if(!d||!d.v||d.v===APP_VER)return;const u=new URL(location.href);
           if(u.searchParams.get('v')===d.v)return;          // already asked for it once: never loop
@@ -317,6 +317,7 @@ html.tg .device>.app{border-radius:0}
 </div>
 
 <script src="art.js?v=20260926"></script>
+<script src="skins.js?v=20261002"></script>
 <script src="chars2.js?v=20261001d"></script>
 <script>
 /* =====================================================================
@@ -448,19 +449,20 @@ const SC={
     this.rings.push({x:p.x,y:p.y,t:0,d:.5,r0:10,r1:90,col:'255,210,63',lw:6});
     const n=Math.min(22,8+Math.floor(m*2));for(let i=0;i<n;i++)this.coins.push({x:p.x+OX,y:p.y+OY,t:-i*.035,d:rnd(.65,.95),cx:rnd(-80,80),cy:rnd(-160,-60),v:win/n,i});
     for(let i=0;i<(m>=5?120:50);i++){const a=rnd(-Math.PI,0),v=rnd(200,520);this.confetti.push({x:AW/2,y:OY+H*.7,vx:Math.cos(a)*v*.8,vy:Math.sin(a)*v,rot:rnd(0,6),vr:rnd(-12,12),w:rnd(4,8),h:rnd(6,11),c:['#ffd23f','#2bff88','#ff3ea5','#29e6ff','#ffffff'][i%5],life:rnd(1.6,2.6)})}
-    if(SEL.emote==='fireworks'){[[.25,.25,'#ff3ea5'],[.75,.2,'#29e6ff'],[.5,.38,'#ffd23f']].forEach(([fx_,fy,col],b)=>{for(let i=0;i<28;i++){const a=i/28*6.283,v=rnd(140,230);
-        this.parts.push({x:W*fx_,y:H*fy,vx:Math.cos(a)*v,vy:Math.sin(a)*v,life:1.1+b*.15,max:1.3,s:rnd(2,3.5)*this.sc,c:col,g:90,drag:1.4,shrink:1})}});AU.tone(1400,.25,'triangle',.12,700);AU.noise(.3,4000,.15,'highpass')}
-    if(SEL.emote==='money'){for(let i=0;i<46;i++)this.confetti.push({coin:1,x:rnd(0,AW),y:OY-rnd(10,260),vx:rnd(-30,30),vy:rnd(60,180),rot:rnd(0,6),vr:rnd(-6,6),w:rnd(7,11),h:0,life:rnd(2.2,3)})}
-    this.punch=1;flashVig('rgba(255,210,63,.55)')},
+    this.punch=1;flashVig('rgba(255,210,63,.55)');this.emote('win',p.x,p.y)},
+  /** The equipped emote: a sticker over the rider (kept in smooth mode too) plus its effects, if it plays on this outcome. */
+  emote(kind,x,y){const id=SEL.emote,E=EMOTES[id];if(!E||!E.e||(E.when!=='both'&&E.when!==kind))return;
+    this.emo={id,kind,t:0,x,y};E.fx&&E.fx(this,x,y)},
   onCrash(lost){this.rk.stall=.3;this.rk.lost=lost;this.bg.crash&&this.bg.crash()},
   explode(){const rk=this.rk,x=rk.x,y=rk.y,k=this.sc;rk.vis=false;this.shake=1.2;this.flash=1;flashVig('rgba(255,59,107,.85)');
     for(let i=0;i<5;i++)this.fire.push({x:x+rnd(-22,22)*k,y:y+rnd(-14,14)*k,r:0,R:rnd(30,58)*k,t:-i*.05,d:rnd(.5,.8)});
     for(let i=0;i<70;i++){const a=rnd(0,6.283),v=rnd(80,460);this.parts.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,life:rnd(.4,1.1),max:1.1,s:rnd(2,5)*k,c:['#ffd23f','#ff7a1a','#ff3ea5','#ffffff'][i%4],drag:1.6,shrink:1})}
-    const rc=SEL.rocket==='candle'?['#16c865','#7b3cff','#7dffbe']:['#d2d8e8','#ff3b5c','#6f7896'];
+    const rc=ROCKETS[SEL.rocket].debris||['#d2d8e8','#ff3b5c','#6f7896'];
     for(let i=0;i<22;i++){const a=rnd(0,6.283),v=rnd(120,380);this.debris.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v-120,rot:rnd(0,6),vr:rnd(-14,14),w:rnd(4,10)*k,h:rnd(3,6)*k,c:rc[i%3],life:rnd(1.2,2)})}
     for(let i=0;i<16;i++)this.smoke.push({x:x+rnd(-20,20)*k,y:y+rnd(-20,20)*k,vx:rnd(-50,50),vy:rnd(-70,-10),r:rnd(10,20)*k,gr:rnd(18,36),life:rnd(1.4,2.4),max:2.4,dark:1});
     this.rings.push({x,y,t:0,d:.7,r0:10,r1:170,col:'255,210,63',lw:10});this.rings.push({x,y,t:-.08,d:.8,r0:10,r1:230,col:'255,62,165',lw:4});
-    if(rk.rider){rk.rider=false;const s=this.seat();this.tumble={x:s.x,y:s.y,vx:rnd(-160,-60),vy:-300,rot:0,vr:rnd(-10,-6),drop:{x:s.x,y:s.y-30*k,vx:rnd(60,160),vy:-380,rot:0,vr:18}}}},
+    if(rk.rider){rk.rider=false;const s=this.seat();this.tumble={x:s.x,y:s.y,vx:rnd(-160,-60),vy:-300,rot:0,vr:rnd(-10,-6),drop:{x:s.x,y:s.y-30*k,vx:rnd(60,160),vy:-380,rot:0,vr:18}}}
+    if(rk.lost)this.emote('lose',x,y)},
   milestone(v){const p=this.seat();this.rings.push({x:this.rk.x,y:this.rk.y,t:0,d:.6,r0:20,r1:130,col:'41,230,255',lw:5});
     this.floats.push({x:this.rk.x+rnd(-10,20),y:this.rk.y-40*this.sc,t:0,txt:'x'+v});this.punch=.8;this.shake=Math.max(this.shake,.35);
     const mu=$('mult');mu.classList.remove('punch');void mu.offsetWidth;mu.classList.add('punch');AU.mile();haptic('light')},
@@ -489,7 +491,7 @@ const SC={
     const tp=this.tail(),dir={x:Math.cos(rk.ang),y:Math.sin(rk.ang)};
     if(!LITE&&rk.vis&&fly&&rk.stall<=0){const n=2+Math.round(I*3);for(let i=0;i<n;i++){const v=rnd(100,200)*(1+I*.5);
       const q=trailParticle(SEL.trail,i,t);
-      this.parts.push({x:tp.x+rnd(-3,3),y:tp.y+rnd(-3,3),vx:-dir.x*v+rnd(-20,20),vy:-dir.y*v+rnd(-20,20)+60*sp,life:rnd(.35,.8),max:.8,s:rnd(4,9)*k*(1+I*.4),c:q.c,shape:q.shape,glyph:q.glyph,shrink:1,drag:1.5});
+      this.parts.push({x:tp.x+rnd(-3,3),y:tp.y+rnd(-3,3),vx:-dir.x*v+rnd(-20,20),vy:-dir.y*v+rnd(-20,20)+60*sp,life:rnd(.35,.8),max:.8,s:rnd(4,9)*k*(1+I*.4),c:q.c,shape:q.shape,glyph:q.glyph,gs:q.gs,norm:q.norm,g:q.g,shrink:q.noshrink?0:1,drag:1.5});
       if(q.smoke&&Math.random()<.5)this.smoke.push({x:tp.x-dir.x*20*k,y:tp.y-dir.y*20*k,vx:-dir.x*v*.4,vy:-dir.y*v*.4+60*sp,r:rnd(4,7)*k,gr:rnd(10,22),life:rnd(.6,1.1),max:1.1})}}
     // speed lines
     if(!LITE&&fly&&I>.12&&Math.random()<I*1.6){const a=rk.ang;this.lines.push({x:rnd(-W*.2,W*1.2)+Math.cos(a)*W*.6,y:rnd(-H*.2,H*.9)+Math.sin(a)*H*.6,l:rnd(40,110)*k,v:rnd(900,1500)*(.6+I*.6),a})}
@@ -511,7 +513,8 @@ const SC={
     else if(!this.coinTo){const bb=$('balBox').getBoundingClientRect(),ar=app.getBoundingClientRect();this.coinTo={x:bb.left-ar.left+22,y:bb.top-ar.top+bb.height/2}}
     const bx=this.coinTo?this.coinTo.x:0,by=this.coinTo?this.coinTo.y:0;
     for(let i=this.coins.length-1;i>=0;i--){const c=this.coins[i];c.t+=dt;if(c.t>=c.d){S.pend=Math.max(0,S.pend-c.v);AU.coin(c.i%8);bump();this.coins.splice(i,1);continue}c.bx=bx;c.by=by}
-    for(let i=this.confetti.length-1;i>=0;i--){const c=this.confetti[i];c.life-=dt;c.vy+=620*dt;c.vx*=1-dt*1.2;c.vy*=1-dt*1.2;c.x+=c.vx*dt;c.y+=c.vy*dt;c.rot+=c.vr*dt;if(c.life<=0||c.y>AH+20)this.confetti.splice(i,1)}
+    for(let i=this.confetti.length-1;i>=0;i--){const c=this.confetti[i];c.life-=dt;c.vy+=620*dt;c.vx*=1-dt*1.2;c.vy*=1-dt*1.2;c.x+=c.vx*dt;c.y+=c.vy*dt;c.rot+=c.vr*dt;if(c.bill){c.vy=Math.min(c.vy,130);c.x+=Math.sin(c.rot)*30*dt}if(c.life<=0||c.y>AH+20)this.confetti.splice(i,1)}
+    if(this.emo&&(this.emo.t+=dt)>2.4)this.emo=null;if(this.crack&&(this.crack.t+=dt)>1.8)this.crack=null;
     this.shake=Math.max(0,this.shake-dt*1.6);this.punch=Math.max(0,this.punch-dt*2.5);this.flash=Math.max(0,this.flash-dt*3);
     if(fly)AU.engine(true,S.m);
   },
@@ -560,11 +563,16 @@ const SC={
     for(const r of this.rings){if(r.t<0)continue;const q=r.t/r.d;c.strokeStyle=`rgba(${r.col},${1-q})`;c.lineWidth=r.lw*(1-q)*k+.5;c.beginPath();c.arc(r.x,r.y,(r.r0+(r.r1-r.r0)*(1-Math.pow(1-q,3)))*k,0,6.283);c.stroke()}
     for(const f of this.floats){const q=f.t/1.1;c.save();c.globalAlpha=q<.2?q/.2:1-(q-.2)/.8;c.translate(f.x,f.y);const s=q<.15?.6+q/.15*.6:1.2-(q-.15)*.2;c.scale(s,s);
       c.font='900 28px Unbounded,sans-serif';c.textAlign='center';c.lineWidth=5;c.strokeStyle='#1a0633';c.strokeText(f.txt,0,0);c.fillStyle='#29e6ff';c.fillText(f.txt,0,0);c.restore()}
+    // emote sticker: beside the parachute on a win, rising from the wreck on a loss
+    const em=this.emo;if(em){let ex=em.x,ey=em.y-(34+em.t*16)*k;if(em.kind==='win'&&j){ex=j.x+46*k;ey=j.y-52*k}
+      c.save();c.translate(ex,ey);c.scale(k*1.15,k*1.15);drawEmote(c,em.id,em.t/2.4,t);c.restore()}
     c.restore();
+    if(this.crack)drawCrack(c,this.crack);
     if(this.flash>0){c.fillStyle=`rgba(255,220,240,${this.flash*.5})`;c.fillRect(0,0,W,H)}
   },
   drawFx(c,t){
-    for(const cf of this.confetti){if(cf.coin){c.save();c.translate(cf.x,cf.y);c.scale(Math.abs(Math.cos(cf.rot))*.8+.2,1);c.globalAlpha=clamp(cf.life,0,1);const r=cf.w;c.fillStyle='#ffd23f';c.beginPath();c.arc(0,0,r,0,6.283);c.fill();c.fillStyle='#0098ea';c.beginPath();c.arc(0,0,r*.72,0,6.283);c.fill();c.fillStyle='#fff';c.beginPath();c.moveTo(-r*.38,-r*.25);c.lineTo(r*.38,-r*.25);c.lineTo(0,r*.38);c.closePath();c.fill();c.restore();continue}
+    for(const cf of this.confetti){if(cf.bill){c.save();c.translate(cf.x,cf.y);c.rotate(Math.sin(cf.rot)*.8);c.scale(1,Math.abs(Math.cos(cf.rot*1.7))*.8+.2);c.globalAlpha=clamp(cf.life,0,1);drawBill(c,cf.w,cf.h);c.restore();continue}
+      if(cf.coin){c.save();c.translate(cf.x,cf.y);c.scale(Math.abs(Math.cos(cf.rot))*.8+.2,1);c.globalAlpha=clamp(cf.life,0,1);const r=cf.w;c.fillStyle='#ffd23f';c.beginPath();c.arc(0,0,r,0,6.283);c.fill();c.fillStyle='#0098ea';c.beginPath();c.arc(0,0,r*.72,0,6.283);c.fill();c.fillStyle='#fff';c.beginPath();c.moveTo(-r*.38,-r*.25);c.lineTo(r*.38,-r*.25);c.lineTo(0,r*.38);c.closePath();c.fill();c.restore();continue}
       c.save();c.translate(cf.x,cf.y);c.rotate(cf.rot);c.globalAlpha=clamp(cf.life,0,1);c.fillStyle=cf.c;c.fillRect(-cf.w/2,-cf.h/2,cf.w,cf.h*Math.abs(Math.cos(cf.rot*1.3)));c.restore()}c.globalAlpha=1;
     for(const co of this.coins){if(co.t<0)continue;const q=clamp(co.t/co.d,0,1),e=q*q*(3-2*q);const x0=co.x,y0=co.y,x2_=co.bx||0,y2=co.by||0,cx=x0+co.cx,cy=y0+co.cy;
       const x=(1-e)*(1-e)*x0+2*(1-e)*e*cx+e*e*x2_,y=(1-e)*(1-e)*y0+2*(1-e)*e*cy+e*e*y2;const s=(1-q*.35)*9;const sq=Math.abs(Math.cos(t*10+co.i));
@@ -573,9 +581,9 @@ const SC={
   }
 };
 function stepP(list,dt,grow){for(let i=list.length-1;i>=0;i--){const p=list[i];p.life-=dt;if(p.life<=0){list.splice(i,1);continue}const d=p.drag||(grow?1.2:0);p.vx*=1-d*dt;p.vy*=1-d*dt;p.vy+=(p.g||0)*dt;p.x+=p.vx*dt;p.y+=p.vy*dt;if(grow)p.r+=p.gr*dt}}
-function drawP(c,list){for(const p of list){const a=clamp(p.life/p.max,0,1),r=p.s*(p.shrink?a:1);c.globalAlpha=a;c.fillStyle=p.c;
-  if(p.shape==='glyph'){c.font=`900 ${Math.max(6,Math.round(r*2.2))}px Unbounded,sans-serif`;c.textAlign='center';c.textBaseline='middle';c.fillText(p.glyph,p.x,p.y)}
-  else if(p.shape==='sq')c.fillRect(p.x-r*.8,p.y-r*.8,r*1.6,r*1.6);else{c.beginPath();c.arc(p.x,p.y,r,0,6.283);c.fill()}}c.globalAlpha=1}
+// shapes live in skins.js (PSHAPE); 'norm' particles (coins, smoke, hearts...) are not drawn additively
+function drawP(c,list){const gco=c.globalCompositeOperation;for(const p of list){const a=clamp(p.life/p.max,0,1),r=p.s*(p.shrink?a:1);c.globalAlpha=a;c.fillStyle=p.c;
+  c.globalCompositeOperation=p.norm?'source-over':gco;(PSHAPE[p.shape]||PSHAPE.dot)(c,p,r,a)}c.globalAlpha=1;c.globalCompositeOperation=gco}
 /** The player's character in a given moment of the round; characters with a rig blend between poses. */
 function rider(c,mood,t,state,dt){const ch=CHARS[SEL.char];
   if(LITE)ch.draw(c,.4,0);                                   // smooth mode: one still pose
@@ -765,6 +773,6 @@ function tick(ts){
 requestAnimationFrame(tick);
 </script>
 <!-- ?v=: bump on every release so Telegram does not keep old copies (and APP_VER + version.json for the page itself) -->
-<script src="screens.js?v=20261001c"></script>
+<script src="screens.js?v=20261002"></script>
 <script src="net.js?v=20261001"></script>
 <script src="round.js?v=20260926"></script>

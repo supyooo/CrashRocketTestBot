@@ -56,11 +56,11 @@ const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',
 const RAR={c:'#8f93b8',r:'#29e6ff',e:'#b06bff',l:'#ffd23f',t:'#ff3ea5'};
 const CAT=[
  {k:'char',src:CHARS,items:[['bear','c',0],['bull','c',0],['whale','c',0],['cryptan','c',0],['kim','r',2500],['wojak','r',2500],['hamster','r',2500],['durov','e',6000],['musk','e',6000],['satoshi','l',15000]],soon:[]},
- {k:'rocket',src:ROCKETS,items:[['candle','c',0],['retro','r',1800],['short','e',6000]],soon:['r','e','l']},
- {k:'trail',src:TRAILS,items:[['rainbow','c',0],['fire','c',0],['dollar','r',1200],['pixel','e',4000]],soon:['e','l']},
- {k:'chute',src:CHUTES,items:[['rainbow','c',0],['bag','e',7500],['gold','l',15000]],soon:['r','e','l']},
- {k:'bg',src:BGS,items:[['synth','c',0],['exch','c',0],['moon','r',3000]],soon:['r','e','l']},
- {k:'emote',src:EMOTES,items:[['cheer','c',0],['fireworks','r',1500],['money','e',5000]],soon:['r','e','l']}
+ {k:'rocket',src:ROCKETS,items:[['candle','c',0],['short','c',0],['retro','c',0],['plane','c',0],['ledger','r',1800],['cart','r',2000],['bath','r',2500],['cyber','e',5000],['goldbar','e',6500],['gelik','l',15000]],soon:[]},
+ {k:'trail',src:TRAILS,items:[['rainbow','c',0],['smoke','c',0],['sparks','c',0],['bubbles','c',0],['pnl','r',1200],['candles','r',1500],['hearts','r',1500],['fire','e',4000],['matrix','e',4500],['cryptorain','l',15000]],soon:[]},
+ {k:'chute',src:CHUTES,items:[['rainbow','c',0],['tornbag','c',0],['trash','c',0],['cane','c',0],['cocktail','r',1500],['flamingo','r',2000],['balloons','r',2500],['bill','e',5000],['btc','e',6000],['gold','l',15000]],soon:[]},
+ {k:'bg',src:BGS,items:[['synth','c',0],['space','c',0],['city','c',0],['clouds','c',0],['golf','r',2000],['xp','r',2500],['moon','r',3000],['exch','e',5000],['vault','e',6000],['dubai','l',15000]],soon:[]},
+ {k:'emote',src:EMOTES,items:[['cheer','c',0],['like','c',0],['shrug','c',0],['cry','c',0],['whiskey','r',1500],['facepalm','r',1500],['fine','r',2000],['fireworks','e',4000],['rekt','e',5000],['money','l',15000]],soon:[]}
 ];
 const DESC={
  bear:{ru:'Медвежий рынок в костюме. Верит, что всё упадёт, но на ракету сел. Очки надевает на разгоне.',en:'The bear market in a suit. Expects a crash, rides anyway. Shades on as it speeds up.'},
@@ -74,20 +74,58 @@ const DESC={
  musk:{ru:'Футболка «To the Mars» и огнемёт, который включается на разгоне.',en:'A "To the Mars" tee and a flamethrower that fires as the rocket speeds up.'},
  satoshi:{ru:'Анонимный создатель в капюшоне. Вместо лица мерцающий пиксельный глитч.',en:'The anonymous creator in a hood. A flickering pixel glitch instead of a face.'},
  candle:{ru:'Зелёная свеча лонга. Радужный хвост в комплекте.',en:'The long green candle. Rainbow flame included.'},
+ short:{ru:'Красная свеча, которая по иронии летит вверх. График на борту всё равно идёт вниз.',en:'A red candle that, ironically, flies up. The chart on its side still goes down.'},
  retro:{ru:'Хромированная классика пятидесятых. Летит на живом огне и разлетается серебряными обломками.',en:'Chrome fifties classic. Flies on real fire and bursts into silver debris.'},
- short:{ru:'Красная свеча шорта для тех, кто ставит против толпы. График на борту идёт вниз.',en:'The red short candle for contrarians. The chart on its side goes down.'},
+ plane:{ru:'Бумажный самолётик, как в Telegram. Без огня, только ветер за крыльями.',en:'A paper plane, Telegram style. No fire, just wind behind the wings.'},
+ ledger:{ru:'Аппаратный кошелёк с реактивной тягой. На экране баланс TON +∞.',en:'A jet-powered hardware wallet. The screen reads TON +∞.'},
+ cart:{ru:'Тележка из супермаркета на ускорителе. Багет и мешок денег в комплекте.',en:'A supermarket cart on a booster. Comes with a baguette and a sack of cash.'},
+ bath:{ru:'Ванна на львиных лапах, доверху набитая купюрами.',en:'A clawfoot tub stuffed to the brim with banknotes.'},
+ cyber:{ru:'Угловатый стальной пикап на синем форсаже.',en:'An angular steel pickup on a blue afterburner.'},
+ goldbar:{ru:'Слиток 999.9 на турбинах. По металлу бегает блик.',en:'A 999.9 bar on turbines, with a glint running across the metal.'},
+ gelik:{ru:'Чёрный Гелик с реактивным двигателем. Сидишь на крыше.',en:'A black G-Wagon with a jet engine. You ride on the roof.'},
  rainbow:{ru:'Классика: радужный выхлоп.',en:'The classic rainbow exhaust.'},
- fire:{ru:'Живое пламя с дымом.',en:'Real flames with smoke.'},
+ smoke:{ru:'Обычный белый дым, который расползается за ракетой.',en:'Plain white smoke spreading out behind the rocket.'},
+ sparks:{ru:'Сноп искр, как от болгарки.',en:'A shower of sparks, like from an angle grinder.'},
+ bubbles:{ru:'Мыльные пузыри всплывают за ракетой.',en:'Soap bubbles float up behind the rocket.'},
+ pnl:{ru:'Красные минусы и −99% PNL. Хвост для честных.',en:'Red minuses and −99% PNL. A trail for the honest.'},
+ candles:{ru:'Зелёные и красные японские свечи сыплются из сопла.',en:'Green and red candlesticks pour from the nozzle.'},
+ hearts:{ru:'Сердца, которые раскалываются пополам на лету.',en:'Hearts that crack in two as they fly.'},
+ fire:{ru:'Огненный турбо-выхлоп с дымом.',en:'A fiery turbo exhaust with smoke.'},
+ matrix:{ru:'Зелёный код из Матрицы.',en:'Green code straight from the Matrix.'},
+ cryptorain:{ru:'Золотые монеты и зелёные USDT дождём падают вниз.',en:'Gold coins and green USDT rain down.'},
  dollar:{ru:'Ракета сорит деньгами на лету.',en:'The rocket sheds dollars as it flies.'},
  pixel:{ru:'Ретро-пиксели из восьмибитных автоматов.',en:'Retro pixels straight out of an 8-bit arcade.'},
  bag:{ru:'Зелёный купол с долларом. Прыгаешь с деньгами, как и положено.',en:'A green canopy with a dollar sign. Bail out with the money.'},
- gold:{ru:'Золотой купол для тех, кто забирает по-крупному.',en:'A golden canopy for big cash-outs.'},
+ tornbag:{ru:'Рваный целлофановый пакет. Хлопает на ветру, но держит.',en:'A torn plastic bag. Flaps in the wind, but holds.'},
+ trash:{ru:'Чёрный мешок для мусора, завязанный узлом.',en:'A black trash bag tied in a knot.'},
+ cane:{ru:'Строгий зонт-трость с деревянной ручкой.',en:'A classic cane umbrella with a wooden handle.'},
+ cocktail:{ru:'Бумажный зонтик из коктейля. С вишенкой.',en:'A paper cocktail umbrella. Cherry included.'},
+ flamingo:{ru:'Надувной фламинго из бассейна.',en:'An inflatable pool flamingo.'},
+ balloons:{ru:'Связка воздушных шаров.',en:'A bunch of balloons.'},
+ bill:{ru:'Стодолларовая купюра вместо купола.',en:'A hundred-dollar bill instead of a canopy.'},
+ btc:{ru:'Золотая монета биткоина на стропах. Медленно крутится.',en:'A gold bitcoin coin on lines. Slowly spins.'},
+ gold:{ru:'Золотой парашют с надписью CEO и бабочкой.',en:'A golden parachute with CEO on it and a bow tie.'},
+ 'chute:rainbow':{ru:'Стандартный красно-белый купол.',en:'The standard red and white canopy.'},
  synth:{ru:'Закат, неоновый город и сетка до горизонта. С высотными зонами.',en:'Sunset, neon city and a grid to the horizon. With altitude zones.'},
+ space:{ru:'Звёзды, планета с кольцами и стартовая площадка.',en:'Stars, a ringed planet and a launch pad.'},
+ city:{ru:'Ночной город: окна, прожекторы и машины на шоссе.',en:'Night city: lit windows, searchlights and cars on the highway.'},
+ clouds:{ru:'Дневное небо и облака, через которые пролетаешь.',en:'A daytime sky and clouds you fly through.'},
+ golf:{ru:'Гольф-клуб с пальмами и флажком у лунки. Мимо пролетают мячи.',en:'A golf club with palms and a flag on the green. Balls fly past.'},
+ xp:{ru:'Зелёный холм и небо, а на высоте летают флажки.',en:'The green hill and the sky, with flags floating up high.'},
+ moon:{ru:'Старт с Луны. Земля приближается вместе с множителем.',en:'Lift off from the Moon. Earth comes closer with the multiplier.'},
  exch:{ru:'Ракета сама рисует график раунда поверх биржевого стакана.',en:'The rocket draws the round chart over the order book.'},
- moon:{ru:'Земля уходит вниз, а Луна растёт вместе с множителем.',en:'Earth falls away and the Moon grows with the multiplier.'},
- cheer:{ru:'Твой герой ликует, повиснув на парашюте.',en:'Your rider cheers while hanging from the parachute.'},
- fireworks:{ru:'Салют в небе при каждом кэшауте.',en:'Fireworks in the sky on every cash-out.'},
- money:{ru:'С неба сыплются монеты, когда забираешь выигрыш.',en:'Coins rain down when you cash out.'}
+ vault:{ru:'Ячейки, дверь сейфа и золото. При краше воет сигнализация.',en:'Deposit boxes, a vault door and gold. The alarm goes off on a crash.'},
+ dubai:{ru:'Небоскрёбы, неон, яхты в заливе и салют в небе.',en:'Skyscrapers, neon, yachts in the bay and fireworks in the sky.'},
+ cheer:{ru:'Машет рукой и при выигрыше, и при краше.',en:'Waves both on a win and on a crash.'},
+ like:{ru:'Лайк при выводе.',en:'A thumbs-up when you cash out.'},
+ shrug:{ru:'Пожимает плечами при любом исходе.',en:'Shrugs whatever happens.'},
+ cry:{ru:'Плачет, когда ракета взрывается.',en:'Cries when the rocket blows up.'},
+ whiskey:{ru:'Попивает тёмный биттер со льдом после вывода.',en:'Sips a dark bitter on the rocks after a cash-out.'},
+ facepalm:{ru:'Facepalm при краше.',en:'Facepalm on a crash.'},
+ fine:{ru:'При краше сидит в огне: «This is fine».',en:'Sits in the fire on a crash: "This is fine".'},
+ fireworks:{ru:'Салют из монет при выводе.',en:'Coin fireworks when you cash out.'},
+ rekt:{ru:'Удар кулаком при краше: экран трясётся и трескается.',en:'A fist slam on a crash: the screen shakes and cracks.'},
+ money:{ru:'Корона и денежный дождь из купюр при выводе.',en:'A crown and a rain of banknotes when you cash out.'}
 };
 const nameOf=(k,id)=>{const c=CAT.find(x=>x.k===k);return c&&c.src[id]?c.src[id][lang]:id};
 const COLLS=[
@@ -111,7 +149,9 @@ rollover();
 (()=>{const t=today();if(D.login.last!==t){const y=new Date(Date.now()-864e5),ys=y.getFullYear()+'-'+(y.getMonth()+1)+'-'+y.getDate();D.login.streak=D.login.last===ys?D.login.streak+1:1;D.login.last=t}})();
 function save(){D.bal=S.bal;try{localStorage.setItem('cr.eco',JSON.stringify(D))}catch(e){}}
 S.bal=typeof D.bal==='number'?D.bal:25;
-for(const k of['trail','chute','emote','char','rocket','bg'])if(!D.own[k].includes(SEL[k]))SEL[k]=D.own[k][0];
+// equipped items must be owned and still on sale (retired ones like the dollar trail fall back)
+for(const k of['trail','chute','emote','char','rocket','bg']){const its=CAT.find(c=>c.k===k).items,inCat=id=>its.some(i=>i[0]===id);
+  if(!D.own[k].includes(SEL[k])||!inCat(SEL[k]))SEL[k]=D.own[k].find(inCat)||its[0][0]}
 
 const owns=(k,id)=>D.own[k].includes(id);
 const collDone=cl=>cl.items.every(([k,id])=>owns(k,id));
@@ -142,9 +182,6 @@ function prep(cv){const r=cv.getBoundingClientRect(),d=Math.min(2,window.deviceP
   if(cv.width!==w*d||cv.height!==h*d){cv.width=w*d;cv.height=h*d}const c=cv.getContext('2d');c.setTransform(d,0,0,d,0,0);c.clearRect(0,0,w,h);return{c,w,h}}
 function coinIcon(c,x,y,r){c.fillStyle='#ffd23f';c.beginPath();c.arc(x,y,r,0,6.283);c.fill();c.fillStyle='#0098ea';c.beginPath();c.arc(x,y,r*.72,0,6.283);c.fill();
   c.fillStyle='#fff';c.beginPath();c.moveTo(x-r*.38,y-r*.25);c.lineTo(x+r*.38,y-r*.25);c.lineTo(x,y+r*.38);c.closePath();c.fill()}
-function emoteFx(c,id,w,h,t){if(id==='fireworks'){c.save();c.globalCompositeOperation='lighter';[[.22,.3,'#ff3ea5',0],[.78,.24,'#29e6ff',.4],[.55,.5,'#ffd23f',.8]].forEach(([x,y,col,o])=>{const q=((t*.6+o)%1),R=10+q*38*Math.min(w,h)/200;
-    c.globalAlpha=1-q;for(let i=0;i<16;i++){const a=i/16*6.283;c.fillStyle=col;c.beginPath();c.arc(w*x+Math.cos(a)*R,h*y+Math.sin(a)*R,2,0,6.283);c.fill()}});c.restore()}
-  else if(id==='money'){for(let i=0;i<10;i++){const x=((i*53)%100)/100*w,y=((t*60+i*37)%(h+30))-15;c.save();c.translate(x,y);c.scale(.4+.6*Math.abs(Math.sin(t*4+i)),1);coinIcon(c,0,0,7);c.restore()}}}
 // a whole build: backdrop, trail, rocket with rider, a parachute on the side, emote hint
 function drawBuild(cv,L,t,key){const{c,w,h}=prep(cv);const k=Math.min(w/360,h/200);
   bgFor(L.bg,w,h,key).draw(c,{w,h,sc:k,dt:1/60,t,alt:0,dAlt:0,sp:.8,I:.3,phase:'fly',m:2,moonM:2,lvl:0,rx:w*.55,ry:h*.5,tx:w*.5,ty:h*.55,gy:h*.92});
@@ -156,14 +193,14 @@ function drawBuild(cv,L,t,key){const{c,w,h}=prep(cv);const k=Math.min(w/360,h/20
   if(cg){c.moveTo(-26,0);c.lineTo(cg.l[0],cg.l[1]-cg.y);c.moveTo(26,0);c.lineTo(cg.r[0],cg.r[1]-cg.y);c.stroke();c.translate(0,-cg.y);CHARS[L.char].draw(c,1,t,'chute')}
   else{c.moveTo(-26,0);c.lineTo(-5,30);c.moveTo(26,0);c.lineTo(5,30);c.stroke();c.translate(0,62);c.scale(.8,.8);CHARS[L.char].draw(c,1,t)}
   c.restore();
-  if(L.emote!=='cheer')emoteFx(c,L.emote,w,h,t)}
+  emotePreview(c,L.emote,w,h,t,w*.3,h*.2,s*.75)}
 function drawThumb(cv,k,id){const{c,w,h}=prep(cv),s=Math.min(w/90,h/92);
   if(k==='char'){const ts=1.45*s*(CHARS[id].thumb||1);c.save();c.translate(w/2-3,h*.93);c.scale(ts,ts);CHARS[id].draw(c,.55,1.1);c.restore()}
   else if(k==='rocket'){c.save();c.translate(w/2+4,h/2);c.rotate(-.62);c.scale(.62*s,.62*s);drawFlame(c,ROCKETS[id].trail,.9,1,ROCKETS[id].tail);ROCKETS[id].draw(c);c.restore()}
   else if(k==='trail'){drawTrailPreview(c,id,w*.76,h*.3,-.6,.62*s,30,1);c.save();c.translate(w*.86,h*.2);c.rotate(-.6);c.scale(.34*s,.34*s);ROCKETS.candle.draw(c);c.restore()}
-  else if(k==='chute'){c.save();c.translate(w/2,h*.55);c.scale(1.3*s,1.3*s);drawCanopy(c,id);c.restore()}
+  else if(k==='chute'){c.save();c.translate(w/2,h*.64);c.scale(1.15*s,1.15*s);drawCanopy(c,id);c.restore()}
   else if(k==='bg'){bgFor(id,w,h,'th').draw(c,{w,h,sc:w/360,dt:0,t:1,alt:0,dAlt:0,sp:1,I:.3,phase:'fly',m:4,moonM:6,lvl:0,rx:w*.5,ry:h*.5,tx:w*.5,ty:h*.55,gy:h*.8})}
-  else if(k==='emote'){if(id==='cheer'){c.save();c.translate(w/2-3,h*.95);c.scale(1.35*s,1.35*s);CHARS.bear.draw(c,1,1.35);c.restore()}else emoteFx(c,id,w,h,id==='money'?.7:.35)}}
+  else if(k==='emote')emotePreview(c,id,w,h,1.3,w/2,h*.42,1.35*s)}
 
 /* ---------------- screens ---------------- */
 const scr={};
@@ -200,7 +237,7 @@ function renderItem(){if(!sheetItem)return;const{k,id}=sheetItem,C=CAT.find(c=>c
     :D.coins>=p?`<button class="btn gold" data-act="buy">${COIN} ${tx('buy')(num(p))}</button>`:`<button class="btn gold" disabled>${tx('short')(num(p-D.coins))}</button>`;
   isheet.innerHTML=`<div class="sh-h"><div class="chips" style="flex:1"><span style="background:${RAR[r]}24;color:${RAR[r]}">${tx('rar')[r]}</span>${isDeal&&!own?`<span style="background:rgba(255,62,165,.16);color:var(--pink)">${tx('deal')} −30%</span>`:''}</div><button data-act="close" aria-label="Close">×</button></div>
    <div class="body"><div class="big" style="border-color:${RAR[r]}66"><canvas id="itemCv"></canvas><span>${tx('preview')}</span></div>
-    <h3>${esc(nameOf(k,id))}</h3><p>${esc(DESC[id]?DESC[id][lang]:'')}</p>
+    <h3>${esc(nameOf(k,id))}</h3><p>${esc((DESC[k+':'+id]||DESC[id]||{})[lang]||'')}</p>
     ${cl?`<div class="box" style="padding:10px 12px;display:flex;flex-direction:column;gap:6px"><span style="font-size:12px;color:var(--muted)">${tx('inSet')} «${tx(cl.id)}» · ${tx('bonus')}</span><div style="display:flex;align-items:center;gap:8px"><div class="bar5"><i style="width:${cn/cl.items.length*100}%"></i></div><b style="font-size:12px">${cn}/${cl.items.length}</b></div></div>`:''}
     ${own?'':`<div class="how">${tx('how')} <button data-act="gotour">${tx('howBtn')}</button></div><div class="after"><span>${tx('balance')(num(D.coins))}</span><span>${D.coins>=p?tx('after')(num(D.coins-p)):''}</span></div>`}
     ${btn}</div>`}
