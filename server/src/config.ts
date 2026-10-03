@@ -27,7 +27,7 @@ export const config = {
   chainLength: num(env.CHAIN_LENGTH, 100_000),
 
   bettingMs: num(env.BETTING_MS, 5000),
-  crashedMs: num(env.CRASHED_MS, 3000),
+  crashedMs: num(env.CRASHED_MS, 5000),
   tickMs: 100,
 
   /**

@@ -218,7 +218,7 @@ html.tg .device>.app{border-radius:0}
       /* Telegram and GitHub Pages may hand out a cached copy of this page after a release. Ask the site for the
          current version, bypassing every cache; if it is newer, reload once with it in the address (the #hash with
          Telegram's login data is kept). Bump APP_VER here and in version.json on every release. */
-      (()=>{const APP_VER='20261003';
+      (()=>{const APP_VER='20261003b';
         fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(r=>r.json()).then(d=>{
           if(!d||!d.v||d.v===APP_VER)return;const u=new URL(location.href);
           if(u.searchParams.get('v')===d.v)return;          // already asked for it once: never loop
@@ -262,6 +262,7 @@ html.tg .device>.app{border-radius:0}
         </div>
         <button class="coinp" id="coinBtn" aria-label="Coins"><svg class="coin" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="#ffd23f"/><circle cx="12" cy="12" r="7.6" fill="none" stroke="#b8901a" stroke-width="1.8"/><path d="M12 7.2l3.4 5.2h-2.2V17h-2.4v-4.6H8.6z" fill="#b8901a"/></svg><span id="coins">0</span></button>
         <div class="sp"></div>
+        <div class="lang" role="group" aria-label="Language"><button id="l-ru" aria-pressed="true">RU</button><button id="l-en" aria-pressed="false">EN</button></div>
         <button class="ib" id="snd" aria-pressed="false" aria-label="Sound"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path id="sndW" d="M16 9a4 4 0 0 1 0 6M18.5 6.5a7.5 7.5 0 0 1 0 11" opacity=".25"/></svg></button>
       </header>
       <div class="stage" id="stage">
@@ -316,7 +317,7 @@ html.tg .device>.app{border-radius:0}
   </div>
 </div>
 
-<script src="art.js?v=20260926"></script>
+<script src="art.js?v=20261003b"></script>
 <script src="skins.js?v=20261002"></script>
 <script src="chars2.js?v=20261001d"></script>
 <script>
@@ -377,7 +378,7 @@ const AU={ctx:null,on:false,m:null,eng:null,engG:null,noiseB:null,
 /* =====================================================================
    Round simulation (demo only; the real round comes from the server)
    ===================================================================== */
-let K=0.10;const WAIT=5,HOLD=3.4,MILES=[2,3,5,10,20,50,100];
+let K=0.10;const WAIT=5,HOLD=5,MILES=[2,3,5,10,20,50,100];
 /* Smooth mode ("Плавный режим" in Profile, or ?lite=1): the same game for weak phones with the effects off - a
    still backdrop painted once, no particles, smoke, speed lines, shake, zone banners or bot parachutes, a rider
    without animation, and canvases at 1.25x pixel density. The rocket, the multiplier, the parachute, the fall and
@@ -663,9 +664,10 @@ function closeSheet(){$('psheet').classList.remove('on');if(!document.querySelec
 $('psClose').onclick=closeSheet;$('scrim').onclick=closeSheet;
 $('plBtn').onclick=e=>{e.stopPropagation();closePops();renderPlayers();$('psheet').classList.add('on');$('scrim').classList.add('on')};
 
-function applyLang(){document.documentElement.lang=lang;
+function applyLang(){document.documentElement.lang=lang;$('l-ru').setAttribute('aria-pressed',lang==='ru');$('l-en').setAttribute('aria-pressed',lang==='en');
   document.querySelectorAll('[data-i]').forEach(e=>{const v=T(e.dataset.i);if(typeof v==='string')e.textContent=v});for(const kk in cache)delete cache[kk];renderPlayers();setAmt(getAmt());autoChip();window.UI&&UI.refresh()}
 window.setLang=l=>{lang=l;try{localStorage.setItem('cr.lang',l)}catch(e){}applyLang()};
+$('l-ru').onclick=()=>setLang('ru');$('l-en').onclick=()=>setLang('en');
 
 /* heat colour of the multiplier */
 const HEAT=[[1,'#eafff3','rgba(43,255,136,.75)'],[2,'#fff6c2','rgba(255,210,63,.75)'],[5,'#ffd9b0','rgba(255,122,26,.8)'],[10,'#ffd0ea','rgba(255,62,165,.85)'],[25,'#e6f9ff','rgba(41,230,255,.9)']];
@@ -773,6 +775,6 @@ function tick(ts){
 requestAnimationFrame(tick);
 </script>
 <!-- ?v=: bump on every release so Telegram does not keep old copies (and APP_VER + version.json for the page itself) -->
-<script src="screens.js?v=20261002"></script>
+<script src="screens.js?v=20261003b"></script>
 <script src="net.js?v=20261001"></script>
 <script src="round.js?v=20260926"></script>

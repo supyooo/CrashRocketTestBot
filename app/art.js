@@ -204,8 +204,6 @@ function makeSynth(){
     draw(c,E){const{t,dt,sp,gy}=E;
       const g=c.createLinearGradient(0,0,0,h);g.addColorStop(0,'#090320');g.addColorStop(.55,'#260a4d');g.addColorStop(1,'#5b1269');c.fillStyle=g;c.fillRect(-20,-20,w+40,h+40);
       c.fillStyle='#fff';for(const s of stars){s.y+=sp*14*dt*s.r;if(s.y>h)s.y-=h;c.globalAlpha=.35+.35*Math.sin(t*2+s.t);c.fillRect(s.x,s.y,s.r,s.r)}c.globalAlpha=1;
-      cOff+=dt*(E.phase==='fly'?40*sp:10);while(cOff>=14){cOff-=14;candles.shift();candles.push(feed.next())}
-      drawCandles(c,candles,cOff,h*.1,gy-h*.06,.42,14);
       if(gy<h+10){
         const sr=w*.26,sx=w*.5,sy=gy-h*.01;c.save();c.beginPath();for(let i=0;i<9;i++){const y0=sy-sr+i*sr/7.2,hh=sr/7.2-i*1.4;c.rect(sx-sr,y0,sr*2,Math.max(1,hh))}c.clip();
         const sg=c.createLinearGradient(0,sy-sr,0,sy);sg.addColorStop(0,'#ffd23f');sg.addColorStop(1,'#ff3ea5');c.fillStyle=sg;c.beginPath();c.arc(sx,sy,sr,Math.PI,0);c.fill();c.restore();
