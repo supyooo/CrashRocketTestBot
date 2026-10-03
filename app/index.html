@@ -48,11 +48,13 @@ html.tg .device>.app{border-radius:0}
 .lang{display:flex;height:36px;padding:3px;border-radius:999px;background:var(--panel);border:1px solid var(--line)}
 .lang button{border:0;background:transparent;padding:0 10px;border-radius:999px;font-size:12px;font-weight:700;color:var(--muted)}
 .lang button[aria-pressed="true"]{background:var(--panel-2);color:var(--text)}
-.hist{position:absolute;top:8px;left:0;right:0;display:flex;gap:6px;padding:0 12px;overflow:hidden;z-index:3;-webkit-mask-image:linear-gradient(90deg,#000 85%,transparent);mask-image:linear-gradient(90deg,#000 85%,transparent)}
+.hist{position:absolute;top:8px;left:0;right:0;display:flex;gap:6px;padding:0 12px 0 46px;overflow:hidden;z-index:3;-webkit-mask-image:linear-gradient(90deg,#000 85%,transparent);mask-image:linear-gradient(90deg,#000 85%,transparent)}
 .chip{flex:none;height:26px;padding:0 10px;border-radius:9px;display:grid;place-items:center;font:700 12px/1 'Unbounded',sans-serif;font-variant-numeric:tabular-nums;border:1px solid currentColor;background:rgba(10,6,28,.55)}
 .chip.lo{color:var(--red)}.chip.mid{color:var(--cyan)}.chip.hi{color:var(--gold)}
 .chip.new{animation:pop .35s ease-out}
 .hist .chip{cursor:pointer}
+.fairb{position:absolute;top:8px;left:12px;z-index:4;width:28px;height:26px;border-radius:9px;display:grid;place-items:center;border:1px solid var(--green);background:rgba(10,6,28,.55);color:var(--green);padding:0}
+.fairb svg{width:16px;height:16px}
 @keyframes pop{from{transform:scale(.5);opacity:0}}
 
 .stage{position:relative;flex:1;min-height:170px;overflow:hidden}
@@ -218,7 +220,7 @@ html.tg .device>.app{border-radius:0}
       /* Telegram and GitHub Pages may hand out a cached copy of this page after a release. Ask the site for the
          current version, bypassing every cache; if it is newer, reload once with it in the address (the #hash with
          Telegram's login data is kept). Bump APP_VER here and in version.json on every release. */
-      (()=>{const APP_VER='20261003c';
+      (()=>{const APP_VER='20261003d';
         fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(r=>r.json()).then(d=>{
           if(!d||!d.v||d.v===APP_VER)return;const u=new URL(location.href);
           if(u.searchParams.get('v')===d.v)return;          // already asked for it once: never loop
@@ -268,6 +270,7 @@ html.tg .device>.app{border-radius:0}
         <canvas id="cv"></canvas>
         <div class="vig" id="vig"></div>
         <div class="rays" id="rays"></div>
+        <button class="fairb" id="fairBtn" aria-label="Provably fair"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v5c0 4.4-3 7.7-7 9-4-1.3-7-4.6-7-9V6z"/><path d="M9 11.8l2.1 2.1L15 10"/></svg></button>
         <div class="hist" id="hist"></div>
         <button class="plp" id="plBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><path d="M16 4.8a3.5 3.5 0 0 1 0 6.4M18 14.8c1.9.7 3 2.4 3.5 5.2"/></svg><span id="plN"></span><i></i><span id="plPool"></span></button>
         <div class="feed" id="feed"></div>
@@ -776,4 +779,4 @@ requestAnimationFrame(tick);
 <script src="screens.js?v=20261003c"></script>
 <script src="net.js?v=20261001"></script>
 <script src="round.js?v=20260926"></script>
-<script src="menu.js?v=20261003"></script>
+<script src="menu.js?v=20261003b"></script>
