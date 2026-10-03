@@ -163,6 +163,7 @@ function renderCoins(bump){const e=$('coins');if(e)e.textContent=num(D.coins);if
 let roundBet=false;
 window.ECO={
   vibro:()=>D.set.vibro,
+  setVibro(on){D.set.vibro=!!on;save();if(tab==='profile')renderProfile()},
   hist:()=>D.st.hist,
   bet(a){rollover();D.st.turn+=a;D.st.net-=a;save();addCoins(a*50*coinMult())},
   cash(m,win,amt){rollover();D.st.net+=win;D.st.best=Math.max(D.st.best,m);D.st.xp+=20;
