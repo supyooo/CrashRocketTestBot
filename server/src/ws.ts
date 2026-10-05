@@ -23,7 +23,7 @@ import { K_PER_SEC } from './game/curve.js';
 type Client = WebSocket & { uid: string; name: string; msgs: number; alive: boolean };
 type Ev = { uid?: string; balance?: number; [k: string]: unknown };
 
-export function attachWs(server: Server, cfg: Config, wallet: Wallet) {
+export function attachWs(server: Server, cfg: Config, wallet: Wallet, isBlocked: (uid: string) => boolean = () => false) {
   const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 4096 });
   const clients = new Set<Client>();
   let engine: Engine | null = null;
@@ -80,6 +80,7 @@ export function attachWs(server: Server, cfg: Config, wallet: Wallet) {
         if (m.t === 'ping') return send(c, { t: 'pong', id: m.id, serverNow: Date.now() });
         if (!engine) throw new GameError('the next round starts in a few seconds');
         if (m.t === 'bet') {
+          if (isBlocked(c.uid)) throw new GameError('this account is blocked, contact support');
           if (typeof m.amount !== 'number') throw new GameError('amount is required');
           const auto = typeof m.auto === 'number' ? Math.round(m.auto * 100) : undefined;
           const bal = await engine.placeBet(c.uid, c.name, toUnits(m.amount), auto);

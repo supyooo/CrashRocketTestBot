@@ -18,6 +18,7 @@ import { createApi, type EngineRef } from './http.js';
 import { attachWs } from './ws.js';
 import { ToncenterChain, friendly } from './ton/chain.js';
 import { TonGateway } from './ton/gateway.js';
+import { Admin } from './admin/admin.js';
 import { fromUnits, NANO_PER_UNIT } from './config.js';
 
 const DRAIN_MAX_MS = Number(process.env.DRAIN_MAX_MS ?? 150_000);
@@ -49,8 +50,14 @@ if (config.ton.enabled && store instanceof PgStore) {
   console.log(`test TON gateway · house wallet ${friendly(chain.house)} (${chain.kind}${funded || !chain.candidates.length ? '' : ', empty: send test TON to it'})`);
 }
 
-const api = createApi({ cfg: config, store, wallet, ref, ton });
-const ws = attachWs(api, config, wallet);
+// admin panel (/admin): needs Postgres
+let online = () => 0;
+const admin = store instanceof PgStore ? new Admin({ cfg: config, db: store.db, ref, ton, online: () => online() }) : undefined;
+await admin?.start();
+const api = createApi({ cfg: config, store, wallet, ref, ton, admin });
+const ws = attachWs(api, config, wallet, (uid) => admin?.isBlocked(uid) ?? false);
+online = () => ws.size;
+if (admin) console.log(`admin panel at /admin · ${config.admin.ids.length} admin id(s)${config.devAuth && !config.botToken ? ' · DEV logins' : ''}`);
 if (ton) {
   ton.on('deposit', (e: { uid: string; amount: number; balance: number }) => {
     ws.toUser(e.uid, { t: 'balance', balance: fromUnits(e.balance) });
@@ -60,6 +67,7 @@ if (ton) {
     if (e.balance !== undefined) ws.toUser(e.uid, { t: 'balance', balance: fromUnits(e.balance) });
     ws.toUser(e.uid, { t: 'ton', kind: 'withdraw', id: e.id, status: e.status, amount: fromUnits(e.amount) });
   });
+  ton.on('review', (e: { uid: string; id: number; amount: number }) => void admin?.notify(`Вывод на проверку: ${fromUnits(e.amount)} TON от ${e.uid} (заявка #${e.id}). Откройте админку: /admin`));
 }
 let loop: NodeJS.Timeout | undefined;
 
@@ -84,6 +92,7 @@ async function shutdown(signal: string) {
   await Promise.race([engine.drain(), new Promise((r) => setTimeout(r, DRAIN_MAX_MS))]);
   if (loop) clearInterval(loop);
   ton?.stop();
+  admin?.stop();
   console.log(`round finished in ${Math.round((Date.now() - t0) / 1000)} s, handing over`);
   ws.closeAll(1012, 'server update');
   api.close();

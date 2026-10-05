@@ -45,6 +45,25 @@ Without `?server=` the game runs its offline demo rounds.
 | `TONCENTER_API_KEY` | — | testnet key from @tonapibot (without it toncenter allows 1 request/s) |
 | `TON_NETWORK` | testnet | The server refuses to start with anything else |
 | `TON_MIN_DEPOSIT` / `TON_MIN_WITHDRAW` / `TON_MAX_WITHDRAW_DAY` | 0.1 / 0.5 / 100 | Limits in TON |
+| `ADMIN_IDS` | — | Telegram ids allowed into the admin panel, comma separated |
+| `BOT_USERNAME` | — | The bot's username without `@`, for the "Log in with Telegram" button of the admin panel |
+| `ADMIN_REVIEW_OVER` | 50 | Withdrawals above this (TON) wait for an admin's approval |
+| `PARTNER_SHARE` | 0.4 | Partner's share of NGR in the RevShare summary |
+
+## Admin panel `/admin`
+
+An ordinary website served by this server (needs Postgres). Sign-in with the Telegram login button; only
+`ADMIN_IDS` get in. One-time setup: in @BotFather, `/setdomain` for the bot → the server's domain (the
+Railway URL), so the login button works there. In dev mode without `BOT_TOKEN`, any name logs in.
+
+- Dashboard: deposits, withdrawals, GGR / NGR, turnover, ARPU by period; cash (house wallet, owed to players,
+  payouts in the queue, limits); the manual withdrawal queue with the x2 wager check; anti-fraud alerts (one IP
+  or one wallet on several accounts) and deposits without a code, which can be credited to a player by hand;
+  RevShare summary.
+- Player card (search by Telegram id, @username, name or id): totals, wager progress, IPs, wallets, histories of
+  deposits / withdrawals / bets / bonuses; block, freeze the balance, credit or debit with a reason, refund a
+  lost bet, notes. Every action is written to `admin_log` and listed in the card.
+- Admins get a Telegram message from the bot when a withdrawal waits for review (they must have started the bot once).
 
 ## API
 

@@ -47,6 +47,17 @@ export const config = {
     pollMs: num(env.TON_POLL_MS, 5000)
   },
 
+  /** Admin panel (/admin). Who may sign in: Telegram ids, comma separated. */
+  admin: {
+    ids: (env.ADMIN_IDS ?? '').split(',').map((s) => s.trim()).filter(Boolean),
+    /** The bot's username without @, for the Telegram login button. */
+    botUsername: env.BOT_USERNAME ?? '',
+    /** Withdrawals above this wait for an admin's approval. */
+    reviewOver: toUnits(num(env.ADMIN_REVIEW_OVER, 50)),
+    /** Partner's share of NGR for the RevShare summary. */
+    partnerShare: num(env.PARTNER_SHARE, 0.4)
+  },
+
   startBalance: toUnits(num(env.START_BALANCE, 25)),
   minBet: toUnits(0.1),
   maxBet: toUnits(num(env.MAX_BET, 1000)),

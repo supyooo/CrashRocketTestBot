@@ -200,8 +200,8 @@ const TL={
     noComment:'Без этого комментария перевод не зачислится.',min:'Минимум',copied:'Скопировано',sentW:'Отправлено из кошелька, ждём зачисления (до минуты)',
     mainnet:'Подключён кошелёк основной сети. Нажмите «Сменить» и выберите в Tonkeeper тестовый аккаунт (метка Testnet).',change:'Сменить',to:'На кошелёк',noAddr:'Вывод идёт только на кошелёк, с которого вы пополняли. Сначала пополните баланс.',
     max:'Макс',limit:'Лимит в сутки',history:'Последние переводы',empty:'Переводов пока нет',credited:'+{a} TON зачислено',
-    st:{credited:'зачислено',unmatched:'без кода',too_small:'меньше минимума',pending:'в очереди',sending:'отправляется',sent:'отправлено',failed:'вернули на баланс'},
-    wdQueued:'Вывод {a} TON принят',wdSent:'Вывод {a} TON отправлен',wdFailed:'Вывод {a} TON не прошёл, сумма вернулась на баланс',
+    st:{credited:'зачислено',unmatched:'без кода',too_small:'меньше минимума',review:'на проверке',pending:'в очереди',sending:'отправляется',sent:'отправлено',failed:'вернули на баланс',rejected:'отклонён, сумма на балансе',attached:'зачислено'},
+    wdQueued:'Вывод {a} TON принят',wdReview:'Вывод {a} TON на проверке: обычно это недолго',wdSent:'Вывод {a} TON отправлен',wdFailed:'Вывод {a} TON не прошёл, сумма вернулась на баланс',
     err:{'amount is below the minimum withdrawal':'Сумма меньше минимальной','withdrawals go only to a wallet you have deposited from':'Вывод только на кошелёк, с которого было пополнение',
       'daily withdrawal limit reached':'Достигнут дневной лимит вывода','insufficient funds':'Недостаточно средств','this is a mainnet address; only testnet addresses are accepted':'Это адрес основной сети, нужен testnet'},
     dep2:'Депозит',wd2:'Вывод',loadErr:'Не удалось загрузить данные кошелька'},
@@ -210,8 +210,8 @@ const TL={
     noComment:'Without this comment the transfer will not be credited.',min:'Minimum',copied:'Copied',sentW:'Sent from your wallet, waiting to be credited (up to a minute)',
     mainnet:'A mainnet wallet is connected. Tap Change and pick your Tonkeeper testnet account.',change:'Change',to:'To wallet',noAddr:'Withdrawals go only to a wallet you topped up from. Top up first.',
     max:'Max',limit:'Daily limit',history:'Recent transfers',empty:'No transfers yet',credited:'+{a} TON credited',
-    st:{credited:'credited',unmatched:'no code',too_small:'below minimum',pending:'queued',sending:'sending',sent:'sent',failed:'returned'},
-    wdQueued:'Withdrawal of {a} TON accepted',wdSent:'Withdrawal of {a} TON sent',wdFailed:'Withdrawal of {a} TON failed, returned to your balance',
+    st:{credited:'credited',unmatched:'no code',too_small:'below minimum',review:'under review',pending:'queued',sending:'sending',sent:'sent',failed:'returned',rejected:'rejected, back on balance',attached:'credited'},
+    wdQueued:'Withdrawal of {a} TON accepted',wdReview:'Withdrawal of {a} TON is under review, usually it is quick',wdSent:'Withdrawal of {a} TON sent',wdFailed:'Withdrawal of {a} TON failed, returned to your balance',
     err:{},dep2:'Deposit',wd2:'Withdrawal',loadErr:'Could not load wallet data'}};
 const tl=k=>(TL[lang]||TL.en)[k];
 const terr=m=>(tl('err')[m])||m;
@@ -303,6 +303,7 @@ function tonAct(e){const b=e.target.closest('[data-t]');if(!b)return;const t=b.d
 }
 function onTon(m){const a=fmtTon(m.amount);
   if(m.kind==='deposit'){toast(tl('credited').replace('{a}',a));haptic('success')}
+  else if(m.status==='review')toast(tl('wdReview').replace('{a}',a));
   else if(m.status==='pending')toast(tl('wdQueued').replace('{a}',a));
   else if(m.status==='sent'){toast(tl('wdSent').replace('{a}',a));haptic('success')}
   else if(m.status==='failed'){toast(tl('wdFailed').replace('{a}',a),'bad');haptic('error')}

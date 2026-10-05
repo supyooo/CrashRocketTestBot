@@ -133,18 +133,74 @@ export class TonGateway extends EventEmitter {
     let raw: string;
     try { raw = parseTestnetAddress(to); } catch (err) { throw new TonError((err as Error).message || 'invalid address'); }
     const r = await this.tx(async (c) => {
+      const fl = await c.query('SELECT blocked, frozen FROM user_flags WHERE user_id = $1', [uid]);
+      if (fl.rows[0]?.blocked || fl.rows[0]?.frozen) throw new TonError('withdrawals are suspended for this account, contact support');
       const acc = await c.query('SELECT addresses FROM ton_accounts WHERE user_id = $1 FOR UPDATE', [uid]);
       if (!(acc.rows[0]?.addresses ?? []).includes(raw)) throw new TonError('withdrawals go only to a wallet you have deposited from');
-      const day = await c.query("SELECT coalesce(sum(amount), 0) AS s FROM ton_withdrawals WHERE user_id = $1 AND status <> 'failed' AND created_at >= date_trunc('day', now())", [uid]);
+      const day = await c.query("SELECT coalesce(sum(amount), 0) AS s FROM ton_withdrawals WHERE user_id = $1 AND status NOT IN ('failed', 'rejected') AND created_at >= date_trunc('day', now())", [uid]);
       if (Number(day.rows[0].s) + amount > this.cfg.ton.maxWithdrawDay) throw new TonError('daily withdrawal limit reached');
-      const w = await c.query("INSERT INTO ton_withdrawals (user_id, amount, address, status) VALUES ($1,$2,$3,'pending') RETURNING id", [uid, amount, raw]);
+      // large ones wait for an admin (the money is taken now, so it cannot be bet away while waiting)
+      const status = amount > this.cfg.admin.reviewOver ? 'review' : 'pending';
+      const w = await c.query('INSERT INTO ton_withdrawals (user_id, amount, address, status) VALUES ($1,$2,$3,$4) RETURNING id', [uid, amount, raw, status]);
       const id = Number(w.rows[0].id);
       const balance = await this.move(c, uid, -amount, 'withdraw', 'wd:' + id);
-      return { id, balance };
+      return { id, balance, status };
     });
-    this.emit('withdraw', { uid, id: r.id, status: 'pending', amount, balance: r.balance });
+    this.emit('withdraw', { uid, id: r.id, status: r.status, amount, balance: r.balance });
+    if (r.status === 'review') this.emit('review', { uid, id: r.id, amount });
+    return { id: r.id, balance: r.balance };
+  }
+
+  /* ---------------- admin ---------------- */
+  /** An admin lets a withdrawal under review go to the payout queue. */
+  async approve(id: number): Promise<{ uid: string; amount: number }> {
+    const u = await this.db.query("UPDATE ton_withdrawals SET status = 'pending', updated_at = now() WHERE id = $1 AND status = 'review' RETURNING user_id, amount", [id]);
+    if (!u.rows.length) throw new TonError('this withdrawal is not waiting for review');
+    const r = { uid: u.rows[0].user_id as string, amount: Number(u.rows[0].amount) };
+    this.emit('withdraw', { uid: r.uid, id, status: 'pending', amount: r.amount });
     return r;
   }
+
+  /** An admin turns a withdrawal down: the money goes back to the balance. */
+  async reject(id: number, why: string): Promise<{ uid: string; amount: number }> {
+    const r = await this.tx(async (c) => {
+      const u = await c.query("UPDATE ton_withdrawals SET status = 'rejected', error = $2, updated_at = now() WHERE id = $1 AND status IN ('review', 'pending') RETURNING user_id, amount", [id, why.slice(0, 200)]);
+      if (!u.rows.length) throw new TonError('this withdrawal can no longer be rejected');
+      const uid = u.rows[0].user_id as string, amount = Number(u.rows[0].amount);
+      const balance = await this.move(c, uid, amount, 'refund', 'wdr:' + id);
+      return { uid, amount, balance };
+    });
+    this.emit('withdraw', { uid: r.uid, id, status: 'failed', amount: r.amount, balance: r.balance });
+    return { uid: r.uid, amount: r.amount };
+  }
+
+  /** An admin credits a deposit that came without a valid code to the player it belongs to. */
+  async attach(txHash: string, uid: string): Promise<{ amount: number; balance: number }> {
+    const r = await this.tx(async (c) => {
+      const d = await c.query("SELECT nano, source FROM ton_deposits WHERE tx_hash = $1 AND status IN ('unmatched', 'too_small') FOR UPDATE", [txHash]);
+      if (!d.rows.length) throw new TonError('this deposit is not waiting to be matched');
+      const user = await c.query('SELECT 1 FROM users WHERE id = $1', [uid]);
+      if (!user.rows.length) throw new TonError('no such player');
+      const amount = Number(BigInt(d.rows[0].nano) / NANO_PER_UNIT);
+      await c.query("UPDATE ton_deposits SET status = 'attached', user_id = $2 WHERE tx_hash = $1", [txHash, uid]);
+      const balance = await this.move(c, uid, amount, 'deposit', 'dep:' + txHash);
+      await this.depositCodeIn(c, uid);
+      await c.query('UPDATE ton_accounts SET addresses = array_append(addresses, $2) WHERE user_id = $1 AND NOT ($2 = ANY(addresses))', [uid, d.rows[0].source]);
+      return { uid, amount, balance };
+    });
+    this.emit('deposit', r);
+    return { amount: r.amount, balance: r.balance };
+  }
+  private async depositCodeIn(c: Tx, uid: string) {
+    for (let i = 0; i < 5; i++) {
+      const got = await c.query('SELECT 1 FROM ton_accounts WHERE user_id = $1', [uid]);
+      if (got.rows.length) return;
+      const ins = await c.query('INSERT INTO ton_accounts (user_id, deposit_code) VALUES ($1, $2) ON CONFLICT DO NOTHING RETURNING 1', [uid, newCode()]);
+      if (ins.rows.length) return;
+    }
+  }
+
+  houseBalance(): Promise<bigint> { return this.chain.balance(); }
 
   /** Moves the payout queue one step. One payout at a time, so seqnos never collide. */
   async processWithdrawals(): Promise<void> {

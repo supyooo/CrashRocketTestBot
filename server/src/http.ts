@@ -9,10 +9,11 @@ import type { Wallet } from './wallet/wallet.js';
 import type { Engine } from './game/engine.js';
 import { AuthError, validateInitData } from './auth/telegram.js';
 import { signSession, verifySession, type Session } from './auth/session.js';
+import type { Admin } from './admin/admin.js';
 
 /** The engine appears once this server holds the leader lock (see main.ts). */
 export type EngineRef = { engine: Engine | null };
-type Ctx = { cfg: Config; store: Store; wallet: Wallet; ref: EngineRef; ton?: TonGateway };
+type Ctx = { cfg: Config; store: Store; wallet: Wallet; ref: EngineRef; ton?: TonGateway; admin?: Admin };
 
 const MAX_BODY = 64 * 1024;
 function readJson(req: IncomingMessage): Promise<Record<string, unknown>> {
@@ -34,7 +35,7 @@ export function sessionFrom(req: IncomingMessage, cfg: Config): Session | null {
   return verifySession(h?.startsWith('Bearer ') ? h.slice(7) : null, cfg.sessionSecret);
 }
 
-export function createApi({ cfg, store, wallet, ref, ton }: Ctx) {
+export function createApi({ cfg, store, wallet, ref, ton, admin }: Ctx) {
   const mode = ton ? { currency: 'tton', network: 'testnet' } : { currency: 'play' };
   return createServer(async (req, res) => {
     const origin = req.headers.origin;
@@ -50,6 +51,8 @@ export function createApi({ cfg, store, wallet, ref, ton }: Ctx) {
       const engine = ref.engine;
       // healthy as soon as it serves; `leader` tells whether it already runs rounds
       if (url.pathname === '/health') return send(res, 200, { ok: true, leader: !!engine, round: engine?.no, phase: engine?.phase, draining: engine?.isDraining ?? false });
+
+      if (admin && (await admin.handle(req, res, url))) return;
 
       if (url.pathname === '/api/auth' && req.method === 'POST') {
         const body = await readJson(req);
@@ -68,6 +71,7 @@ export function createApi({ cfg, store, wallet, ref, ton }: Ctx) {
           await store.putUser(user);
           await wallet.grant(uid, cfg.startBalance, 'grant:start:' + uid);
         } else if (user.name !== name) await store.putUser({ ...user, name });
+        await admin?.recordLogin(uid, req).catch((err) => console.error('login record failed:', err.message));
         return send(res, 200, { token: signSession({ uid, name }, cfg.sessionSecret), user: { id: uid, name }, balance: fromUnits(await wallet.balance(uid)), mode });
       }
 
