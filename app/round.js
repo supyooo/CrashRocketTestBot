@@ -64,6 +64,8 @@ $('hist').addEventListener('click',e=>{const c=e.target.closest('.chip');if(!c)r
 // Space: the main button (bet, cancel, cash out). Cash-out goes through touch-down for the instant response.
 document.addEventListener('keydown',e=>{
   if(e.code!=='Space'||e.repeat||/INPUT|TEXTAREA|BUTTON/.test(e.target.tagName)||window.SCREEN_OPEN||document.querySelector('.sheet.on'))return;
-  e.preventDefault();const m=$('main');
-  if(window.NET_ON&&S.phase==='fly'&&S.bet&&!S.bet.out)m.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,button:0}));else m.click()});
+  e.preventDefault();
+  // in flight: the first bet still riding; otherwise the first panel
+  const k=S.phase==='fly'?S.bets.findIndex(b=>b&&!b.out&&!b.lock):-1,i=k<0?0:k,m=PN[i].main,b=S.bets[i];
+  if(window.NET_ON&&S.phase==='fly'&&b&&!b.out)m.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,button:0}));else m.click()});
 })();

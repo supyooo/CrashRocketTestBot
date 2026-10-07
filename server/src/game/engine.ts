@@ -22,7 +22,15 @@ import { msTo, x100At } from './curve.js';
 export const MAX_TAP_LAG_MS = 3000;
 
 export type Phase = 'betting' | 'running' | 'crashed';
-export type Bet = { uid: string; name: string; amount: number; autoX100?: number; cashX100?: number; payout?: number; paid?: boolean; ref: string };
+/** A player may have up to SLOTS bets in a round (two bet panels), each settled on its own. */
+export const SLOTS = 2;
+export type Bet = { uid: string; slot: number; name: string; amount: number; autoX100?: number; cashX100?: number; payout?: number; paid?: boolean; ref: string };
+const key = (uid: string, slot: number) => uid + '#' + slot;
+function slotOf(slot: number | undefined): number {
+  const s = slot ?? 0;
+  if (!Number.isInteger(s) || s < 0 || s >= SLOTS) throw new GameError('bad bet slot');
+  return s;
+}
 export class GameError extends Error {}
 
 export class Engine extends EventEmitter {
@@ -104,14 +112,15 @@ export class Engine extends EventEmitter {
   }
   get isDraining() { return !!this.draining; }
 
-  async placeBet(uid: string, name: string, amount: number, autoX100?: number): Promise<number> {
+  async placeBet(uid: string, name: string, amount: number, autoX100?: number, slot?: number): Promise<number> {
+    const s = slotOf(slot), k = key(uid, s);
     if (this.phase !== 'betting' || this.opening) throw new GameError('bets are closed');
     if (this.draining) throw new GameError('the server is restarting, bet in the next round in a few seconds');
-    if (this.bets.has(uid) || this.pending.has(uid)) throw new GameError('you already have a bet in this round');
+    if (this.bets.has(k) || this.pending.has(k)) throw new GameError('you already have a bet in this round');
     if (!Number.isSafeInteger(amount) || amount < this.cfg.minBet || amount > this.cfg.maxBet) throw new GameError('bet amount is out of limits');
     if (autoX100 !== undefined && (!Number.isInteger(autoX100) || autoX100 < 101 || autoX100 > this.cfg.maxAutoX100)) throw new GameError('auto cash-out must be between 1.01x and 1000x');
     const no = this.no, ref = `bet:${no}:${uid}:${++this.betSeq}`;
-    this.pending.add(uid);
+    this.pending.add(k);
     try {
       const balance = await this.wallet.stake(uid, amount, ref);
       // the database answered after this round had already ended: give the stake back
@@ -119,21 +128,22 @@ export class Engine extends EventEmitter {
         await this.wallet.refund(uid, amount, 'late:' + ref);
         throw new GameError('bets are closed');
       }
-      this.bets.set(uid, { uid, name, amount, autoX100, ref });
+      this.bets.set(k, { uid, slot: s, name, amount, autoX100, ref });
       this.saveOpen();
-      this.emit('bet', { uid, name, amount, balance });
+      this.emit('bet', { uid, slot: s, name, amount, balance });
       return balance;
-    } finally { this.pending.delete(uid); }
+    } finally { this.pending.delete(k); }
   }
 
-  async cancelBet(uid: string): Promise<number> {
+  async cancelBet(uid: string, slot?: number): Promise<number> {
     if (this.phase !== 'betting') throw new GameError('the round has started');
-    const b = this.bets.get(uid);
+    const s = slotOf(slot), k = key(uid, s);
+    const b = this.bets.get(k);
     if (!b) throw new GameError('no bet to cancel');
-    this.bets.delete(uid); // gone before the round can launch with it
+    this.bets.delete(k); // gone before the round can launch with it
     const balance = await this.wallet.refund(uid, b.amount, 'cancel:' + b.ref);
     this.saveOpen();
-    this.emit('cancel', { uid, balance });
+    this.emit('cancel', { uid, slot: s, balance });
     return balance;
   }
 
@@ -143,8 +153,8 @@ export class Engine extends EventEmitter {
    * cannot be abused; and the request must still arrive before the explosion, so seeing the crash first does not help.
    * Resolves once the payout is written (cashoutNow answers at once and pays in the background).
    */
-  async cashout(uid: string, now: number, at?: number): Promise<{ x100: number; payout: number; balance: number }> {
-    const r = this.cashoutNow(uid, now, at);
+  async cashout(uid: string, now: number, at?: number, slot?: number): Promise<{ x100: number; payout: number; balance: number }> {
+    const r = this.cashoutNow(uid, now, at, slot);
     return { x100: r.x100, payout: r.payout, balance: await r.paid };
   }
 
@@ -153,7 +163,7 @@ export class Engine extends EventEmitter {
       phase: this.phase, no: this.no, phaseAt: this.phaseAt, serverNow: now,
       bettingMs: this.cfg.bettingMs, crashedMs: this.cfg.crashedMs, x100: this.x100(now),
       crashX100: this.phase === 'crashed' ? this.crashX100 : undefined,
-      bets: [...this.bets.values()].map((b) => ({ uid: b.uid, name: b.name, amount: b.amount, cashX100: b.cashX100, payout: b.payout })),
+      bets: [...this.bets.values()].map((b) => ({ uid: b.uid, slot: b.slot, name: b.name, amount: b.amount, cashX100: b.cashX100, payout: b.payout })),
       history: this.history.slice(0, 20), commitment: this.commitment, edgeBps: this.cfg.edgeBps
     };
   }
@@ -163,9 +173,9 @@ export class Engine extends EventEmitter {
    * the player's reply does not wait for the database), then the payout is written, retried until it lands (the
    * ref makes retries safe) and the new balance is announced as 'paid'.
    */
-  cashoutNow(uid: string, now: number, at?: number): { x100: number; payout: number; paid: Promise<number> } {
+  cashoutNow(uid: string, now: number, at?: number, slot?: number): { x100: number; payout: number; paid: Promise<number> } {
     if (this.phase !== 'running') throw new GameError('the rocket is not flying');
-    const b = this.bets.get(uid);
+    const b = this.bets.get(key(uid, slotOf(slot)));
     if (!b) throw new GameError('no bet in this round');
     if (b.cashX100) throw new GameError('already cashed out');
     if (now - this.phaseAt >= msTo(this.crashX100)) throw new GameError('too late, the rocket exploded');
@@ -177,7 +187,7 @@ export class Engine extends EventEmitter {
     const payout = Math.min(Math.floor((b.amount * x100) / 100), this.cfg.maxWin);
     b.cashX100 = x100; b.payout = payout;
     this.saveOpen();
-    this.emit('cashout', { uid: b.uid, name: b.name, x100, payout });
+    this.emit('cashout', { uid: b.uid, slot: b.slot, name: b.name, x100, payout });
     const paid = this.pay(b, payout);
     return { x100, payout, paid };
   }
@@ -228,7 +238,7 @@ export class Engine extends EventEmitter {
     this.phase = 'crashed'; this.phaseAt = now;
     this.history.unshift({ no: this.no, x100: this.crashX100 }); this.history.length = Math.min(this.history.length, 50);
     const round = { no: this.no, crashX100: this.crashX100, hash: this.hash, startedAt,
-      bets: [...this.bets.values()].map((b) => ({ uid: b.uid, name: b.name, amount: b.amount, cashX100: b.cashX100, payout: b.payout })) };
+      bets: [...this.bets.values()].map((b) => ({ uid: b.uid, slot: b.slot, name: b.name, amount: b.amount, cashX100: b.cashX100, payout: b.payout })) };
     this.write(async () => { await this.store.addRound(round); await this.store.setOpenRound(undefined); });
     this.emit('crash', { no: this.no, crashX100: this.crashX100, hash: this.hash });
     if (this.draining) this.draining();

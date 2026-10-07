@@ -14,7 +14,7 @@ export type LedgerKind = 'grant' | 'bet' | 'win' | 'refund' | 'deposit' | 'withd
 export type LedgerMove = { uid: string; delta: number; kind: LedgerKind; ref: string };
 /** One balance movement. `ref` is unique: replaying the same operation never moves money twice. */
 export type LedgerEntry = { id: number; uid: string; delta: number; balance: number; kind: LedgerKind; ref: string; at: number };
-export type RoundBet = { uid: string; name: string; amount: number; cashX100?: number; payout?: number };
+export type RoundBet = { uid: string; slot?: number; name: string; amount: number; cashX100?: number; payout?: number };
 export type Round = { no: number; crashX100: number; hash: string; startedAt: number; bets: RoundBet[] };
 export type FairState = { seed: string; commitment: string; length: number; nextNo: number };
 /** Bets of the round in progress, so a restart can refund stakes of a round that never finished. */

@@ -169,11 +169,13 @@ window.ECO={
   cash(m,win,amt){rollover();D.st.net+=win;D.st.best=Math.max(D.st.best,m);D.st.xp+=20;
     if(amt>=.5)D.day.best=Math.max(D.day.best,m);if(m>=3)D.day.x3++;if(m>=10)D.week.x10++;
     D.week.tops.push(m);D.week.tops.sort((a,b)=>b-a);D.week.tops.length=Math.min(D.week.tops.length,5);save();refresh()},
-  roundEnd(bet,crash){rollover();if(bet){D.st.rounds++;D.day.rounds++;D.st.xp+=10;D.day.run=roundBet?D.day.run+1:1;D.day.runMax=Math.max(D.day.runMax,D.day.run);
+  // bets: the player's bets of the round (one or two panels); the round counts once, each bet goes to the history
+  roundEnd(bets,crash){rollover();bets=(Array.isArray(bets)?bets:[bets]).filter(Boolean);const played=bets.length>0;
+    if(played){D.st.rounds++;D.day.rounds++;D.st.xp+=10;D.day.run=roundBet?D.day.run+1:1;D.day.runMax=Math.max(D.day.runMax,D.day.run);
       const d=new Date(),time=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
-      D.st.hist.unshift({time,amt:bet.amt,x:bet.out||crash,win:bet.out?bet.amt*bet.out:0});D.st.hist.length=Math.min(D.st.hist.length,20)}
+      for(const bet of bets)D.st.hist.unshift({time,amt:bet.amt,x:bet.out||crash,win:bet.out?bet.amt*bet.out:0});D.st.hist.length=Math.min(D.st.hist.length,20)}
     else D.day.run=0;
-    roundBet=!!bet;save();refresh()}
+    roundBet=played;save();refresh()}
 };
 
 /* ---------------- drawing ---------------- */

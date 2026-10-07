@@ -47,7 +47,9 @@ function connect(){
     else{const d=Math.min(15000,2000*2**NET.retry++);  // 2, 4, 8, 15 s…: no hammering a server that is down
       if(NET.retry<=1)toast(lang==='ru'?'Нет связи с сервером, переподключаюсь…':'Connection lost, reconnecting…','bad');setTimeout(()=>connect(),d)}};
 }
-function botFrom(b){return{uid:b.uid,n:clean(b.name),bet:b.amount,target:Infinity,out:b.cashX100?b.cashX100/100:(b.x||0)}}
+function botFrom(b){return{uid:b.uid,slot:b.slot||0,n:clean(b.name),bet:b.amount,target:Infinity,out:b.cashX100?b.cashX100/100:(b.x||0)}}
+const same=(x,m)=>x.uid===m.uid&&x.slot===(m.slot||0);
+const demoBets=()=>S.bets.map(b=>b&&b.demo?b:null);   // a demo bet lives on this device, the server never sees it
 
 function on(m){const now=performance.now();
   // loading screen: the server has answered; open now, unless a round is mid-flight - then on the next countdown
@@ -56,28 +58,27 @@ function on(m){const now=performance.now();
   if(m.t==='batch'){for(const x of m.m)on(x);return}   // other players' bets and cash-outs, sent together
   if(m.t==='ok'||m.t==='err'){const w=NET.wait.get(m.id);if(w){NET.wait.delete(m.id);m.t==='ok'?w.res(m):w.rej(new Error(m.error))}return}
   if(m.t==='hello'&&m.phase==='waiting'){ // a fresh server waits for the previous one to finish its round
-    rough(m.serverNow);if(m.k)K=m.k;window.NET_ON=true;setReal(m.balance);S.pend=0;S.bots=[];if(!(S.bet&&S.bet.demo))S.bet=null;S.phase='crash';S.crash=1;S.m=1;S.t0=now;renderPlayers();
+    rough(m.serverNow);if(m.k)K=m.k;window.NET_ON=true;setReal(m.balance);S.pend=0;S.bots=[];S.bets=demoBets();S.phase='crash';S.crash=1;S.m=1;S.t0=now;renderPlayers();
     toast(lang==='ru'?'Сервер обновляется, следующий раунд через пару секунд':'Server is updating, next round in a few seconds');return}
   if(m.t==='hello'){NET.retry=0;
     rough(m.serverNow);if(m.k)K=m.k;NET.phaseAt=m.phaseAt;window.NET_ON=true;setReal(m.balance);S.pend=0;
     S.hist=m.history.map(h=>h.crash);NET.hist=m.history.map(h=>({no:h.no}));renderHist();
     S.bots=m.bets.filter(b=>b.uid!==NET.uid).map(botFrom);
-    const mine=m.bets.find(b=>b.uid===NET.uid);
-    if(!(S.bet&&S.bet.demo))S.bet=mine?{amt:mine.amount,out:mine.cashX100?mine.cashX100/100:0}:null;   // a demo bet lives on this device
+    if(!myBets().some(b=>b.demo)){S.bets=[null,null];for(const b of m.bets)if(b.uid===NET.uid)S.bets[b.slot||0]={amt:b.amount,out:b.cashX100?b.cashX100/100:0}}
     if(m.phase==='betting'){S.phase='wait';S.t0=local(m.phaseAt)}
     else if(m.phase==='running'){S.phase='fly';S.t0=local(m.phaseAt);S.crash=Infinity;S.mi=0;SC.onStart()}
     else{S.phase='crash';S.t0=local(m.phaseAt);S.crash=m.crashX100?m.crashX100/100:1;S.m=S.crash}
     renderPlayers();toast(lang==='ru'?'Онлайн: общие раунды с другими игроками':'Online: shared rounds with other players');return}
-  if(m.t==='betting'){const queued=S.next;S.next=null;newRound(now);S.bet=null;NET.phaseAt=m.phaseAt;S.t0=local(m.phaseAt);S.bots=[];
-    if(queued)sendBet(queued.amt,true);else{const a=autoBetDue();if(a)sendBet(a,true)}renderPlayers();return}
+  if(m.t==='betting'){const queued=S.nexts;S.nexts=[null,null];newRound(now);S.bets=[null,null];NET.phaseAt=m.phaseAt;S.t0=local(m.phaseAt);S.bots=[];
+    for(let i=0;i<2;i++){if(queued[i])sendBet(i,queued[i].amt,true);else{const a=autoBetDue(i);if(a)sendBet(i,a,true)}}renderPlayers();return}
   if(m.t==='run'){rough(m.serverNow);if(m.k)K=m.k;NET.phaseAt=m.startedAt;startFlight(now);S.crash=Infinity;S.t0=local(m.startedAt);return}
-  if(m.t==='crash'){if(S.bet&&S.bet.demo&&S.bet.lock&&!S.bet.out)demoSettle(S.bet.lock<m.crash);   // before the loss is shown
+  if(m.t==='crash'){S.bets.forEach((b,i)=>{if(b&&b.demo&&b.lock&&!b.out)demoSettle(i,b.lock<m.crash)});   // before the loss is shown
     S.crash=m.crash;S.m=m.crash;if(window.BOOT&&BOOT.on)BOOT.ended(m.crash);if(S.phase!=='crash'){NET.hist.unshift({no:m.no,hash:m.hash});NET.hist.length=Math.min(NET.hist.length,20);doCrash(now)}return}  // doCrash adds to S.hist: keep both in step
-  if(m.t==='bet'){if(m.uid===NET.uid)return;const i=S.bots.findIndex(b=>b.uid===m.uid);const b=botFrom(m);if(i<0)S.bots.push(b);else S.bots[i]=b;renderPlayers();return}
-  if(m.t==='cancel'){S.bots=S.bots.filter(b=>b.uid!==m.uid);renderPlayers();return}
+  if(m.t==='bet'){if(m.uid===NET.uid)return;const i=S.bots.findIndex(b=>same(b,m));const b=botFrom(m);if(i<0)S.bots.push(b);else S.bots[i]=b;renderPlayers();return}
+  if(m.t==='cancel'){S.bots=S.bots.filter(b=>!same(b,m));renderPlayers();return}
   if(m.t==='cashout'){
-    if(m.uid===NET.uid){if(S.bet&&!S.bet.out){S.m=Math.max(S.m,m.x);cashOut(m.x,true)}return}  // auto cash-out done by the server
-    const b=S.bots.find(x=>x.uid===m.uid);if(b){b.out=m.x;SC.onBotCash(b.n,m.x);feed(b.n,m.x,b.bet*(m.x-1))}renderPlayers();return}
+    if(m.uid===NET.uid){const i=m.slot||0,b=S.bets[i];if(b&&!b.demo&&!b.out){S.m=Math.max(S.m,m.x);cashOut(i,m.x,true)}return}  // auto cash-out done by the server
+    const b=S.bots.find(x=>same(x,m));if(b){b.out=m.x;SC.onBotCash(b.n,m.x);feed(b.n,m.x,b.bet*(m.x-1))}renderPlayers();return}
   if(m.t==='balance'){setReal(m.balance);return}
   if(m.t==='ton'){onTon(m);return}
 }
@@ -97,22 +98,22 @@ const DT={ru:{on:'Демо-режим: ставки виртуальные, вы
   en:{on:'Demo mode: virtual bets, virtual wins',off:'Real account',busy:'You can switch after the round',wait:'You can top up demo after the round',
     refill:'Demo balance topped up',full:'Demo balance is already full',late:'Too late: the rocket exploded first'}};
 const dt=k=>(DT[lang]||DT.en)[k];
-function demoBet(a,quiet){
+function demoBet(i,a,quiet){
   if(S.bal<a){toast(T('noFunds'),'bad');return}
-  S.bal-=a;demoSave();S.bet={amt:a,out:0,demo:true};renderPlayers();if(!quiet)toast(T('accepted'));haptic('light')}
-function demoLock(b,x){
+  S.bal-=a;demoSave();S.bets[i]={amt:a,out:0,demo:true};renderPlayers();if(!quiet)toast(T('accepted'));haptic('light')}
+function demoLock(i,b,x){
   b.lock=x;const my=b;
-  setTimeout(()=>{if(S.bet===my&&my.lock&&!my.out&&S.phase==='fly')demoSettle(true)},Math.max(NET.rtt||0,120)+60)}
-function demoSettle(win){const b=S.bet;if(!b||!b.demo||b.out||!b.lock)return;
-  if(win){cashOut(b.lock,true);demoSave()}                               // cashOut adds the win to the balance
+  setTimeout(()=>{if(S.bets[i]===my&&my.lock&&!my.out&&S.phase==='fly')demoSettle(i,true)},Math.max(NET.rtt||0,120)+60)}
+function demoSettle(i,win){const b=S.bets[i];if(!b||!b.demo||b.out||!b.lock)return;
+  if(win){cashOut(i,b.lock,true);demoSave()}                               // cashOut adds the win to the balance
   else{b.lock=0;toast(dt('late'),'bad');haptic('error')}}
 // auto cash-out for demo bets: exactly at the target, like the server does for real ones
-(function demoAuto(){requestAnimationFrame(demoAuto);const b=S.bet;
-  if(!NET.demo||!window.NET_ON||S.phase!=='fly'||!b||!b.demo||b.out||b.lock||!$('autoOn').checked)return;
-  const ax=Math.floor((parseFloat($('autoX').value)||2)*100)/100;if(xf(S.m)>=ax)demoLock(b,ax)})();
+(function demoAuto(){requestAnimationFrame(demoAuto);if(!NET.demo||!window.NET_ON||S.phase!=='fly')return;
+  for(let i=0;i<2;i++){const b=S.bets[i];if(!b||!b.demo||b.out||b.lock||!autoOn(i))continue;
+    const ax=Math.floor(autoX(i)*100)/100;if(xf(S.m)>=ax)demoLock(i,b,ax)}})();
 /** Switch between the real account and demo; only between rounds, so a bet never changes currency. */
 NET.setDemo=on=>{
-  if(on===NET.demo)return;if(S.bet||S.next){toast(dt('busy'),'bad');return}
+  if(on===NET.demo)return;if(myBets().length||S.nexts.some(Boolean)){toast(dt('busy'),'bad');return}
   NET.demo=on;try{localStorage.setItem('cr.demo',on?'1':'0')}catch(e){}
   S.bal=on?demoBal():NET.real;S.pend=0;paintMode();toast(on?dt('on'):dt('off'));haptic('select')};
 function paintMode(){
@@ -155,39 +156,41 @@ function showPick(entry){
 }
 NET.showPick=showPick;
 
-async function sendBet(a,quiet){
-  if(NET.demo)return demoBet(a,quiet);
-  const auto=$('autoOn').checked?parseFloat($('autoX').value)||2:undefined;
-  try{const r=await call({t:'bet',amount:a,auto});S.bet={amt:a,out:0};setReal(r.balance);renderPlayers();if(!quiet)toast(T('accepted'));haptic('light')}
+async function sendBet(i,a,quiet){
+  if(NET.demo)return demoBet(i,a,quiet);
+  const auto=autoOn(i)?autoX(i):undefined;
+  try{const r=await call({t:'bet',amount:a,auto,slot:i});S.bets[i]={amt:a,out:0};setReal(r.balance);renderPlayers();if(!quiet)toast(T('accepted'));haptic('light')}
   catch(e){toast(e.message,'bad');if(/insufficient/.test(e.message)&&NET.ton)NET.openTon('deposit')}
 }
 // the big button: bet / cancel / cash out, all confirmed by the server
-NET.main=async()=>{if(NET.busy)return;NET.busy=true;try{const a=getAmt();
-  if(S.phase==='fly'&&S.bet&&!S.bet.out)return cashNow();
-  if(S.phase==='wait'&&S.bet&&S.bet.demo){S.bal+=S.bet.amt;S.bet=null;demoSave();renderPlayers();return}
-  if(S.phase==='wait'&&S.bet){try{const r=await call({t:'cancel'});S.bet=null;setReal(r.balance);renderPlayers()}catch(e){toast(e.message,'bad')}return}
-  if(S.phase!=='wait'&&S.next){S.next=null;return}
-  if(S.phase==='wait')return sendBet(a);
-  if(S.bal<a){toast(T('noFunds'),'bad');if(NET.ton&&!NET.demo)NET.openTon('deposit');return}
-  S.next={amt:a};toast(T('nextQueued'))}finally{NET.busy=false}};
+const busy=[false,false];
+NET.main=async(i)=>{if(busy[i])return;busy[i]=true;try{const a=getAmt(i),b=S.bets[i];
+  if(S.phase==='fly'&&b&&!b.out)return cashNow(i);
+  if(S.phase==='wait'&&b&&b.demo){S.bal+=b.amt;S.bets[i]=null;demoSave();renderPlayers();return}
+  if(S.phase==='wait'&&b){try{const r=await call({t:'cancel',slot:i});S.bets[i]=null;setReal(r.balance);renderPlayers()}catch(e){toast(e.message,'bad')}return}
+  if(S.phase!=='wait'&&S.nexts[i]){S.nexts[i]=null;return}
+  if(S.phase==='wait')return sendBet(i,a);
+  const queued=S.nexts.reduce((s,n)=>s+(n?n.amt:0),0);   // both panels may queue: the balance must cover both
+  if(S.bal<a+queued){toast(T('noFunds'),'bad');if(NET.ton&&!NET.demo)NET.openTon('deposit');return}
+  S.nexts[i]={amt:a};toast(T('nextQueued'))}finally{busy[i]=false}};
 // Cash out at exactly the multiplier on screen when the finger lands: the number drawn in the last frame, dated with
 // that frame's time in server time, so the server's floor(100*e^(K*t)) gives the same hundredths. The amount locks
 // at once with a buzz and a "your cash-out" tag (the big number keeps running for everyone still in the round);
 // the win plays when the server confirms the same number a moment later.
-async function cashNow(){const b=S.bet;if(!b||b.out||b.lock)return;
+async function cashNow(i){const b=S.bets[i];if(!b||b.out||b.lock)return;
   const sh=S.shown&&S.shown.at>=S.t0?S.shown:{x:xf(Math.exp(K*Math.max(0,(performance.now()-S.t0)/1000))),at:performance.now()};
   const x=Math.min(sh.x,S.crash);
   haptic('medium');pop('safe',(lang==='ru'?'Ваш выход: x':'Your cash-out: x')+x2(x));
-  if(b.demo)return demoLock(b,x);
+  if(b.demo)return demoLock(i,b,x);
   b.lock=x;
-  try{const r=await call({t:'cashout',at:sh.at+NET.off});if(!b.out){S.m=Math.max(S.m,r.x);cashOut(r.x,true)}if(r.balance!==undefined)setReal(r.balance)}   // the server sends the new balance separately
+  try{const r=await call({t:'cashout',at:sh.at+NET.off,slot:i});if(!b.out){S.m=Math.max(S.m,r.x);cashOut(i,r.x,true)}if(r.balance!==undefined)setReal(r.balance)}   // the server sends the new balance separately
   catch(e){b.lock=0;toast(/too late|not flying/.test(e.message)?(lang==='ru'?'Не успели: ракета взорвалась раньше':'Too late: the rocket exploded first'):e.message,'bad');haptic('error')}}
 // react on touch-down, not on release: saves the ~100 ms a finger takes to lift
-const mainBtn=$('main'),mainClick=mainBtn.onclick;let downAt=0;
-mainBtn.addEventListener('pointerdown',e=>{if(window.NET_ON&&e.button<=0&&S.phase==='fly'&&S.bet&&!S.bet.out&&!S.bet.lock){downAt=performance.now();cashNow()}});
-mainBtn.onclick=e=>{if(performance.now()-downAt<1000)return;mainClick(e)};  // the click that follows the same touch
+for(const p of PN){const i=p.i,mainClick=p.main.onclick;let downAt=0;
+  p.main.addEventListener('pointerdown',e=>{const b=S.bets[i];if(window.NET_ON&&e.button<=0&&S.phase==='fly'&&b&&!b.out&&!b.lock){downAt=performance.now();cashNow(i)}});
+  p.main.onclick=e=>{if(performance.now()-downAt<1000)return;mainClick(e)}}  // the click that follows the same touch
 NET.refill=async()=>{
-  if(NET.demo){if(S.bet||S.next){toast(dt('wait'));return}if(S.bal>=DEMO_START){toast(dt('full'));return}S.bal=DEMO_START;demoSave();toast(dt('refill'));haptic('success');return}
+  if(NET.demo){if(myBets().length||S.nexts.some(Boolean)){toast(dt('wait'));return}if(S.bal>=DEMO_START){toast(dt('full'));return}S.bal=DEMO_START;demoSave();toast(dt('refill'));haptic('success');return}
   if(NET.ton)return NET.openTon('deposit');const r=await fetch(base+'/api/refill',{method:'POST',headers:{authorization:'Bearer '+NET.token}});const d=await r.json();if(r.ok){setReal(d.balance);toast(T('refill'))}else toast(d.error,'bad')};
 
 /* ---------- test TON: top up from a wallet, withdraw back to it ----------

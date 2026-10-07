@@ -123,14 +123,22 @@ html.tg .device>.app{border-radius:0}
 .drow{display:flex;gap:8px}
 .amt{flex:1;display:flex;align-items:center;height:44px;border-radius:12px;background:var(--panel-2);border:1px solid var(--line);overflow:hidden}
 .amt>button{width:44px;height:100%;border:0;background:transparent;font-size:20px;font-weight:600;color:var(--muted)}
-.amt #amtBtn{flex:1;width:auto;display:flex;align-items:center;justify-content:center;gap:6px;font:700 17px 'Unbounded',sans-serif;color:var(--text);font-variant-numeric:tabular-nums}
-.amt #amtBtn svg.ton{width:16px;height:16px}
+.amt .amtBtn{flex:1;width:auto;display:flex;align-items:center;justify-content:center;gap:6px;font:700 17px 'Unbounded',sans-serif;color:var(--text);font-variant-numeric:tabular-nums}
+.amt .amtBtn svg.ton{width:16px;height:16px}
 .achip{display:flex;align-items:center;gap:6px;height:44px;padding:0 12px;border-radius:12px;border:1px solid var(--line);background:var(--panel-2);font-weight:700;font-size:12.5px;color:var(--muted)}
 .achip b{font:700 12.5px 'Unbounded',sans-serif;color:var(--muted)}
 .achip.on{border-color:var(--green);color:var(--green)}.achip.on b{color:var(--text)}
 .pop{position:absolute;bottom:calc(100% + 6px);z-index:6;padding:10px;border-radius:16px;background:#1b1640;border:1px solid #3a3266;box-shadow:0 14px 34px rgba(0,0,0,.55);display:none;flex-direction:column;gap:8px}
 .pop.on{display:flex;animation:pop .16s ease-out}
-.pop.l{left:10px;right:10px}.pop.r{right:10px;width:230px}
+.pop.l{left:0;right:0}.pop.r{right:0;width:230px}
+.bp{position:relative;display:flex;flex-direction:column;gap:8px}
+.bp[hidden]{display:none}
+.bp+.bp{padding-top:8px;border-top:1px dashed var(--line)}
+/* + opens the second bet panel, × closes it */
+.pbx{width:44px;height:44px;flex:none;border-radius:12px;border:1px solid var(--line);background:var(--panel-2);color:var(--muted);font-size:22px;font-weight:600;line-height:1}
+.pbx.add{color:var(--green);border-color:rgba(43,255,136,.45)}
+.dock.two .bp:first-child .pbx{visibility:hidden}
+.dock.two .main{height:48px}.dock.two .main b{font-size:14px}
 .pgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
 .pgrid button{height:38px;border-radius:10px;border:1px solid var(--line);background:var(--panel-2);font-weight:700;font-size:13px;font-variant-numeric:tabular-nums}
 .pfield{display:flex;align-items:center;gap:8px;height:40px;padding:0 12px;border-radius:10px;background:var(--panel);border:1px solid var(--line);font-size:12.5px;font-weight:600;color:var(--muted)}
@@ -232,7 +240,7 @@ html.tg .device>.app{border-radius:0}
       /* Telegram and GitHub Pages may hand out a cached copy of this page after a release. Ask the site for the
          current version, bypassing every cache; if it is newer, reload once with it in the address (the #hash with
          Telegram's login data is kept). Bump APP_VER here and in version.json on every release. */
-      (()=>{const APP_VER='20261007';
+      (()=>{const APP_VER='20261007b';
         fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(r=>r.json()).then(d=>{
           if(!d||!d.v||d.v===APP_VER)return;const u=new URL(location.href);
           if(u.searchParams.get('v')===d.v)return;          // already asked for it once: never loop
@@ -295,22 +303,27 @@ html.tg .device>.app{border-radius:0}
         <div class="toast" id="toast" role="status"></div>
       </div>
 
-      <section class="dock">
-        <div class="pop l" id="amtPop">
-          <div class="pgrid" id="quick"><button data-v="0.5">0.5</button><button data-v="1">1</button><button data-v="5">5</button><button data-v="10">10</button><button data-v="25">25</button><button data-v="50">50</button><button id="half">½</button><button id="dbl">×2</button></div>
-          <label class="pfield"><span data-i="yourAmt">Своя сумма</span><input id="amt" inputmode="decimal" value="1.00" aria-label="Bet"><b>TON</b></label>
+      <!-- two bet panels (built from the template below); the second one is opened with + -->
+      <section class="dock" id="dock"></section>
+      <template id="bpT">
+        <div class="bp">
+          <div class="pop l amtPop">
+            <div class="pgrid quick"><button data-v="0.5">0.5</button><button data-v="1">1</button><button data-v="5">5</button><button data-v="10">10</button><button data-v="25">25</button><button data-v="50">50</button><button data-q="half">½</button><button data-q="dbl">×2</button></div>
+            <label class="pfield"><span data-i="yourAmt">Своя сумма</span><input class="amtIn" inputmode="decimal" value="1.00" aria-label="Bet"><b>TON</b></label>
+          </div>
+          <div class="pop r autoPop">
+            <label class="auto"><span class="sw-t"><input type="checkbox" class="autoOn"><span></span></span><span data-i="auto">Автовывод</span></label>
+            <label class="pfield"><span data-i="atX">На множителе</span><input class="autoX" inputmode="decimal" value="2.00" aria-label="Auto x"><b>x</b></label>
+            <label class="auto"><span class="sw-t"><input type="checkbox" class="autoBet"><span></span></span><span data-i="autoBet">Автоставка</span></label>
+          </div>
+          <div class="drow">
+            <div class="amt"><button class="dec" aria-label="−">−</button><button class="amtBtn"><span class="amtV">1.00</span><svg class="ton" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="12" fill="#0098ea"/><path d="M7.2 7.5h9.6c.7 0 1.1.8.8 1.4L12.6 17c-.3.5-.9.5-1.2 0L6.4 8.9c-.3-.6.1-1.4.8-1.4zm4.1 1.3H8.3l3 5.4V8.8zm1.4 0v5.4l3-5.4h-3z" fill="#fff"/></svg></button><button class="inc" aria-label="+">+</button></div>
+            <button class="achip autoBtn"><span data-i="autoS">Авто</span><b class="autoV"></b></button>
+            <button class="pbx" aria-label="Second bet"></button>
+          </div>
+          <button class="main"><b class="mainB"></b><small class="mainS"></small></button>
         </div>
-        <div class="pop r" id="autoPop">
-          <label class="auto"><span class="sw-t"><input type="checkbox" id="autoOn"><span></span></span><span data-i="auto">Автовывод</span></label>
-          <label class="pfield"><span data-i="atX">На множителе</span><input id="autoX" inputmode="decimal" value="2.00" aria-label="Auto x"><b>x</b></label>
-          <label class="auto"><span class="sw-t"><input type="checkbox" id="autoBet"><span></span></span><span data-i="autoBet">Автоставка</span></label>
-        </div>
-        <div class="drow">
-          <div class="amt"><button id="dec" aria-label="−">−</button><button id="amtBtn"><span id="amtV">1.00</span><svg class="ton" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="12" fill="#0098ea"/><path d="M7.2 7.5h9.6c.7 0 1.1.8.8 1.4L12.6 17c-.3.5-.9.5-1.2 0L6.4 8.9c-.3-.6.1-1.4.8-1.4zm4.1 1.3H8.3l3 5.4V8.8zm1.4 0v5.4l3-5.4h-3z" fill="#fff"/></svg></button><button id="inc" aria-label="+">+</button></div>
-          <button class="achip" id="autoBtn"><span data-i="autoS">Авто</span><b id="autoV"></b></button>
-        </div>
-        <button class="main" id="main"><b id="mainB"></b><small id="mainS"></small></button>
-      </section>
+      </template>
 
       <nav class="tabs">
         <button aria-current="page" data-tab="game"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 2.5c3 2.2 4.5 5.6 4.5 9.5l-1.8 4.5H9.3L7.5 12c0-3.9 1.5-7.3 4.5-9.5z"/><circle cx="12" cy="10" r="1.8"/><path d="M9.3 16.5 7 20l3.2-1.2M14.7 16.5 17 20l-3.2-1.2M12 18.5v3"/></svg><span data-i="tGame">Игра</span></button>
@@ -401,28 +414,31 @@ let LITE=false;{const q=new URLSearchParams(location.search).get('lite');
   try{if(q!==null)localStorage.setItem('cr.lite',q==='1'?'1':'0');LITE=localStorage.getItem('cr.lite')==='1'}catch(e){LITE=q==='1'}}
 const NAMES=['crypto_king','whale_99','ivan_kick','moon_boy','degen_anna','hodl_masha','pepe_lord','satoshi_fan','bear_market','long_x100','sol_sister','ton_tiger','dima_pump','rekt_again','alpha_lena','gm_frens'];
 function sampleCrash(){const u=Math.random();return Math.min(60,Math.max(1,Math.floor(97/(1-u))/100))}
-const S={phase:'wait',t0:performance.now(),t:0,m:1,crash:1,hist:[],bots:[],bet:null,next:null,bal:25,pend:0,online:1240,mi:0};
+// bets[i] / nexts[i]: the bet of bet panel i in this round / queued for the next one (two panels, two bets)
+const S={phase:'wait',t0:performance.now(),t:0,m:1,crash:1,hist:[],bots:[],bets:[null,null],nexts:[null,null],bal:25,pend:0,online:1240,mi:0};
+const myBets=()=>S.bets.filter(Boolean);
 for(let i=0;i<14;i++)S.hist.push(sampleCrash());
 function makeBots(){const pool=[...NAMES].sort(()=>Math.random()-.5).slice(0,8+Math.floor(Math.random()*6)),bets=[.5,1,1,2,3,5,5,10,20,50];
   return pool.map(n=>({n,bet:bets[Math.floor(Math.random()*bets.length)],target:Math.max(1.05,Math.min(15,.97/(1-Math.random()*.93))),out:0}))}
 S.bots=makeBots();
 
 function startFlight(ts){S.phase='fly';S.t0=ts;S.t=0;S.m=1;S.mi=0;S.crash=sampleCrash();
-  if(S.next){S.bet={amt:S.next.amt,out:0};S.next=null}
-  if(S.bet&&!S.bet.demo&&window.ECO)ECO.bet(S.bet.amt);   // demo bets earn no coins or stats
+  for(let i=0;i<2;i++)if(S.nexts[i]){S.bets[i]={amt:S.nexts[i].amt,out:0};S.nexts[i]=null}
+  if(window.ECO)for(const b of myBets())if(!b.demo)ECO.bet(b.amt);   // demo bets earn no coins or stats
   SC.onStart();showCount(T('go'),true);AU.go();AU.engine(true,1);renderPlayers();haptic('medium')}
 function doCrash(ts){S.phase='crash';S.t0=ts;S.m=S.crash;S.hist.unshift(S.crash);S.hist.length=Math.min(S.hist.length,20);
-  const lost=!!(S.bet&&!S.bet.out),cashed=!!(S.bet&&S.bet.out);
+  const mine=myBets(),lost=mine.some(b=>!b.out),cashed=mine.length&&!lost;
   SC.onCrash(lost);AU.engine(false);AU.boom();
   if(lost){setTimeout(()=>{pop('stamp',T('rekt'));AU.lose()},320);haptic('error')}
-  else if(cashed){setTimeout(()=>pop('safe',T('safe')(x2(S.bet.out))),350)}
+  else if(cashed){setTimeout(()=>pop('safe',T('safe')(x2(Math.max(...mine.map(b=>b.out))))),350)}
   const mu=$('mult');mu.classList.remove('glitch');void mu.offsetWidth;mu.classList.add('glitch');
-  renderHist(true);renderPlayers();window.ECO&&ECO.roundEnd(S.bet&&S.bet.demo?null:S.bet,S.crash)}
-function newRound(ts){S.phase='wait';S.t0=ts;S.m=1;S.t=0;S.bet=null;S.bots=makeBots();S.online+=Math.round((Math.random()-.45)*30);
-  if(S.next){S.bet={amt:S.next.amt,out:0};S.next=null}
-  else if(!window.NET_ON){const a=autoBetDue();if(a){S.bal-=a;S.bet={amt:a,out:0}}}
+  renderHist(true);renderPlayers();window.ECO&&ECO.roundEnd(mine.filter(b=>!b.demo),S.crash)}
+function newRound(ts){S.phase='wait';S.t0=ts;S.m=1;S.t=0;S.bets=[null,null];S.bots=makeBots();S.online+=Math.round((Math.random()-.45)*30);
+  for(let i=0;i<2;i++){
+    if(S.nexts[i]){S.bets[i]={amt:S.nexts[i].amt,out:0};S.nexts[i]=null}
+    else if(!window.NET_ON){const a=autoBetDue(i);if(a){S.bal-=a;S.bets[i]={amt:a,out:0}}}}
   SC.onReset();renderPlayers();lastCount=-1}
-function cashOut(m,confirmed){const b=S.bet;if(!b||b.out||(S.phase!=='fly'&&!confirmed))return;  // confirmed: the server paid it, show it even if the crash message came first
+function cashOut(i,m,confirmed){const b=S.bets[i];if(!b||b.out||(S.phase!=='fly'&&!confirmed))return;  // confirmed: the server paid it, show it even if the crash message came first
   b.out=m;const win=b.amt*m;S.bal+=win;S.pend+=win;
   SC.onMyCash(m,win);AU.cash();haptic('success');window.ECO&&!b.demo&&ECO.cash(m,win,b.amt);
   const big=m>=5;$('winL').textContent=big?T('bigL'):T('winL');$('winV').textContent='+'+fmtTon(win)+CUR();$('winS').textContent=T('on')(x2(m));
@@ -628,7 +644,8 @@ function renderHist(fresh){$('hist').innerHTML=S.hist.map((c,i)=>`<span class="c
 let psTab='round';
 $('psTabs').onclick=e=>{const b=e.target.closest('button');if(!b)return;psTab=b.dataset.v;$('psTabs').querySelectorAll('button').forEach(x=>x.setAttribute('aria-selected',x===b));$('phL').parentElement.style.display=psTab==='mine'?'none':'';renderPlayers();haptic('select')};
 function renderPlayers(){
-  const rows=[...S.bots];if(S.bet)rows.unshift({n:T('you'),bet:S.bet.amt,out:S.bet.out,me:true,demo:S.bet.demo});
+  const rows=[...S.bots],two=myBets().length>1;
+  S.bets.forEach((b,i)=>{if(b)rows.unshift({n:T('you')+(two?' · '+(i+1):''),bet:b.amt,out:b.out,me:true,demo:b.demo})});
   rows.sort((a,b)=>(b.me?1e9:0)-(a.me?1e9:0)||(b.out?1:0)-(a.out?1:0)||b.bet-a.bet);
   const real=rows.filter(r=>!r.demo),pool=real.reduce((s,r)=>s+r.bet,0);   // a demo bet is not in the round's real pool
   set('phL','textContent',T('players')(real.length));set('phR','textContent',T('pool')(fmtTon(pool)));
@@ -645,29 +662,43 @@ function feed(n,m,profit,me){const box=$('feed'),el=document.createElement('div'
   const av=me?'linear-gradient(135deg,#ffd23f,#ff3ea5)':`hsl(${hue(n)} 55% 45%)`;
   el.innerHTML=`<span class="av" style="background:${av}">${(me?(lang==='ru'?'Я':'Y'):n[0]).toUpperCase()}</span><b>${me?n:'@'+n}</b><span>${x2(m)}x</span><em>+${fmtTon(profit)}</em>`;
   box.appendChild(el);while(box.children.length>4)box.firstChild.remove();setTimeout(()=>{el.classList.add('out');setTimeout(()=>el.remove(),400)},3600)}
-function getAmt(){let v=parseFloat(String($('amt').value).replace(',','.'));if(!isFinite(v))v=1;return clamp(v,.1,1000)}
-function setAmt(v){v=clamp(Math.round(v*100)/100,.1,1000);$('amt').value=v.toFixed(2);$('amtV').textContent=fmtTon(v)}
-$('dec').onclick=()=>{const a=getAmt();setAmt(a-(a>1?.5:.1))};$('inc').onclick=()=>{const a=getAmt();setAmt(a+(a>=1?.5:.1))};
-$('half').onclick=()=>setAmt(getAmt()/2);$('dbl').onclick=()=>setAmt(getAmt()*2);
-$('quick').onclick=e=>{const v=e.target.dataset&&e.target.dataset.v;if(v){setAmt(+v);closePops()}};$('amt').onchange=()=>setAmt(getAmt());
-function autoChip(){const on=$('autoOn').checked,ab=$('autoBet').checked;$('autoBtn').classList.toggle('on',on||ab);$('autoV').textContent=[on?x2(parseFloat($('autoX').value)||2)+'x':ab?'':T('off'),ab?'↻':''].filter(Boolean).join(' ')}
-$('autoOn').onchange=autoChip;$('autoBet').onchange=autoChip;
+/* ---------- bet panels: two, each with its own amount, auto cash-out, auto-bet and button ---------- */
+const PN=[0,1].map(i=>{const el=$('bpT').content.firstElementChild.cloneNode(true);el.dataset.s=i;$('dock').appendChild(el);const q=s=>el.querySelector(s);
+  return{i,el,amtIn:q('.amtIn'),amtV:q('.amtV'),autoOn:q('.autoOn'),autoX:q('.autoX'),autoBet:q('.autoBet'),autoBtn:q('.autoBtn'),autoV:q('.autoV'),
+    amtPop:q('.amtPop'),autoPop:q('.autoPop'),pbx:q('.pbx'),main:q('.main'),mainB:q('.mainB'),mainS:q('.mainS'),c:{}}});
+window.PN=PN;
+const autoOn=i=>PN[i].autoOn.checked,autoX=i=>parseFloat(PN[i].autoX.value)||2;
+function getAmt(i){let v=parseFloat(String(PN[i].amtIn.value).replace(',','.'));if(!isFinite(v))v=1;return clamp(v,.1,1000)}
+function setAmt(i,v){v=clamp(Math.round(v*100)/100,.1,1000);PN[i].amtIn.value=v.toFixed(2);PN[i].amtV.textContent=fmtTon(v)}
+function autoChip(i){const p=PN[i],on=p.autoOn.checked,ab=p.autoBet.checked;p.autoBtn.classList.toggle('on',on||ab);p.autoV.textContent=[on?x2(autoX(i))+'x':ab?'':T('off'),ab?'↻':''].filter(Boolean).join(' ')}
 /** Auto-bet: the same amount every round until it is switched off or the balance runs short. */
-function autoBetDue(){if(!$('autoBet').checked||S.bet||S.next)return 0;const a=getAmt();
-  if(S.bal<a){$('autoBet').checked=false;autoChip();toast(T('autoStop'),'bad');window.NET&&NET.ton&&!NET.demo&&NET.openTon('deposit');return 0}return a}
-$('autoX').onchange=()=>{let v=parseFloat($('autoX').value.replace(',','.'));if(!isFinite(v)||v<1.01)v=1.01;$('autoX').value=v.toFixed(2);autoChip()};
+function autoBetDue(i){if(!PN[i].autoBet.checked||S.bets[i]||S.nexts[i]||PN[i].el.hidden)return 0;const a=getAmt(i);
+  if(S.bal<a){PN[i].autoBet.checked=false;autoChip(i);toast(T('autoStop'),'bad');window.NET&&NET.ton&&!NET.demo&&NET.openTon('deposit');return 0}return a}
 function closePops(){document.querySelectorAll('.pop.on').forEach(p=>p.classList.remove('on'))}
-function togglePop(id){const p=$(id),was=p.classList.contains('on');closePops();if(!was)p.classList.add('on');haptic('select')}
-$('amtBtn').onclick=e=>{e.stopPropagation();togglePop('amtPop')};$('autoBtn').onclick=e=>{e.stopPropagation();togglePop('autoPop')};
+function togglePop(p){const was=p.classList.contains('on');closePops();if(!was)p.classList.add('on');haptic('select')}
+// the second panel: shown with +, hidden with × (only when it has no bet); remembered on this device
+function setTwo(on,quiet){PN[1].el.hidden=!on;$('dock').classList.toggle('two',on);try{localStorage.setItem('cr.two',on?'1':'0')}catch(e){}if(!quiet){haptic('select');requestAnimationFrame(resize)}}
+PN[0].pbx.textContent='+';PN[0].pbx.classList.add('add');PN[1].pbx.textContent='×';
+PN.forEach(p=>{const i=p.i;
+  p.el.querySelector('.dec').onclick=()=>{const a=getAmt(i);setAmt(i,a-(a>1?.5:.1))};p.el.querySelector('.inc').onclick=()=>{const a=getAmt(i);setAmt(i,a+(a>=1?.5:.1))};
+  p.el.querySelector('.quick').onclick=e=>{const d=e.target.dataset||{};if(d.v){setAmt(i,+d.v);closePops()}else if(d.q)setAmt(i,getAmt(i)*(d.q==='dbl'?2:.5))};
+  p.amtIn.onchange=()=>setAmt(i,getAmt(i));
+  p.autoOn.onchange=()=>autoChip(i);p.autoBet.onchange=()=>autoChip(i);
+  p.autoX.onchange=()=>{let v=parseFloat(p.autoX.value.replace(',','.'));if(!isFinite(v)||v<1.01)v=1.01;p.autoX.value=v.toFixed(2);autoChip(i)};
+  p.el.querySelector('.amtBtn').onclick=e=>{e.stopPropagation();togglePop(p.amtPop)};p.autoBtn.onclick=e=>{e.stopPropagation();togglePop(p.autoPop)};
+  p.pbx.onclick=e=>{e.stopPropagation();if(i===0)return setTwo(true);
+    if(S.bets[1]||S.nexts[1]){toast(lang==='ru'?'Сначала дождитесь конца ставки':'Wait until this bet is over','bad');return}setTwo(false)};
+  p.main.onclick=()=>mainTap(i)});
+{let two=false;try{two=localStorage.getItem('cr.two')==='1'}catch(e){}setTwo(two,true)}
 document.querySelectorAll('.pop').forEach(p=>p.addEventListener('click',e=>e.stopPropagation()));
 document.addEventListener('click',closePops);
 $('topup').onclick=()=>{if(window.NET_ON)return NET.refill();if(S.bal<1){S.bal=25;toast(T('refill'))}else toast(T('topup'))};
-function placeBet(a){if(S.bal<a){toast(T('noFunds'),'bad');return false}S.bal-=a;if(S.phase==='wait')S.bet={amt:a,out:0};else S.next={amt:a};AU.tone(880,.08,'sine',.12);renderPlayers();return true}
-$('main').onclick=()=>{unlockAudio();if(window.NET_ON)return NET.main();const a=getAmt();
-  if(S.phase==='fly'&&S.bet&&!S.bet.out){cashOut(S.shown?S.shown.x:xf(S.m));return}   // the number on screen
-  if(S.phase==='wait'&&S.bet){S.bal+=S.bet.amt;S.bet=null;renderPlayers();return}
-  if(S.phase!=='wait'&&S.next){S.bal+=S.next.amt;S.next=null;return}
-  if(placeBet(a))toast(S.phase==='wait'?T('accepted'):T('nextQueued'))};
+function placeBet(i,a){if(S.bal<a){toast(T('noFunds'),'bad');return false}S.bal-=a;if(S.phase==='wait')S.bets[i]={amt:a,out:0};else S.nexts[i]={amt:a};AU.tone(880,.08,'sine',.12);renderPlayers();return true}
+function mainTap(i){unlockAudio();if(window.NET_ON)return NET.main(i);const a=getAmt(i),b=S.bets[i];
+  if(S.phase==='fly'&&b&&!b.out){cashOut(i,S.shown?S.shown.x:xf(S.m));return}   // the number on screen
+  if(S.phase==='wait'&&b){S.bal+=b.amt;S.bets[i]=null;renderPlayers();return}
+  if(S.phase!=='wait'&&S.nexts[i]){S.bal+=S.nexts[i].amt;S.nexts[i]=null;return}
+  if(placeBet(i,a))toast(S.phase==='wait'?T('accepted'):T('nextQueued'))}
 
 /* sound */
 function unlockAudio(){if(AU.on&&AU.ctx&&AU.ctx.state==='suspended')AU.ctx.resume()}
@@ -679,7 +710,7 @@ $('psClose').onclick=closeSheet;$('scrim').onclick=closeSheet;
 $('plBtn').onclick=e=>{e.stopPropagation();closePops();renderPlayers();$('psheet').classList.add('on');$('scrim').classList.add('on')};
 
 function applyLang(){document.documentElement.lang=lang;
-  document.querySelectorAll('[data-i]').forEach(e=>{const v=T(e.dataset.i);if(typeof v==='string')e.textContent=v});for(const kk in cache)delete cache[kk];renderPlayers();setAmt(getAmt());autoChip();window.UI&&UI.refresh()}
+  document.querySelectorAll('[data-i]').forEach(e=>{const v=T(e.dataset.i);if(typeof v==='string')e.textContent=v});for(const kk in cache)delete cache[kk];PN.forEach(p=>{p.c={};setAmt(p.i,getAmt(p.i));autoChip(p.i)});renderPlayers();window.UI&&UI.refresh()}
 window.setLang=l=>{lang=l;try{localStorage.setItem('cr.lang',l)}catch(e){}applyLang()};
 
 /* heat colour of the multiplier */
@@ -697,15 +728,16 @@ function updateHud(ts){
     const cls='mult'+(S.phase==='crash'?' crashed':'');if(!mu.classList.contains('punch')&&!mu.classList.contains('glitch'))set('mult','className',cls);else{mu.classList.toggle('crashed',S.phase==='crash');mu.classList.remove('waiting')}
     if(S.phase==='fly'){const h=heat(S.m);if(h!==lastHeat){lastHeat=h;app.style.setProperty('--heat',h[1]);app.style.setProperty('--heat-glow',h[2])}}   // restyles the whole app: only when the colour changes
     set('sub','textContent',S.phase==='crash'?T('boom')(x2(S.crash)):T('alt')(S.m))}
-  let cls='main',b,s='';
   const cu=CUR();
-  if(S.phase==='fly'&&S.bet&&!S.bet.out&&S.bet.lock){cls+=' cash locked';b='x'+x2(S.bet.lock);s=fmtTon(S.bet.amt*S.bet.lock)+cu}  // tapped, waiting for the confirmation
-  else if(S.phase==='fly'&&S.bet&&!S.bet.out){cls+=' cash';b=T('cash');s=fmtTon(S.bet.amt*xf(S.m))+cu}
-  else if(S.phase==='wait'&&S.bet){cls+=' cancel';b=T('cancel');s=T('accepted')+' · '+fmtTon(S.bet.amt)+cu}
-  else if(S.phase!=='wait'&&S.next){cls+=' cancel';b=T('cancel');s=T('nextQueued')+' · '+fmtTon(S.next.amt)+cu}
-  else if(S.phase==='wait'){b=T('bet');s=fmtTon(getAmt())+cu}
-  else{b=T('betNext');s=fmtTon(getAmt())+cu}
-  set('main','className',cls);set('mainB','textContent',b);set('mainS','textContent',s)}
+  for(const p of PN){if(p.el.hidden)continue;const i=p.i,bt=S.bets[i],nx=S.nexts[i];let cls='main',b,s='';
+    if(S.phase==='fly'&&bt&&!bt.out&&bt.lock){cls+=' cash locked';b='x'+x2(bt.lock);s=fmtTon(bt.amt*bt.lock)+cu}  // tapped, waiting for the confirmation
+    else if(S.phase==='fly'&&bt&&!bt.out){cls+=' cash';b=T('cash');s=fmtTon(bt.amt*xf(S.m))+cu}
+    else if(S.phase==='wait'&&bt){cls+=' cancel';b=T('cancel');s=T('accepted')+' · '+fmtTon(bt.amt)+cu}
+    else if(S.phase!=='wait'&&nx){cls+=' cancel';b=T('cancel');s=T('nextQueued')+' · '+fmtTon(nx.amt)+cu}
+    else if(S.phase==='wait'){b=T('bet');s=fmtTon(getAmt(i))+cu}
+    else{b=T('betNext');s=fmtTon(getAmt(i))+cu}
+    // only touch the DOM when something changed (this runs every frame)
+    if(p.c.cls!==cls)p.main.className=p.c.cls=cls;if(p.c.b!==b)p.mainB.textContent=p.c.b=b;if(p.c.s!==s)p.mainS.textContent=p.c.s=s}}
 $('mult').addEventListener('animationend',e=>e.target.classList.remove('punch','glitch'));
 
 /* =====================================================================
@@ -772,7 +804,7 @@ function tick(ts){
   else if(S.phase==='fly'){S.t=el;const m=Math.exp(K*el);
     if(m>=S.crash)doCrash(ts);
     else{S.m=m;let ch=false;
-      if(S.bet&&!S.bet.out){if($('autoOn').checked){const ax=parseFloat($('autoX').value)||2;if(m>=ax)cashOut(ax)}}
+      for(let i=0;i<2;i++){const b=S.bets[i];if(b&&!b.out&&autoOn(i)){const ax=autoX(i);if(m>=ax)cashOut(i,ax)}}
       for(const b of S.bots)if(!b.out&&m>=b.target){b.out=b.target;ch=true;SC.onBotCash(b.n,b.target);feed(b.n,b.target,b.bet*(b.target-1))}
       if(ch)renderPlayers()}}
   else if(S.phase==='crash'&&el>=HOLD)newRound(ts);
@@ -788,7 +820,7 @@ function tick(ts){
 requestAnimationFrame(tick);
 </script>
 <!-- ?v=: bump on every release so Telegram does not keep old copies (and APP_VER + version.json for the page itself) -->
-<script src="screens.js?v=20261003c"></script>
-<script src="net.js?v=20261005"></script>
-<script src="round.js?v=20260926"></script>
+<script src="screens.js?v=20261007"></script>
+<script src="net.js?v=20261007"></script>
+<script src="round.js?v=20261007"></script>
 <script src="menu.js?v=20261007"></script>

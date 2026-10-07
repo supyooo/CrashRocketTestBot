@@ -78,6 +78,32 @@ for (const kind of ['file', 'postgres'] as const) {
     assert.equal(engine.phase, 'crashed');
   });
 
+  test(`[${kind}] two bets in one round are settled separately`, async () => {
+    const { engine, wallet, cfg, store } = await setup();
+    await grantU(store, wallet, 'u1', toUnits(100), 'g');
+    let t = 0;
+    for (let i = 0; i < 300; i++) {
+      if (i === 0) await engine.start(t); else { t += cfg.crashedMs; engine.step(t); await engine.settled(); await untilBetting(engine); }
+      const before = await wallet.balance('u1');
+      await engine.placeBet('u1', 'Ann', toUnits(2), undefined, 0);
+      await engine.placeBet('u1', 'Ann', toUnits(3), undefined, 1);
+      await assert.rejects(engine.placeBet('u1', 'Ann', toUnits(1), undefined, 1), /already have a bet/);
+      await assert.rejects(engine.placeBet('u1', 'Ann', toUnits(1), undefined, 2), /slot/);
+      assert.equal(await wallet.balance('u1'), before - toUnits(5));
+      t += cfg.bettingMs; engine.step(t);
+      if (crashOf(engine) < 120) { t = await fly(engine, t); continue; }
+      const a = await engine.cashout('u1', t + msTo(110), undefined, 1);   // only the second one
+      assert.equal(a.x100, 110); assert.equal(a.payout, toUnits(3.3));
+      await assert.rejects(async () => engine.cashout('u1', t + msTo(111), undefined, 1), /already cashed out/);
+      t = await fly(engine, t);                                            // the first one rides to the crash and is lost
+      assert.equal(await wallet.balance('u1'), before - toUnits(5) + toUnits(3.3));
+      const snap = engine.snapshot(t);
+      assert.equal(snap.bets.length, 2);
+      return;
+    }
+    assert.fail('no round reached 1.20x');
+  });
+
   test(`[${kind}] cash-out at the crash moment is refused`, async () => {
     const { engine, wallet, cfg, store } = await setup();
     await grantU(store, wallet, 'u1', toUnits(100), 'g');

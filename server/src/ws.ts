@@ -2,7 +2,8 @@
  * Real-time channel: /ws?token=<session>. Everyone gets the round events; each player also gets
  * private balance updates and replies to their own requests.
  *
- * Client -> server: {t:'bet', id, amount, auto?} | {t:'cancel', id} | {t:'cashout', id, at?} | {t:'ping', id}
+ * Client -> server: {t:'bet', id, amount, auto?, slot?} | {t:'cancel', id, slot?} | {t:'cashout', id, at?, slot?} | {t:'ping', id}
+ * (slot: which of the player's two bet panels, 0 or 1; 0 when missing)
  * (`at`: server time of the tap as the app estimates it from ping round-trips)
  * Server -> client: hello, betting, run, tick, crash, bet, cancel, cashout, balance, ok, err, pong
  *
@@ -53,11 +54,11 @@ export function attachWs(server: Server, cfg: Config, wallet: Wallet, isBlocked:
     e.on('betting', (ev) => { flush(); all({ t: 'betting', ...ev }); });
     e.on('run', (ev) => { flush(); all({ t: 'run', ...ev, k: K_PER_SEC, serverNow: Date.now() }); });
     e.on('crash', (ev) => { flush(); all({ t: 'crash', no: ev.no, crash: ev.crashX100 / 100, hash: ev.hash }); });
-    e.on('bet', (ev: Ev) => { publish({ t: 'bet', uid: ev.uid, name: ev.name, amount: fromUnits(ev.amount as number) }); toUser(ev.uid!, { t: 'balance', balance: fromUnits(ev.balance!) }); });
-    e.on('cancel', (ev: Ev) => { publish({ t: 'cancel', uid: ev.uid }); toUser(ev.uid!, { t: 'balance', balance: fromUnits(ev.balance!) }); });
+    e.on('bet', (ev: Ev) => { publish({ t: 'bet', uid: ev.uid, slot: ev.slot, name: ev.name, amount: fromUnits(ev.amount as number) }); toUser(ev.uid!, { t: 'balance', balance: fromUnits(ev.balance!) }); });
+    e.on('cancel', (ev: Ev) => { publish({ t: 'cancel', uid: ev.uid, slot: ev.slot }); toUser(ev.uid!, { t: 'balance', balance: fromUnits(ev.balance!) }); });
     // a cash-out is announced when decided (the player at once, everyone else in the next batch); the new balance
     // follows once the payout is written
-    e.on('cashout', (ev: Ev) => { const m = { t: 'cashout', uid: ev.uid, name: ev.name, x: (ev.x100 as number) / 100, payout: fromUnits(ev.payout as number) }; toUser(ev.uid!, m); publish(m); });
+    e.on('cashout', (ev: Ev) => { const m = { t: 'cashout', uid: ev.uid, slot: ev.slot, name: ev.name, x: (ev.x100 as number) / 100, payout: fromUnits(ev.payout as number) }; toUser(ev.uid!, m); publish(m); });
     e.on('paid', (ev: Ev) => toUser(ev.uid!, { t: 'balance', balance: fromUnits(ev.balance!) }));
     for (const c of clients) void hello(c);
   }
@@ -73,7 +74,7 @@ export function attachWs(server: Server, cfg: Config, wallet: Wallet, isBlocked:
     c.on('close', () => { clients.delete(c); const s = byUser.get(c.uid); if (s) { s.delete(c); if (!s.size) byUser.delete(c.uid); } });
     c.on('message', async (raw) => {
       if (++c.msgs > 30) { c.close(4008, 'too many messages'); return; }
-      let m: { t?: string; id?: number; amount?: number; auto?: number; at?: number };
+      let m: { t?: string; id?: number; amount?: number; auto?: number; at?: number; slot?: number };
       try { m = JSON.parse(String(raw)); } catch { return; }
       const reply = (ok: boolean, extra: object) => send(c, { t: ok ? 'ok' : 'err', id: m.id, ...extra });
       try {
@@ -83,11 +84,11 @@ export function attachWs(server: Server, cfg: Config, wallet: Wallet, isBlocked:
           if (isBlocked(c.uid)) throw new GameError('this account is blocked, contact support');
           if (typeof m.amount !== 'number') throw new GameError('amount is required');
           const auto = typeof m.auto === 'number' ? Math.round(m.auto * 100) : undefined;
-          const bal = await engine.placeBet(c.uid, c.name, toUnits(m.amount), auto);
+          const bal = await engine.placeBet(c.uid, c.name, toUnits(m.amount), auto, m.slot);
           reply(true, { balance: fromUnits(bal) });
-        } else if (m.t === 'cancel') reply(true, { balance: fromUnits(await engine.cancelBet(c.uid)) });
+        } else if (m.t === 'cancel') reply(true, { balance: fromUnits(await engine.cancelBet(c.uid, m.slot)) });
         else if (m.t === 'cashout') {   // answered at once: the result is final; the balance comes in a 'balance' message
-          const r = engine.cashoutNow(c.uid, Date.now(), m.at);
+          const r = engine.cashoutNow(c.uid, Date.now(), m.at, m.slot);
           r.paid.catch((err) => console.error('payout failed', err));
           reply(true, { x: r.x100 / 100, payout: fromUnits(r.payout) });
         }
