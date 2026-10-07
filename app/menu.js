@@ -50,11 +50,17 @@ const css=document.createElement('style');css.textContent=`
 .mnu .lg button{border:0;background:transparent;padding:4px 10px;border-radius:999px;font-family:inherit;font-weight:700;font-size:12px;color:var(--muted);cursor:pointer}
 .mnu .lg button[aria-pressed="true"]{background:var(--panel-2);color:var(--text)}
 .dsheet{max-height:88%}
-.dsheet .dbody{overflow:auto;padding:4px 16px 20px;display:flex;flex-direction:column;gap:14px}
-.dsheet .toc{display:flex;flex-wrap:wrap;gap:6px}
-.dsheet .toc button{padding:6px 10px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--muted);font-family:inherit;font-weight:600;font-size:12.5px;cursor:pointer}
-.dsheet section{display:flex;flex-direction:column;gap:6px;padding:14px;border-radius:14px;background:var(--panel);border:1px solid var(--line);scroll-margin-top:8px}
-.dsheet h3{margin:0;font:800 15px 'Unbounded',sans-serif}
+.dsheet .dbody{overflow:auto;padding:4px 16px 20px;display:flex;flex-direction:column;gap:8px}
+.dsheet details{border-radius:14px;background:var(--panel);border:1px solid var(--line)}
+.dsheet details[open]{border-color:#4a4290}
+.dsheet summary{display:flex;align-items:center;gap:12px;padding:12px 14px;cursor:pointer;list-style:none;font:800 14px 'Unbounded',sans-serif}
+.dsheet summary::-webkit-details-marker{display:none}
+.dsheet summary .di{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;flex:none;background:rgba(43,255,136,.12);color:var(--green)}
+.dsheet summary .di svg{width:19px;height:19px}
+.dsheet summary span{flex:1;min-width:0}
+.dsheet summary .chev{width:18px;height:18px;flex:none;color:var(--muted);transition:transform .2s}
+.dsheet details[open] .chev{transform:rotate(180deg)}
+.dsheet .dtext{display:flex;flex-direction:column;gap:8px;padding:0 14px 14px 60px}
 .dsheet p{margin:0;font-size:14px;line-height:1.55;color:#cfd2ec}`;
 document.head.appendChild(css);
 
@@ -66,7 +72,18 @@ const I={
   rules:'<path d="M6 3.5h9l3 3v14H6z"/><path d="M9 10h6M9 13.5h6M9 17h4"/>',
   fair:'<path d="M12 3.5l7 3v5c0 4.4-3 7.7-7 9-4-1.3-7-4.6-7-9v-5z"/><path d="M9 12l2 2 4-4"/>',
   hist:'<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
-  support:'<path d="M4.5 12a7.5 7.5 0 0 1 15 0v4.5a2 2 0 0 1-2 2H16v-6h3.5M4.5 12v4.5a2 2 0 0 0 2 2H8v-6H4.5"/>'};
+  support:'<path d="M4.5 12a7.5 7.5 0 0 1 15 0v4.5a2 2 0 0 1-2 2H16v-6h3.5M4.5 12v4.5a2 2 0 0 0 2 2H8v-6H4.5"/>',
+  // rule sections
+  how:'<path d="M12 2.5c3 2.2 4.5 5.6 4.5 9.5l-1.8 4.5H9.3L7.5 12c0-3.9 1.5-7.3 4.5-9.5z"/><circle cx="12" cy="10" r="1.8"/><path d="M12 18.5v3"/>',
+  round:'<circle cx="12" cy="13" r="7.5"/><path d="M12 9v4l2.5 1.5M9.5 2.5h5"/>',
+  auto:'<path d="M4 12a8 8 0 0 1 13.7-5.6L20 8.5M20 4v4.5h-4.5M20 12a8 8 0 0 1-13.7 5.6L4 15.5M4 20v-4.5h4.5"/>',
+  demo:'<rect x="3" y="7" width="18" height="11" rx="4"/><path d="M8 10.5v4M6 12.5h4"/><circle cx="15.5" cy="11.5" r=".8"/><circle cx="17.5" cy="13.5" r=".8"/>',
+  coins:'<ellipse cx="12" cy="7" rx="7" ry="3"/><path d="M5 7v5c0 1.7 3.1 3 7 3s7-1.3 7-3V7M5 12v5c0 1.7 3.1 3 7 3s7-1.3 7-3v-5"/>',
+  ton:'<path d="M3.5 7.5h15a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-15z"/><path d="M3.5 7.5 15 4l1 3.5M16.5 13.5h1"/>',
+  tech:'<path d="M2.5 9a14 14 0 0 1 19 0M5.5 12.3a9.5 9.5 0 0 1 13 0M8.5 15.5a5 5 0 0 1 7 0"/><circle cx="12" cy="18.8" r="1"/>',
+  aml:'<rect x="5" y="10.5" width="14" height="10" rx="2"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3M12 14.5v2.5"/>',
+  play:'<path d="M12 20s-7.5-4.6-7.5-10A4.3 4.3 0 0 1 12 7.4 4.3 4.3 0 0 1 19.5 10c0 5.4-7.5 10-7.5 10z"/>',
+  chev:'<path d="M6 9l6 6 6-6"/>'};
 const ic=k=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${I[k]}</svg>`;
 
 // the burger takes the place of the sound button, which stays hidden as the switch the menu and the profile press
@@ -98,12 +115,15 @@ mn.addEventListener('click',e=>{e.stopPropagation();const l=e.target.closest('[d
     else if(a==='hist'){window.UI&&UI.go('game');$('plBtn').click();const t=$('psTabs').querySelector('[data-v="mine"]');t&&t.click()}
     else if(a==='support')toast(m('soon'))}});
 
-function openDocs(sec){const D=DOCS[lang]||DOCS.en;
+// the rules as an accordion: one section open at a time (the asked one, or "how to play")
+function openDocs(sec){const D=DOCS[lang]||DOCS.en,open=sec||'how';
   ds.innerHTML=`<div class="sh-h"><h2>${m('docs')}</h2><button data-d="close" aria-label="Close">×</button></div>
-  <div class="dbody"><div class="toc" aria-label="${m('toc')}">${D.map(([id,t])=>`<button data-d="${id}">${t}</button>`).join('')}</div>
-  ${D.map(([id,t,ps])=>`<section id="doc-${id}"><h3>${t}</h3>${ps.map(p=>`<p>${p}</p>`).join('')}</section>`).join('')}</div>`;
+  <div class="dbody">${D.map(([id,t,ps])=>`<details id="doc-${id}"${id===open?' open':''}><summary><span class="di">${ic(id)}</span><span>${t}</span><span class="chev">${ic('chev')}</span></summary>
+    <div class="dtext">${ps.map(p=>`<p>${p}</p>`).join('')}</div></details>`).join('')}</div>`;
   ds.classList.add('on');$('scrim').classList.add('on');haptic('select');
   const body=ds.querySelector('.dbody');body.scrollTop=0;if(sec)requestAnimationFrame(()=>toSec(sec))}
+ds.addEventListener('toggle',e=>{const d=e.target;if(d.tagName!=='DETAILS'||!d.open)return;
+  ds.querySelectorAll('details[open]').forEach(x=>{if(x!==d)x.open=false});haptic('select');requestAnimationFrame(()=>toSec(d.id.slice(4),true))},true);
 // scroll the sheet only (scrollIntoView would also shift the whole app frame)
 function toSec(id,smooth){const body=ds.querySelector('.dbody'),s=$('doc-'+id);if(body&&s)body.scrollTo({top:s.offsetTop-body.offsetTop-8,behavior:smooth?'smooth':'auto'})}
 function closeDocs(){ds.classList.remove('on');if(!document.querySelector('.sheet.on'))$('scrim').classList.remove('on')}

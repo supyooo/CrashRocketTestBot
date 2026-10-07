@@ -5,7 +5,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700;800&family=Unbounded:wght@500;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap">
-<link rel="stylesheet" href="screens.css?v=20261001">
+<link rel="stylesheet" href="screens.css?v=20261007">
 <style>
 :root{color-scheme:dark;
   --page:#0d0820;--ink:#ecebf5;--ink-2:#9490b3;--hair:#262143;
@@ -148,10 +148,20 @@ html.tg .device>.app{border-radius:0}
 .main:active{transform:translateY(3px);box-shadow:0 2px 0 #b8901a}
 .main b{font:700 15px/1.1 'Unbounded',sans-serif;text-transform:uppercase}
 .main small{font-size:12px;font-weight:700;opacity:.75;font-variant-numeric:tabular-nums}
+.main b,.main small{position:relative;z-index:1}
 .main.cash.locked{animation:none;filter:saturate(.7) brightness(.92)}
-.main.cash{background:var(--green);color:#04150d;box-shadow:0 5px 0 #0f9a50;animation:pulse 1s ease-in-out infinite}
-.main.cancel{background:var(--panel-2);color:var(--text);box-shadow:0 5px 0 var(--line)}
+.main.cash{background:var(--green);color:#04150d;box-shadow:0 5px 0 #0f9a50,inset 0 0 18px rgba(255,255,255,.35);animation:pulse 1s ease-in-out infinite;overflow:hidden}
+.main.cash small{font:800 16px/1.1 'Unbounded',sans-serif;opacity:1;letter-spacing:.01em}
+/* the cash-out button glows from inside and a light sweeps across it while the rocket flies */
+.main.cash::before{content:"";position:absolute;inset:0;border-radius:inherit;background:radial-gradient(120% 90% at 50% 120%,rgba(255,255,255,.55),transparent 60%);animation:glow 1s ease-in-out infinite;pointer-events:none}
+.main.cash::after{content:"";position:absolute;top:0;bottom:0;width:40%;left:-50%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.55),transparent);animation:sweep 1.6s ease-in-out infinite;pointer-events:none}
+.main.cash.locked::before,.main.cash.locked::after{animation:none;opacity:0}
+.main.cancel{background:var(--red);color:#fff;box-shadow:0 5px 0 #a8183f}
+.main.cancel:active{box-shadow:0 2px 0 #a8183f}
+.main.cancel small{opacity:.9}
 @keyframes pulse{50%{filter:brightness(1.15)}}
+@keyframes glow{50%{opacity:.35}}
+@keyframes sweep{to{left:120%}}
 
 .ph{display:flex;justify-content:space-between;color:var(--muted);font-size:12px;font-weight:600;padding:0 20px 8px;font-variant-numeric:tabular-nums}
 .plist{display:flex;flex-direction:column;gap:4px;padding:0 16px 16px;overflow-y:auto;font-size:12.5px}
@@ -167,8 +177,10 @@ html.tg .device>.app{border-radius:0}
 .pl.me .n{color:var(--gold)}
 .tabs{position:relative;z-index:3;display:grid;grid-template-columns:repeat(4,1fr);padding:6px 6px calc(6px + max(env(safe-area-inset-bottom,0px),var(--tg-safe-area-inset-bottom,0px)));margin-top:8px;background:var(--bg)}
 .tabs button{border:0;background:transparent;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 0;font-size:11px;font-weight:700;color:var(--muted)}
-.tabs button svg{width:22px;height:22px}
+.tabs button svg{width:52px;height:28px;padding:3px 15px;border-radius:999px;stroke-width:2;transition:background .2s,color .2s}
+/* the open tab is a solid green pill with a dark icon: readable on any screen and brightness */
 .tabs button[aria-current="page"]{color:var(--green)}
+.tabs button[aria-current="page"] svg{background:var(--green);color:#06210f}
 
 #fx{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:6}
 
@@ -190,7 +202,7 @@ html.tg .device>.app{border-radius:0}
 .card i{font-style:normal;font-size:11px;font-weight:700;padding:4px 0;border-radius:8px;background:var(--panel-2);color:var(--muted)}
 .card[aria-pressed="true"]{border-color:var(--gold);box-shadow:0 0 0 3px rgba(255,210,63,.15)}
 .card[aria-pressed="true"] i{background:var(--gold);color:#1a1204}
-@media (prefers-reduced-motion:reduce){.main.cash{animation:none}.mult.punch,.mult.glitch{animation:none}}
+@media (prefers-reduced-motion:reduce){.main.cash,.main.cash::before,.main.cash::after{animation:none}.mult.punch,.mult.glitch{animation:none}}
 /* ---------- loading screen ---------- */
 .boot{position:absolute;inset:0;z-index:60;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;overflow:hidden;
   background:radial-gradient(110% 60% at 50% 105%,rgba(255,62,165,.35),transparent 60%),linear-gradient(#1a0b3d,var(--bg) 70%);transition:opacity .4s ease,visibility .4s}
@@ -220,7 +232,7 @@ html.tg .device>.app{border-radius:0}
       /* Telegram and GitHub Pages may hand out a cached copy of this page after a release. Ask the site for the
          current version, bypassing every cache; if it is newer, reload once with it in the address (the #hash with
          Telegram's login data is kept). Bump APP_VER here and in version.json on every release. */
-      (()=>{const APP_VER='20261005';
+      (()=>{const APP_VER='20261007';
         fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(r=>r.json()).then(d=>{
           if(!d||!d.v||d.v===APP_VER)return;const u=new URL(location.href);
           if(u.searchParams.get('v')===d.v)return;          // already asked for it once: never loop
@@ -779,4 +791,4 @@ requestAnimationFrame(tick);
 <script src="screens.js?v=20261003c"></script>
 <script src="net.js?v=20261005"></script>
 <script src="round.js?v=20260926"></script>
-<script src="menu.js?v=20261003b"></script>
+<script src="menu.js?v=20261007"></script>
