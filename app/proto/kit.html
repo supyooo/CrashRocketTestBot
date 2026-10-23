@@ -1,0 +1,104 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Boomy · art brief</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=Unbounded:wght@700;800&display=swap">
+<style>
+:root{color-scheme:dark;--bg:#0c0723;--panel:#161a2f;--panel2:#1f2440;--line:#2b3155;--text:#f3f1ff;--muted:#9a9ec2;--green:#2bff88;--gold:#ffd23f;--pink:#ff3ea5}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.55 'Golos Text',system-ui,sans-serif}
+main{max-width:720px;margin:0 auto;padding:20px 16px 60px}
+h1{font:800 22px/1.25 'Unbounded',sans-serif;margin:6px 0 10px}
+h2{font:800 16px/1.3 'Unbounded',sans-serif;margin:0}
+p{margin:8px 0;color:#d6d3ee}
+.muted{color:var(--muted);font-size:13.5px}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px;margin:14px 0}
+.refs{display:grid;grid-template-columns:1.4fr 1fr;gap:10px;margin-top:10px}
+.refs figure{margin:0}.refs img{width:100%;border-radius:12px;display:block;border:1px solid var(--line)}
+.refs figcaption{font-size:12.5px;color:var(--muted);margin-top:4px}
+.step{display:flex;gap:12px;align-items:flex-start}
+.num{flex:none;width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:rgba(43,255,136,.12);color:var(--green);font:800 15px 'Unbounded',sans-serif}
+.file{display:inline-block;margin-top:4px;font:600 12.5px ui-monospace,Consolas,monospace;color:var(--gold);background:rgba(255,210,63,.08);border-radius:6px;padding:1px 7px}
+.prompt{position:relative;margin-top:10px;background:#0f1124;border:1px solid var(--line);border-radius:12px;padding:12px 12px 44px;font:13px/1.5 ui-monospace,Consolas,monospace;color:#e4e6ff;white-space:pre-wrap;word-break:break-word}
+.copy{position:absolute;right:8px;bottom:8px;height:30px;padding:0 12px;border-radius:9px;border:0;background:var(--green);color:#04150d;font:700 13px 'Golos Text',sans-serif;cursor:pointer}
+.copy.done{background:var(--gold)}
+ul{margin:6px 0;padding-left:20px}li{margin:3px 0;color:#d6d3ee}
+.tip{border-left:3px solid var(--pink);padding:2px 0 2px 10px;margin:10px 0;color:#e8dcff}
+</style>
+<main>
+<h1>Медведь и ракета: что сгенерировать</h1>
+<p>Чтобы персонаж выглядел как на заставке, а не собранным из фигур, рисуем его генератором изображений, а игра потом анимирует готовые картинки: двигает тело, меняет головы с эмоциями, качает на парашюте. Нужно 6 картинок.</p>
+
+<div class="box">
+  <h2>Перед началом</h2>
+  <ul>
+    <li><b>Где генерировать:</b> ChatGPT (генерация изображений) или Gemini (Nano Banana). Veo для этого не подходит: он делает видео, а игре нужны отдельные картинки.</li>
+    <li><b>Всё в одном чате</b>, по порядку: так генератор держит одного и того же медведя.</li>
+    <li><b>В самом начале прикрепите обе картинки ниже</b> (долгое нажатие → сохранить, потом скрепка в чате генератора) вместе с промптом №1.</li>
+    <li>Промпты на английском: так генераторы понимают их точнее. Копируйте целиком.</li>
+  </ul>
+  <div class="refs">
+    <figure><img src="ref-bear.jpg" alt="Медведь на ракете, крупно"><figcaption>Референс 1: медведь и ракета крупно</figcaption></figure>
+    <figure><img src="ref-poster.jpg" alt="Заставка целиком"><figcaption>Референс 2: заставка целиком</figcaption></figure>
+  </div>
+</div>
+
+<div class="box"><div class="step"><span class="num">1</span><div><h2>Медведь верхом (основная поза)</h2><span class="file">bear-ride</span>
+<p class="muted">Сидит верхом, как на коне, одна лапа держится впереди. Голову игра потом заменит на нужную эмоцию.</p></div></div>
+<div class="prompt" id="p1">Use the two attached images as the reference for the character and the style.
+
+Character: a cute cartoon brown bear (warm brown fur, lighter tan muzzle, round ears with tan insides, small dark nose), wearing aviator sunglasses with gold-yellow rims and dark blue reflective lenses on a dark strap, a dark teal-green flight jacket with a lighter collar and a zipper, dark teal pants and dark boots.
+
+Draw ONLY the bear, no rocket. Full body, sitting astride an invisible rocket that points to the right and slightly up: 3/4 view facing right, head turned 3/4 to the right, knees bent and apart like riding a horse, feet pointing forward and down, the near paw gripping forward at chest height (as if holding the rocket), the far paw resting on the knee. Calm, confident smile.
+
+Style: exactly like the reference: glossy 3D cartoon render (Pixar-like), soft volumetric shading, synthwave rim light: hot pink from the left, neon cyan-green from the right, rich saturated colours.
+Game sprite: crisp clean silhouette, the character alone on a plain pure white background (or transparent), no ground, no shadow, no text, no frame, the whole figure inside the image with a margin. Portrait image.<button class="copy">Скопировать</button></div></div>
+
+<div class="box"><div class="step"><span class="num">2</span><div><h2>Четыре головы с эмоциями</h2><span class="file">bear-heads</span>
+<p class="muted">Спокоен, азарт, испуг, победа. Одинаковый размер и угол, как у головы в картинке №1.</p></div></div>
+<div class="prompt" id="p2">Same bear, same style and lighting as before. A horizontal row of 4 heads only (the head and the top of the neck, no body, no collar), all exactly the same size and the same 3/4 angle facing right as in the full-body picture, evenly spaced with clear gaps between them. Sunglasses on in all four.
+1) calm, confident smile
+2) excited: mouth wide open, laughing
+3) scared: mouth open in fear, eyebrows raised high above the glasses, a small sweat drop
+4) triumphant: a big toothy grin
+Plain pure white background (or transparent), no shadows, no text, no numbers. Wide landscape image.<button class="copy">Скопировать</button></div></div>
+
+<div class="box"><div class="step"><span class="num">3</span><div><h2>Кулак вверх</h2><span class="file">bear-cheer</span>
+<p class="muted">Та же посадка верхом, но ближняя лапа поднята вверх кулаком: так он летит, когда множитель растёт.</p></div></div>
+<div class="prompt" id="p3">Same bear, same style, full body, the same riding pose as in picture 1 (sitting astride, knees bent and apart, 3/4 view facing right), but the near arm is raised high above the head with a clenched fist, celebrating; the far paw still grips forward. Excited open-mouth grin.
+No rocket. Plain pure white background (or transparent), no ground, no shadow, no text, the whole figure inside the image with a margin. Portrait image.<button class="copy">Скопировать</button></div></div>
+
+<div class="box"><div class="step"><span class="num">4</span><div><h2>На парашюте</h2><span class="file">bear-hang</span>
+<p class="muted">Висит под парашютом после вывода. Сам купол не рисуем: его рисует игра.</p></div></div>
+<div class="prompt" id="p4">Same bear, same style, full body, hanging under a parachute, but do NOT draw the parachute: both arms raised up above the head, each paw holding the end of a strap (draw only short strap ends), legs dangling down slightly apart, body turned 3/4 to the right, a big happy grin.
+Plain pure white background (or transparent), no ground, no shadow, no text, the whole figure inside the image with a margin. Portrait image.<button class="copy">Скопировать</button></div></div>
+
+<div class="box"><div class="step"><span class="num">5</span><div><h2>Падение после взрыва</h2><span class="file">bear-fall</span>
+<p class="muted">Кувыркается вниз, если не успел забрать ставку.</p></div></div>
+<div class="prompt" id="p5">Same bear, same style, full body, falling and tumbling through the air after an explosion: arms and legs flailing outward, body tilted, scared face (mouth open, eyebrows raised), a little soot on the fur, the sunglasses still on but slightly crooked.
+Plain pure white background (or transparent), no ground, no shadow, no smoke, no text, the whole figure inside the image with a margin. Portrait image.<button class="copy">Скопировать</button></div></div>
+
+<div class="box"><div class="step"><span class="num">6</span><div><h2>Ракета</h2><span class="file">rocket</span>
+<p class="muted">Ракета отдельно, горизонтально, носом вправо. Пламя и дым игра рисует сама.</p></div></div>
+<div class="prompt" id="p6">Using the reference images, draw ONLY the rocket (no bear, no flame, no smoke), side view, horizontal, nose pointing to the right: a glossy chrome emerald-green body, a pointed nose cone, a dark metal ring band just behind the nose cone, a thin glowing neon-green zig-zag line along the body, three swept violet-purple fins at the tail, a dark gunmetal nozzle at the back. Hot pink rim light along the lower edge, cyan reflection along the upper edge.
+Same glossy 3D cartoon render style. Plain pure white background (or transparent), no shadow, no text, the whole rocket inside the image with a margin. Wide landscape image.<button class="copy">Скопировать</button></div></div>
+
+<div class="box">
+  <h2>Проверьте перед отправкой</h2>
+  <ul>
+    <li>Медведь везде один и тот же: золотые очки, тёмно-бирюзовая куртка, те же пропорции.</li>
+    <li>Фон белый или прозрачный, без теней и пола. Фигура не обрезана краем.</li>
+    <li>На картинках нет лишнего: ракеты рядом с медведем, текста, рамок.</li>
+  </ul>
+  <p class="tip">Если что-то вышло не так, напишите генератору в том же чате, например: «the same bear, but the jacket must be dark teal-green» или «keep the same pose, remove the shadow».</p>
+  <p><b>Готовые картинки пришлите в чат с Claude</b> (скрепка → фото) и подпишите номера 1–6. Дальше я сам вырежу фон, соберу медведя и ракету в прототипе и пришлю, как это выглядит.</p>
+</div>
+</main>
+<script>
+document.querySelectorAll('.copy').forEach(b=>b.addEventListener('click',async()=>{
+  const box=b.parentElement,text=[...box.childNodes].filter(n=>n.nodeType===3).map(n=>n.textContent).join('').trim();
+  try{await navigator.clipboard.writeText(text)}catch(e){const ta=document.createElement('textarea');ta.value=text;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove()}
+  b.textContent='Скопировано';b.classList.add('done');setTimeout(()=>{b.textContent='Скопировать';b.classList.remove('done')},1600)}));
+</script>
