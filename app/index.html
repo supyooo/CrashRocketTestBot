@@ -48,7 +48,21 @@ html.tg .device>.app{border-radius:0}
 .lang{display:flex;height:36px;padding:3px;border-radius:999px;background:var(--panel);border:1px solid var(--line)}
 .lang button{border:0;background:transparent;padding:0 10px;border-radius:999px;font-size:12px;font-weight:700;color:var(--muted)}
 .lang button[aria-pressed="true"]{background:var(--panel-2);color:var(--text)}
-.hist{position:absolute;top:8px;left:0;right:0;display:flex;gap:6px;padding:0 12px 0 46px;overflow:hidden;z-index:3;-webkit-mask-image:linear-gradient(90deg,#000 85%,transparent);mask-image:linear-gradient(90deg,#000 85%,transparent)}
+/* the history strip scrolls sideways (a swipe; the wheel on a computer) between the fairness and history buttons */
+.hist{position:absolute;top:8px;left:0;right:42px;display:flex;gap:6px;padding:0 10px 0 46px;overflow-x:auto;overflow-y:hidden;z-index:3;
+  scrollbar-width:none;overscroll-behavior-x:contain;touch-action:pan-x;
+  -webkit-mask-image:linear-gradient(90deg,transparent 40px,#000 46px,#000 85%,transparent);mask-image:linear-gradient(90deg,transparent 40px,#000 46px,#000 85%,transparent)}
+.hist::-webkit-scrollbar{display:none}
+.fairb.histb{left:auto;right:12px;border-color:rgba(255,255,255,.28);color:#d9d2ff}
+.fairb.histb[aria-expanded="true"]{border-color:var(--cyan);color:var(--cyan);background:rgba(41,230,255,.12)}
+/* the history panel: the last rounds as a grid under the strip */
+.pop.hpanel{top:40px;bottom:auto;left:12px;right:12px;max-height:64%;padding:10px 10px 12px;z-index:5;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);background:rgba(27,22,64,.94)}
+.hp-h{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 2px}
+.hp-h b{font:700 13px 'Golos Text',sans-serif}
+.hp-h span{flex:1;font-size:11.5px;color:var(--muted)}
+.hp-h button{width:28px;height:28px;border-radius:50%;border:1px solid var(--line);background:var(--panel);font-size:16px;line-height:1;padding:0}
+.hp-g{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:6px;overflow-y:auto;overscroll-behavior:contain;min-height:0;padding:2px;scrollbar-width:thin;scrollbar-color:#3a3266 transparent}
+.hp-g .chip{cursor:pointer;padding:0 4px}
 .chip{flex:none;height:26px;padding:0 10px;border-radius:9px;display:grid;place-items:center;font:700 12px/1 'Unbounded',sans-serif;font-variant-numeric:tabular-nums;border:1px solid currentColor;background:rgba(10,6,28,.55)}
 .chip.lo{color:var(--red)}.chip.mid{color:var(--cyan)}.chip.hi{color:var(--gold)}
 .chip.new{animation:pop .35s ease-out}
@@ -57,7 +71,7 @@ html.tg .device>.app{border-radius:0}
 .fairb svg{width:16px;height:16px}
 @keyframes pop{from{transform:scale(.5);opacity:0}}
 
-.stage{position:relative;flex:1;min-height:170px;overflow:hidden}
+.stage{position:relative;flex:1;min-height:170px;overflow:hidden;overflow:clip}   /* clip: not a scroll container, so focus cannot shift it (the rays are wider than the stage) */
 .stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
 .hud{position:absolute;inset:0;pointer-events:none;display:flex;flex-direction:column;align-items:center;padding-top:78px;z-index:2;contain:layout style}   /* the number changes every frame: keep its reflow inside */
 .online{position:absolute;left:12px;top:46px;display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:var(--muted);z-index:2;font-variant-numeric:tabular-nums}
@@ -299,7 +313,7 @@ html.tg .device>.app{border-radius:0}
       /* Telegram and GitHub Pages may hand out a cached copy of this page after a release. Ask the site for the
          current version, bypassing every cache; if it is newer, reload once with it in the address (the #hash with
          Telegram's login data is kept). Bump APP_VER here and in version.json on every release. */
-      (()=>{const APP_VER='20261023b';
+      (()=>{const APP_VER='20261023c';
         fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(r=>r.json()).then(d=>{
           if(!d||!d.v||d.v===APP_VER)return;const u=new URL(location.href);
           if(u.searchParams.get('v')===d.v)return;          // already asked for it once: never loop
@@ -351,6 +365,8 @@ html.tg .device>.app{border-radius:0}
         <div class="rays" id="rays"></div>
         <button class="fairb" id="fairBtn" aria-label="Provably fair"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v5c0 4.4-3 7.7-7 9-4-1.3-7-4.6-7-9V6z"/><path d="M9 11.8l2.1 2.1L15 10"/></svg></button>
         <div class="hist" id="hist"></div>
+        <button class="fairb histb" id="histBtn" aria-label="Round history" aria-expanded="false" aria-controls="histPanel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 12a8.5 8.5 0 1 0 2.5-6"/><path d="M3 4v4h4"/><path d="M12 7.5V12l3 2"/></svg></button>
+        <div class="pop hpanel" id="histPanel" role="dialog" aria-labelledby="histT"><div class="hp-h"><b id="histT" data-i="histT"></b><span id="histN"></span><button data-x aria-label="Close">×</button></div><div class="hp-g" id="histGrid"></div></div>
         <button class="plp" id="plBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><path d="M16 4.8a3.5 3.5 0 0 1 0 6.4M18 14.8c1.9.7 3 2.4 3.5 5.2"/></svg><span id="plN"></span><i></i><span id="plPool"></span></button>
         <div class="feed" id="feed"></div>
         <div class="hud"><div class="mult waiting" id="mult">1.00x</div><div class="sub" id="sub"></div><div class="zone" id="zone"><small id="zoneN"></small><b id="zoneT"></b></div></div>
@@ -415,7 +431,7 @@ const I18N={
   skins:'Скины',auto:'Автовывод',tGame:'Игра',tHangar:'Ангар',tTour:'Турниры',tTop:'Топ',tProfile:'Профиль',
   bet:'Ставка',cancel:'Отменить',cash:'Забрать',betNext:'След. ставка',nextQueued:'След. ставка',accepted:'Ставка принята',
   startIn:s=>`Старт через ${s} с`,alt:m=>`Высота ${fmtInt(Math.round((m-1)*1000))} м`,boom:c=>`Взрыв на ${c}x`,go:'ПУСК!',
-  winL:'Ты забрал',bigL:'Большой выигрыш',on:m=>`на ${m}x`,on2:x=>`на ${x.join("x и ")}x`,bigwin:'BIG WIN!',rekt:'ЛИКВИДАЦИЯ',safe:m=>`Ты успел выйти на ${m}x`,
+  winL:'Ты забрал',bigL:'Большой выигрыш',on:m=>`на ${m}x`,on2:x=>`на ${x.join("x и ")}x`,bigwin:'BIG WIN!',rekt:'ЛИКВИДАЦИЯ',histT:'История раундов',histN:n=>`последние ${n}`,safe:m=>`Ты успел выйти на ${m}x`,
   noFunds:'Недостаточно TON',players:n=>`Игроки · ${n}`,pool:v=>`Банк ${v} TON`,flying:'в полёте',you:'Вы',online:n=>`${fmtInt(n)} онлайн`,
   soon:'Этот экран сделаем следующим шагом',topup:'Пополнение появится вместе с бэкендом',refill:'Демо-баланс пополнен',
   wear:'Надеть',worn:'Выбрано',playersH:'Игроки раунда',yourAmt:'Своя сумма',atX:'На множителе',autoS:'Авто',off:'выкл',autoBet:'Автоставка',autoStop:'Автоставка выключена: не хватает на ставку',tRound:'Раунд',tMine:'Мои ставки',noMine:'Вы ещё не играли',
@@ -424,7 +440,7 @@ const I18N={
   skins:'Skins',auto:'Auto cash out',tGame:'Game',tHangar:'Hangar',tTour:'Tournaments',tTop:'Top',tProfile:'Profile',
   bet:'Bet',cancel:'Cancel',cash:'Cash out',betNext:'Next bet',nextQueued:'Next bet',accepted:'Bet placed',
   startIn:s=>`Launch in ${s}s`,alt:m=>`Altitude ${fmtInt(Math.round((m-1)*1000))} m`,boom:c=>`Exploded at ${c}x`,go:'LIFTOFF!',
-  winL:'You cashed out',bigL:'Big win',on:m=>`at ${m}x`,on2:x=>`at ${x.join("x and ")}x`,bigwin:'BIG WIN!',rekt:'LIQUIDATED',safe:m=>`You bailed at ${m}x`,
+  winL:'You cashed out',bigL:'Big win',on:m=>`at ${m}x`,on2:x=>`at ${x.join("x and ")}x`,bigwin:'BIG WIN!',rekt:'LIQUIDATED',histT:'Round history',histN:n=>`last ${n}`,safe:m=>`You bailed at ${m}x`,
   noFunds:'Not enough TON',players:n=>`Players · ${n}`,pool:v=>`Pool ${v} TON`,flying:'flying',you:'You',online:n=>`${fmtInt(n)} online`,
   soon:'This screen is the next step',topup:'Top-up arrives with the backend',refill:'Demo balance refilled',
   wear:'Equip',worn:'Equipped',playersH:'Round players',yourAmt:'Custom amount',atX:'At multiplier',autoS:'Auto',off:'off',autoBet:'Auto bet',autoStop:'Auto-bet is off: not enough for the bet',tRound:'Round',tMine:'My bets',noMine:'No bets yet',
@@ -464,7 +480,7 @@ const AU={ctx:null,on:false,m:null,eng:null,engG:null,noiseB:null,
 /* =====================================================================
    Round simulation (demo only; the real round comes from the server)
    ===================================================================== */
-let K=0.10;const WAIT=5,HOLD=5,MILES=[2,3,5,10,20,50,100];
+let K=0.10;const WAIT=5,HOLD=5,MILES=[2,3,5,10,20,50,100],HIST_MAX=50;   // HIST_MAX: rounds kept for the history strip and panel
 /* Smooth mode ("Плавный режим" in Profile, or ?lite=1): the same game for weak phones with the effects off - a
    still backdrop painted once, no particles, smoke, speed lines, shake, zone banners or bot parachutes, a rider
    without animation, and canvases at 1.25x pixel density. The rocket, the multiplier, the parachute, the fall and
@@ -476,7 +492,7 @@ function sampleCrash(){const u=Math.random();return Math.min(60,Math.max(1,Math.
 // bets[i] / nexts[i]: the bet of bet panel i in this round / queued for the next one (two panels, two bets)
 const S={phase:'wait',t0:performance.now(),t:0,m:1,crash:1,hist:[],bots:[],bets:[null,null],nexts:[null,null],bal:25,pend:0,online:1240,mi:0};
 const myBets=()=>S.bets.filter(Boolean);
-for(let i=0;i<14;i++)S.hist.push(sampleCrash());
+for(let i=0;i<40;i++)S.hist.push(sampleCrash());
 function makeBots(){const pool=[...NAMES].sort(()=>Math.random()-.5).slice(0,8+Math.floor(Math.random()*6)),bets=[.5,1,1,2,3,5,5,10,20,50];
   return pool.map(n=>({n,bet:bets[Math.floor(Math.random()*bets.length)],target:Math.max(1.05,Math.min(15,.97/(1-Math.random()*.93))),out:0}))}
 S.bots=makeBots();
@@ -485,7 +501,7 @@ function startFlight(ts){S.phase='fly';S.t0=ts;S.t=0;S.m=1;S.mi=0;S.crash=sample
   for(let i=0;i<2;i++)if(S.nexts[i]){S.bets[i]={amt:S.nexts[i].amt,out:0};S.nexts[i]=null}
   if(window.ECO)for(const b of myBets())if(!b.demo)ECO.bet(b.amt);   // demo bets earn no coins or stats
   SC.onStart();showCount(T('go'),true);AU.go();AU.engine(true,1);renderPlayers();haptic('medium')}
-function doCrash(ts){S.phase='crash';S.t0=ts;S.m=S.crash;S.hist.unshift(S.crash);S.hist.length=Math.min(S.hist.length,20);
+function doCrash(ts){S.phase='crash';S.t0=ts;S.m=S.crash;S.hist.unshift(S.crash);S.hist.length=Math.min(S.hist.length,HIST_MAX);
   const mine=myBets(),lost=mine.some(b=>!b.out),cashed=mine.length&&!lost;
   SC.onCrash(lost);AU.engine(false);AU.boom();
   if(lost){setTimeout(()=>{pop('stamp',T('rekt'));AU.lose()},320);haptic('error')}
@@ -717,7 +733,10 @@ function bump(){const b=$('balBox');b.classList.add('bump');clearTimeout(bump.t)
 function flashVig(col){const v=$('vig');v.style.setProperty('--vig',col);v.classList.add('on');setTimeout(()=>v.classList.remove('on'),220)}
 let lastCount=-1;function showCount(txt,go){const e=$('count');e.textContent=txt;e.className='count';void e.offsetWidth;e.className='count on'+(go?' go':'')}
 function hue(s){let h=0;for(const ch of s)h=(h*31+ch.charCodeAt(0))%360;return h}
-function renderHist(fresh){$('hist').innerHTML=S.hist.map((c,i)=>`<span class="chip ${c<2?'lo':c<10?'mid':'hi'}${fresh&&i===0?' new':''}">${x2(c)}x</span>`).join('')}
+/** The history strip and, while it is open, the history panel. data-n: the round's place in S.hist (round.js opens it). */
+function renderHist(fresh){const chips=S.hist.map((c,i)=>`<span class="chip ${c<2?'lo':c<10?'mid':'hi'}${fresh&&i===0?' new':''}" data-n="${i}">${x2(c)}x</span>`).join('');
+  $('hist').innerHTML=chips;$('histBtn').setAttribute('aria-label',T('histT'));
+  if($('histPanel').classList.contains('on')){$('histGrid').innerHTML=chips;$('histN').textContent=T('histN')(S.hist.length)}}
 let psTab='round';
 $('psTabs').onclick=e=>{const b=e.target.closest('button');if(!b)return;psTab=b.dataset.v;$('psTabs').querySelectorAll('button').forEach(x=>x.setAttribute('aria-selected',x===b));$('phL').parentElement.style.display=psTab==='mine'?'none':'';renderPlayers();haptic('select')};
 function renderPlayers(){
@@ -751,7 +770,7 @@ function autoChip(i){const p=PN[i],on=p.autoOn.checked,ab=p.autoBet.checked;p.au
 /** Auto-bet: the same amount every round until it is switched off or the balance runs short. */
 function autoBetDue(i){if(!PN[i].autoBet.checked||S.bets[i]||S.nexts[i]||PN[i].el.hidden)return 0;const a=getAmt(i);
   if(S.bal<a){PN[i].autoBet.checked=false;autoChip(i);toast(T('autoStop'),'bad');window.NET&&NET.ton&&!NET.demo&&NET.openTon('deposit');return 0}return a}
-function closePops(){document.querySelectorAll('.pop.on').forEach(p=>p.classList.remove('on'))}
+function closePops(){document.querySelectorAll('.pop.on').forEach(p=>p.classList.remove('on'));$('histBtn').setAttribute('aria-expanded','false')}
 function togglePop(p){const was=p.classList.contains('on');closePops();if(!was)p.classList.add('on');haptic('select')}
 // the second panel: shown with +, hidden with × (only when it has no bet); remembered on this device
 function setTwo(on,quiet){PN[1].el.hidden=!on;$('dock').classList.toggle('two',on);try{localStorage.setItem('cr.two',on?'1':'0')}catch(e){}if(!quiet){haptic('select');requestAnimationFrame(resize)}}
@@ -768,7 +787,7 @@ PN.forEach(p=>{const i=p.i;
   p.main.onclick=()=>mainTap(i)});
 {let two=false;try{two=localStorage.getItem('cr.two')==='1'}catch(e){}setTwo(two,true)}
 document.querySelectorAll('.pop').forEach(p=>p.addEventListener('click',e=>e.stopPropagation()));
-document.addEventListener('click',closePops);
+document.addEventListener('click',e=>{if(!e.target.closest('.sheet,#scrim'))closePops()});   // not from a sheet: a round's details close back to the history panel
 $('topup').onclick=()=>{if(window.NET_ON)return NET.refill();if(S.bal<1){S.bal=25;toast(T('refill'))}else toast(T('topup'))};
 function placeBet(i,a){if(S.bal<a){toast(T('noFunds'),'bad');return false}S.bal-=a;if(S.phase==='wait')S.bets[i]={amt:a,out:0};else S.nexts[i]={amt:a};AU.tone(880,.08,'sine',.12);renderPlayers();return true}
 function mainTap(i){unlockAudio();if(window.NET_ON)return NET.main(i);const a=getAmt(i),b=S.bets[i];
@@ -785,6 +804,13 @@ $('snd').onclick=()=>{AU.init();if(!AU.ctx)return;AU.on=!AU.on;if(AU.on)AU.ctx.r
 function closeSheet(){$('psheet').classList.remove('on');if(!document.querySelector('.isheet.on'))$('scrim').classList.remove('on')}
 $('psClose').onclick=closeSheet;$('scrim').onclick=closeSheet;
 $('plBtn').onclick=e=>{e.stopPropagation();closePops();renderPlayers();$('psheet').classList.add('on');$('scrim').classList.add('on')};
+// history: the button opens the panel (online it first fetches the older rounds the server's hello did not carry);
+// taps inside the panel keep it open (a round opens its details over it), × or a tap elsewhere closes it
+$('histBtn').onclick=e=>{e.stopPropagation();const p=$('histPanel');togglePop(p);const on=p.classList.contains('on');
+  $('histBtn').setAttribute('aria-expanded',String(on));if(on){renderHist();$('histGrid').scrollTop=0;window.NET_ON&&NET.moreHist&&NET.moreHist()}};
+$('histPanel').addEventListener('click',e=>{e.stopPropagation();if(e.target.closest('[data-x]'))closePops()});
+// a mouse wheel scrolls the strip sideways
+$('hist').addEventListener('wheel',e=>{const h=$('hist');if(Math.abs(e.deltaY)>Math.abs(e.deltaX)&&h.scrollWidth>h.clientWidth){h.scrollLeft+=e.deltaY;e.preventDefault()}},{passive:false});
 
 function applyLang(){document.documentElement.lang=lang;
   document.querySelectorAll('[data-i]').forEach(e=>{const v=T(e.dataset.i);if(typeof v==='string')e.textContent=v});for(const kk in cache)delete cache[kk];PN.forEach(p=>{p.c={};setAmt(p.i,getAmt(p.i));autoChip(p.i)});renderPlayers();window.UI&&UI.refresh()}
@@ -898,6 +924,6 @@ requestAnimationFrame(tick);
 </script>
 <!-- ?v=: bump on every release so Telegram does not keep old copies (and APP_VER + version.json for the page itself) -->
 <script src="screens.js?v=20261007"></script>
-<script src="net.js?v=20261007"></script>
-<script src="round.js?v=20261007"></script>
+<script src="net.js?v=20261023c"></script>
+<script src="round.js?v=20261023c"></script>
 <script src="menu.js?v=20261007b"></script>

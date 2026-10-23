@@ -1,4 +1,4 @@
-/* Round details: tap a multiplier in the history strip. Online, the app checks the round itself, in the browser:
+/* Round details: tap a multiplier in the history strip or panel. Online, the app checks the round itself, in the browser:
    1) the crash point follows from the revealed round hash and the public salt (HMAC-SHA256 formula),
    2) hashing the round hash n times gives the commitment published before the rounds (so it was not changed later).
    Also: Space bets / cashes out on a computer. Loaded after net.js; uses the game's globals. */
@@ -59,7 +59,7 @@ async function open(i){
     if(my===token)status(lines);
   }catch(e){if(my===token)paint(meta.no,x,`<div class="tnote">${esc(e.message)}</div>`)}
 }
-$('hist').addEventListener('click',e=>{const c=e.target.closest('.chip');if(!c)return;open([...$('hist').children].indexOf(c))});
+for(const id of ['hist','histGrid'])$(id).addEventListener('click',e=>{const c=e.target.closest('.chip[data-n]');if(c)open(+c.dataset.n)});
 
 // Space: the main button (bet, cancel, cash out). Cash-out goes through touch-down for the instant response.
 document.addEventListener('keydown',e=>{
