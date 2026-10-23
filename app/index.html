@@ -299,7 +299,7 @@ html.tg .device>.app{border-radius:0}
       /* Telegram and GitHub Pages may hand out a cached copy of this page after a release. Ask the site for the
          current version, bypassing every cache; if it is newer, reload once with it in the address (the #hash with
          Telegram's login data is kept). Bump APP_VER here and in version.json on every release. */
-      (()=>{const APP_VER='20261023a';
+      (()=>{const APP_VER='20261023b';
         fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(r=>r.json()).then(d=>{
           if(!d||!d.v||d.v===APP_VER)return;const u=new URL(location.href);
           if(u.searchParams.get('v')===d.v)return;          // already asked for it once: never loop
@@ -405,7 +405,7 @@ html.tg .device>.app{border-radius:0}
 
 <script src="art.js?v=20261003b"></script>
 <script src="skins.js?v=20261002"></script>
-<script src="chars2.js?v=20261001d"></script>
+<script src="chars2.js?v=20261023b"></script>
 <script>
 /* =====================================================================
    i18n
@@ -415,7 +415,7 @@ const I18N={
   skins:'Скины',auto:'Автовывод',tGame:'Игра',tHangar:'Ангар',tTour:'Турниры',tTop:'Топ',tProfile:'Профиль',
   bet:'Ставка',cancel:'Отменить',cash:'Забрать',betNext:'След. ставка',nextQueued:'След. ставка',accepted:'Ставка принята',
   startIn:s=>`Старт через ${s} с`,alt:m=>`Высота ${fmtInt(Math.round((m-1)*1000))} м`,boom:c=>`Взрыв на ${c}x`,go:'ПУСК!',
-  winL:'Ты забрал',bigL:'Большой выигрыш',on:m=>`на ${m}x`,bigwin:'BIG WIN!',rekt:'ЛИКВИДАЦИЯ',safe:m=>`Ты успел выйти на ${m}x`,
+  winL:'Ты забрал',bigL:'Большой выигрыш',on:m=>`на ${m}x`,on2:x=>`на ${x.join("x и ")}x`,bigwin:'BIG WIN!',rekt:'ЛИКВИДАЦИЯ',safe:m=>`Ты успел выйти на ${m}x`,
   noFunds:'Недостаточно TON',players:n=>`Игроки · ${n}`,pool:v=>`Банк ${v} TON`,flying:'в полёте',you:'Вы',online:n=>`${fmtInt(n)} онлайн`,
   soon:'Этот экран сделаем следующим шагом',topup:'Пополнение появится вместе с бэкендом',refill:'Демо-баланс пополнен',
   wear:'Надеть',worn:'Выбрано',playersH:'Игроки раунда',yourAmt:'Своя сумма',atX:'На множителе',autoS:'Авто',off:'выкл',autoBet:'Автоставка',autoStop:'Автоставка выключена: не хватает на ставку',tRound:'Раунд',tMine:'Мои ставки',noMine:'Вы ещё не играли',
@@ -424,7 +424,7 @@ const I18N={
   skins:'Skins',auto:'Auto cash out',tGame:'Game',tHangar:'Hangar',tTour:'Tournaments',tTop:'Top',tProfile:'Profile',
   bet:'Bet',cancel:'Cancel',cash:'Cash out',betNext:'Next bet',nextQueued:'Next bet',accepted:'Bet placed',
   startIn:s=>`Launch in ${s}s`,alt:m=>`Altitude ${fmtInt(Math.round((m-1)*1000))} m`,boom:c=>`Exploded at ${c}x`,go:'LIFTOFF!',
-  winL:'You cashed out',bigL:'Big win',on:m=>`at ${m}x`,bigwin:'BIG WIN!',rekt:'LIQUIDATED',safe:m=>`You bailed at ${m}x`,
+  winL:'You cashed out',bigL:'Big win',on:m=>`at ${m}x`,on2:x=>`at ${x.join("x and ")}x`,bigwin:'BIG WIN!',rekt:'LIQUIDATED',safe:m=>`You bailed at ${m}x`,
   noFunds:'Not enough TON',players:n=>`Players · ${n}`,pool:v=>`Pool ${v} TON`,flying:'flying',you:'You',online:n=>`${fmtInt(n)} online`,
   soon:'This screen is the next step',topup:'Top-up arrives with the backend',refill:'Demo balance refilled',
   wear:'Equip',worn:'Equipped',playersH:'Round players',yourAmt:'Custom amount',atX:'At multiplier',autoS:'Auto',off:'off',autoBet:'Auto bet',autoStop:'Auto-bet is off: not enough for the bet',tRound:'Round',tMine:'My bets',noMine:'No bets yet',
@@ -497,11 +497,22 @@ function newRound(ts){S.phase='wait';S.t0=ts;S.m=1;S.t=0;S.bets=[null,null];S.bo
     if(S.nexts[i]){S.bets[i]={amt:S.nexts[i].amt,out:0};S.nexts[i]=null}
     else if(!window.NET_ON){const a=autoBetDue(i);if(a){S.bal-=a;S.bets[i]={amt:a,out:0}}}}
   SC.onReset();renderPlayers();lastCount=-1}
+/* Two bets can ride one rocket, and the rider can bail out only once. So the show of a cash-out depends on the bets
+   still flying: with one bet, or for the last bet still on the rocket, the full show (the rider bails out with the
+   parachute, confetti, the win banner with everything won this round); for a cash-out while another bet still flies,
+   only the money (coins fly to the balance, a line in the feed) and a happier face, the rider stays on for the other
+   bet, whose ending then gets its own show: a bail-out if cashed, the explosion and the fall if not. */
+const RIDE={
+  /** Bets of this round still on the rocket besides `b` (after the crash none are: a late confirmed cash-out is the last). */
+  others(b){return S.phase==='fly'?S.bets.filter(o=>o&&o!==b&&!o.out).length:0},
+  /** Everything cashed out this round: the total won and the multipliers as shown (x2), in the order they were taken. */
+  won(){const out=myBets().filter(b=>b.out);return{win:out.reduce((s,b)=>s+b.amt*b.out,0),xs:[...new Set(out.map(b=>b.out).sort((a,b)=>a-b).map(x2))]}}};
 function cashOut(i,m,confirmed){const b=S.bets[i];if(!b||b.out||(S.phase!=='fly'&&!confirmed))return;  // confirmed: the server paid it, show it even if the crash message came first
-  b.out=m;const win=b.amt*m;S.bal+=win;S.pend+=win;
-  SC.onMyCash(m,win);AU.cash();haptic('success');window.ECO&&!b.demo&&ECO.cash(m,win,b.amt);
-  const big=m>=5;$('winL').textContent=big?T('bigL'):T('winL');$('winV').textContent='+'+fmtTon(win)+CUR();$('winS').textContent=T('on')(x2(m));
-  pop('win');$('stage').classList.add('winning');setTimeout(()=>$('stage').classList.remove('winning'),2400);feed(T('you'),m,win-b.amt,true);if(big){$('bigwin').textContent=T('bigwin');pop('bigwin');pop('rays')}
+  b.out=m;const win=b.amt*m;S.bal+=win;S.pend+=win;window.ECO&&!b.demo&&ECO.cash(m,win,b.amt);AU.cash();feed(T('you'),m,win-b.amt,true);
+  if(RIDE.others(b)){SC.onMyCheer(win);haptic('light');renderPlayers();return}
+  const all=RIDE.won(),big=myBets().some(o=>o.out>=5);SC.onMyCash(m,win,all.win);haptic('success');
+  $('winL').textContent=big?T('bigL'):T('winL');$('winV').textContent='+'+fmtTon(all.win)+CUR();$('winS').textContent=all.xs.length>1?T('on2')(all.xs):T('on')(all.xs[0]);
+  pop('win');$('stage').classList.add('winning');setTimeout(()=>$('stage').classList.remove('winning'),2400);if(big){$('bigwin').textContent=T('bigwin');pop('bigwin');pop('rays')}
   renderPlayers()}
 
 /* =====================================================================
@@ -516,7 +527,7 @@ if(!(CHARS[SEL.char]&&CHARS[SEL.char].gen2))SEL.char='bear';   // retired test r
 
 const SC={
   sc:1,alt:0,bg:null,bgs:{},parts:[],smoke:[],debris:[],chutes:[],fire:[],rings:[],floats:[],lines:[],coins:[],confetti:[],
-  rk:{x:0,y:0,ang:-.5,vis:true,rider:true,drop:0,stall:0},jumper:null,tumble:null,shake:0,punch:0,flash:0,zones:makeZones(),lvl:0,zi:0,
+  rk:{x:0,y:0,ang:-.5,vis:true,rider:true,drop:0,stall:0},jumper:null,tumble:null,glad:-1,shake:0,punch:0,flash:0,zones:makeZones(),lvl:0,zi:0,
   setBg(id){this.bg=this.bgs[id]||(this.bgs[id]=BGS[id].make());this.bg.resize(W,H);this.still=null},
   /** Smooth mode: the backdrop painted once (as if on the pad) into an offscreen canvas, then only copied. */
   drawStill(c,E){let s=this.still;
@@ -529,17 +540,24 @@ const SC={
   pad(){return{x:W*.27,y:H*.78-22*this.sc}},
   tail(){const r=ROCKETS[SEL.rocket],k=this.sc,a=this.rk.ang;return{x:this.rk.x+Math.cos(a)*r.tail*k,y:this.rk.y+Math.sin(a)*r.tail*k}},
   seat(){const r=ROCKETS[SEL.rocket],k=this.sc,a=this.rk.ang,[sx,sy]=r.seat;return{x:this.rk.x+(Math.cos(a)*sx-Math.sin(a)*sy)*k,y:this.rk.y+(Math.sin(a)*sx+Math.cos(a)*sy)*k}},
-  onStart(){const rk=this.rk;rk.vis=true;rk.rider=true;rk.drop=0;this.shake=.5;this.zi=0;const p=this.tail();
+  onStart(){const rk=this.rk;rk.vis=true;rk.rider=true;rk.drop=0;this.glad=-1;this.shake=.5;this.zi=0;const p=this.tail();
     for(let i=0;i<26;i++)this.smoke.push({x:p.x+rnd(-10,10),y:H*.78,vx:rnd(-160,160),vy:rnd(-40,0),r:rnd(8,16)*this.sc,gr:rnd(20,40),life:rnd(1,1.8),max:1.8})},
-  onReset(){const rk=this.rk;rk.vis=true;rk.rider=true;rk.drop=1;rk.stall=0;this.tumble=null;this.jumper=null;this.bg.reset&&this.bg.reset();this.zones.reset();
+  onReset(){const rk=this.rk;rk.vis=true;rk.rider=true;rk.drop=1;rk.stall=0;this.tumble=null;this.jumper=null;this.glad=-1;this.bg.reset&&this.bg.reset();this.zones.reset();
     Object.values(this.bgs).forEach(b=>b.reset&&b.reset())},
   onBotCash(n,m){if(this.chutes.length>10)return;const p=this.seat();this.chutes.push({x:p.x,y:p.y,vx:rnd(-60,40),vy:-110,n:'@'+n,m,seed:rnd(0,6),life:1})},
-  onMyCash(m,win){const rk=this.rk,p=this.seat();
-    if(rk.rider){rk.rider=false;this.jumper={x:p.x,y:p.y,vx:-70,vy:-340,rot:0,vr:-9,t:0,open:0,win,m}}
+  /** The last cash-out of the round (see RIDE): the rider bails out. win: this bet's (the coins carry it to the balance),
+      total: all won this round (the label under the parachute). */
+  onMyCash(m,win,total=win){const rk=this.rk,p=this.seat();
+    if(rk.rider){rk.rider=false;this.glad=-1;this.jumper={x:p.x,y:p.y,vx:-70,vy:-340,rot:0,vr:-9,t:0,open:0,win:total,m}}
     this.rings.push({x:p.x,y:p.y,t:0,d:.5,r0:10,r1:90,col:'255,210,63',lw:6});
-    const n=Math.min(22,8+Math.floor(m*2));for(let i=0;i<n;i++)this.coins.push({x:p.x+OX,y:p.y+OY,t:-i*.035,d:rnd(.65,.95),cx:rnd(-80,80),cy:rnd(-160,-60),v:win/n,i});
+    this.payCoins(p,win,Math.min(22,8+Math.floor(m*2)));
     for(let i=0;i<(m>=5?120:50);i++){const a=rnd(-Math.PI,0),v=rnd(200,520);this.confetti.push({x:AW/2,y:OY+H*.7,vx:Math.cos(a)*v*.8,vy:Math.sin(a)*v,rot:rnd(0,6),vr:rnd(-12,12),w:rnd(4,8),h:rnd(6,11),c:['#ffd23f','#2bff88','#ff3ea5','#29e6ff','#ffffff'][i%5],life:rnd(1.6,2.6)})}
     this.punch=1;flashVig('rgba(255,210,63,.55)');this.emote('win',p.x,p.y)},
+  /** A cash-out while another bet still flies: the rider stays on and cheers up, only the money flies. */
+  onMyCheer(win){const p=this.seat();if(this.rk.rider)this.glad=0;
+    this.rings.push({x:p.x,y:p.y,t:0,d:.4,r0:8,r1:46,col:'255,210,63',lw:4});this.payCoins(p,win,8)},
+  /** n coins from p to the balance, carrying win between them (the balance on screen catches up as they land). */
+  payCoins(p,win,n){for(let i=0;i<n;i++)this.coins.push({x:p.x+OX,y:p.y+OY,t:-i*.035,d:rnd(.65,.95),cx:rnd(-80,80),cy:rnd(-160,-60),v:win/n,i})},
   /** The equipped emote: a sticker over the rider (kept in smooth mode too) plus its effects, if it plays on this outcome. */
   emote(kind,x,y){const id=SEL.emote,E=EMOTES[id];if(!E||!E.e||(E.when!=='both'&&E.when!==kind))return;
     this.emo={id,kind,t:0,x,y};E.fx&&E.fx(this,x,y)},
@@ -604,7 +622,7 @@ const SC={
     const bx=this.coinTo?this.coinTo.x:0,by=this.coinTo?this.coinTo.y:0;
     for(let i=this.coins.length-1;i>=0;i--){const c=this.coins[i];c.t+=dt;if(c.t>=c.d){S.pend=Math.max(0,S.pend-c.v);AU.coin(c.i%8);bump();this.coins.splice(i,1);continue}c.bx=bx;c.by=by}
     for(let i=this.confetti.length-1;i>=0;i--){const c=this.confetti[i];c.life-=dt;c.vy+=620*dt;c.vx*=1-dt*1.2;c.vy*=1-dt*1.2;c.x+=c.vx*dt;c.y+=c.vy*dt;c.rot+=c.vr*dt;if(c.bill){c.vy=Math.min(c.vy,130);c.x+=Math.sin(c.rot)*30*dt}if(c.life<=0||c.y>AH+20)this.confetti.splice(i,1)}
-    if(this.emo&&(this.emo.t+=dt)>2.4)this.emo=null;if(this.crack&&(this.crack.t+=dt)>1.8)this.crack=null;
+    if(this.emo&&(this.emo.t+=dt)>2.4)this.emo=null;if(this.glad>=0)this.glad+=dt;if(this.crack&&(this.crack.t+=dt)>1.8)this.crack=null;
     this.shake=Math.max(0,this.shake-dt*1.6);this.punch=Math.max(0,this.punch-dt*2.5);this.flash=Math.max(0,this.flash-dt*3);
     if(fly)AU.engine(true,S.m);
   },
@@ -631,7 +649,7 @@ const SC={
       drawFlame(c,r.trail,st?(Math.random()<.4?.3:0):fly?.7+I*.6:(S.phase==='wait'?.12:0),t,r.tail);
       r.draw(c);if(st&&Math.sin(t*50)>0){c.globalCompositeOperation='source-atop';c.fillStyle='rgba(255,40,60,.35)';c.fillRect(-70,-40,150,80);c.globalCompositeOperation='source-over'}
       if(rk.rider){const mood=fly?clamp(I*.9+.1,0,1):st?1:0;c.save();c.translate(r.seat[0],r.seat[1]);c.rotate(-rk.ang*.85);
-        rider(c,mood,t,st?'scared':fly?(S.t<.45?'scared':'fly'):'pad',dt);c.restore()}   // a startled grab at lift-off
+        rider(c,mood,t,st?'scared':fly?(S.t<.45?'scared':'fly'):'pad',dt,this.glad>=0?this.glad:undefined);c.restore()}   // a startled grab at lift-off
       c.restore()}
     // bot chutes
     for(const ch of this.chutes)chute(c,ch,t,k,false);
@@ -675,9 +693,9 @@ function stepP(list,dt,grow){for(let i=list.length-1;i>=0;i--){const p=list[i];p
 function drawP(c,list){const gco=c.globalCompositeOperation;for(const p of list){const a=clamp(p.life/p.max,0,1),r=p.s*(p.shrink?a:1);c.globalAlpha=a;c.fillStyle=p.c;
   c.globalCompositeOperation=p.norm?'source-over':gco;(PSHAPE[p.shape]||PSHAPE.dot)(c,p,r,a)}c.globalAlpha=1;c.globalCompositeOperation=gco}
 /** The player's character in a given moment of the round; characters with a rig blend between poses. */
-function rider(c,mood,t,state,dt){const ch=CHARS[SEL.char];
+function rider(c,mood,t,state,dt,glad){const ch=CHARS[SEL.char];
   if(LITE)ch.draw(c,.4,0);                                   // smooth mode: one still pose
-  else if(ch.rig)ch.rig.draw(c,mood,t,state,dt);else ch.draw(c,mood,t)}
+  else if(ch.rig)ch.rig.draw(c,mood,t,state,dt,glad);else ch.draw(c,mood,t)}
 function chute(c,ch,t,k){c.save();c.translate(ch.x,ch.y);c.rotate(Math.sin(t*2+ch.seed)*.18);c.scale(k*.9,k*.9);
   const cols=['#ff3ea5','#ffd23f','#2bff88','#29e6ff','#8a5cff'];for(let i=0;i<5;i++){c.fillStyle=cols[i];c.beginPath();c.moveTo(0,0);c.arc(0,0,13,Math.PI+i*Math.PI/5,Math.PI+(i+1)*Math.PI/5);c.closePath();c.fill()}
   c.strokeStyle='rgba(255,255,255,.55)';c.lineWidth=.7;c.beginPath();c.moveTo(-13,0);c.lineTo(0,18);c.lineTo(13,0);c.stroke();c.fillStyle='#f4f1ff';c.beginPath();c.arc(0,19,3,0,6.283);c.fill();c.fillRect(-2,21,4,6);c.restore()}
@@ -824,7 +842,7 @@ if(TG){
 }
 // smooth mode: the events keep their logic (rocket hidden, rider falls or bails out, coins fly to the balance),
 // only the effects they would add are dropped
-for(const k of ['onStart','onBotCash','onMyCash','explode','milestone','zoneEnter']){const f=SC[k];
+for(const k of ['onStart','onBotCash','onMyCash','onMyCheer','explode','milestone','zoneEnter']){const f=SC[k];
   SC[k]=function(...a){if(LITE&&(k==='onBotCash'||k==='zoneEnter'))return;const r=f.apply(this,a);
     if(LITE){for(const arr of ['parts','smoke','fire','rings','floats','debris','confetti','lines'])this[arr].length=0;this.shake=this.punch=this.flash=0}return r}}
 window.setLite=on=>{LITE=!!on;try{localStorage.setItem('cr.lite',LITE?'1':'0')}catch(e){}SC.still=null;resize()};

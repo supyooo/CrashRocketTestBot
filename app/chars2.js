@@ -8,6 +8,8 @@
      new pose instead of jumping.
    mood 0..1 = excitement. state: 'pad' (waiting to launch) | 'fly' | 'scared' (engine stalls) | 'win' (cashed out) |
    'chute' (hangs from the parachute; the canopy is drawn by the game) | 'fall' (tumbling after a crash).
+   glad (rig only): seconds since a cash-out that left the rider on the rocket (another bet still flies), or undefined.
+   It changes the face alone: the win expression on the flying body, with a short twinkle of stars at first.
    Needs art.js (clamp, lerp, rr). */
 (()=>{
 const OL='#140a26';                                     // one outline colour for every part
@@ -360,9 +362,14 @@ C.satoshi={ru:'Сатоши Накамото',en:'Satoshi Nakamoto',drop:'none',
 function hand(c,x,y,r,S){
   if(S.handShape==='fin'){part(c,()=>c.ellipse(x,y,r*1.25,r*.8,-.6,0,TAU),S.hand,S.handSh,()=>c.ellipse(x-1,y+1,r,r*.6,-.6,0,TAU),1.3);return}
   part(c,()=>c.arc(x,y,r,0,TAU),S.hand,S.handSh,()=>c.arc(x-1.2,y+1.2,r,0,TAU),1.4)}
+/** The win expression on another state's body (see glad above); a scare or a fall still shows. */
+const gladFace=(F,glad)=>glad>=0&&!F.win&&!F.scared&&!F.fall?{...F,win:true}:F;
+/** The three stars over the head: all through a win, for the first moments of a glad face. */
+function winStars(c,t,face,glad,xs,ys){const a=face==='win'?1:glad>=0?clamp(1.6-glad,0,1):0;if(!a)return;
+  c.globalAlpha=a;for(let i=0;i<3;i++){const k=(t*1.3+i/3)%1;star(c,xs[i],ys[i]-k*6,(1-Math.abs(k*2-1))*3.2,['#ffd23f','#2bff88','#29e6ff'][i])}c.globalAlpha=1}
 // face: which expression set wins (the dominant state), the pose supplies the amounts
-function render(c,p,t,face,X){
-  const S=X.S,F={scared:face==='scared',fall:face==='fall',win:face==='win'||face==='chute',chute:face==='chute'};
+function render(c,p,t,face,X,glad){
+  const S=X.S,F=gladFace({scared:face==='scared',fall:face==='fall',win:face==='win'||face==='chute',chute:face==='chute'},glad);
   c.save();c.translate(p.shiver,p.bob);
   limb(c,[-3,-2],p.bk,p.bf,5.2,S.legsSh);shoe(c,p.bf[0],p.bf[1],p.bfa,S);                            // back leg
   limb(c,[-6,-19],p.be,p.bh,4.6,S.topSh,S.sleeveLow&&S.handSh);hand(c,p.bh[0],p.bh[1],3.3,S);            // back arm
@@ -372,7 +379,7 @@ function render(c,p,t,face,X){
   c.save();c.translate(1,-37+p.lag-p.bob*.3);c.rotate(p.tilt);X.head(c,p,t,F,S);c.restore();            // head, a beat behind
   limb(c,[6,-19],p.fe,p.fh,4.8,S.top,S.sleeveLow);hand(c,p.fh[0],p.fh[1],3.5,S);                        // front arm
   if(X.front)X.front(c,p,t,F);
-  if(face==='win')for(let i=0;i<3;i++){const k=(t*1.3+i/3)%1;star(c,[-20,20,0][i],[-52,-50,-62][i]-k*6,(1-Math.abs(k*2-1))*3.2,['#ffd23f','#2bff88','#29e6ff'][i])}
+  winStars(c,t,face,glad,[-20,20,0],[-52,-50,-62]);
   c.restore();
 }
 function poseFor(X,st,m,t){const p=poseOf(st,m,t);if(X.pose)X.pose(p,st,m,t);return p}
@@ -393,34 +400,36 @@ function loadKit(K,id){
  * neck = px of the figure where the head goes, head = {n: neck px in the head images, s: units per px},
  * hand = px of the figure's hand that holds the prop.
  */
-function renderKit(c,p,t,face,X){
-  const K=X.K,I=K.img,F={scared:face==='scared',fall:face==='fall',win:face==='win'||face==='chute',chute:face==='chute'};
+function renderKit(c,p,t,face,X,glad){
+  const K=X.K,I=K.img,F={scared:face==='scared',fall:face==='fall',win:face==='win'||face==='chute',chute:face==='chute'},G=gladFace(F,glad);
   // whole-body motion: lean back when scared, bounce on a win, a slow sway on the parachute, a lean into the speed
   const lean=F.scared?-.14:F.fall?Math.sin(t*9)*.3:F.chute?Math.sin(t*2.4)*.08:F.win?.06+Math.sin(t*12)*.05:-.02-p.heat*.06+Math.sin(t*4.5)*.03*p.heat;
   const hop=F.win&&!F.chute?-Math.abs(Math.sin(t*9))*3:0,sq=F.win&&!F.chute?1+Math.sin(t*18)*.025:1;
   const toU=(px,py)=>[(px-K.seat[0])*K.s,(py-K.seat[1])*K.s];
   c.save();c.translate(p.shiver,p.bob*.8+hop);c.rotate(lean);c.scale(2-sq,sq);
   c.drawImage(I.body,-K.seat[0]*K.s,-K.seat[1]*K.s,I.body.width*K.s,I.body.height*K.s);
-  if(X.prop&&!F.fall&&!F.chute){const h=toU(K.hand[0],K.hand[1]);c.save();c.translate(h[0],h[1]);X.prop(c,p,t,F,K);c.restore()}
-  const nk=toU(K.neck[0],K.neck[1]),ex=F.scared||F.fall?'head-scared':F.win?'head-win':p.heat>.55?'head-hype':'head-calm',hd=I[ex];
+  if(X.prop&&!F.fall&&!F.chute){const h=toU(K.hand[0],K.hand[1]);c.save();c.translate(h[0],h[1]);X.prop(c,p,t,G,K);c.restore()}
+  // the body moves by F, the head shows G (the win face when glad)
+  const nk=toU(K.neck[0],K.neck[1]),ex=G.scared||G.fall?'head-scared':G.win?'head-win':p.heat>.55?'head-hype':'head-calm',hd=I[ex];
   c.save();c.translate(nk[0],nk[1]+p.lag*.8);c.rotate(p.tilt*1.2+(F.scared?-.1:0));
   c.drawImage(hd,-K.head.n[0]*K.head.s,-K.head.n[1]*K.head.s,hd.width*K.head.s,hd.height*K.head.s);c.restore();
   c.restore();
-  if(face==='win')for(let i=0;i<3;i++){const k=(t*1.3+i/3)%1;star(c,[-24,24,0][i],[-58,-56,-66][i]-k*6,(1-Math.abs(k*2-1))*3.2,['#ffd23f','#2bff88','#29e6ff'][i])}
+  winStars(c,t,face,glad,[-24,24,0],[-58,-56,-66]);
 }
-const pick=(X,c,p,t,face)=>X.K&&X.K.ready?renderKit(c,p,t,face,X):render(c,p,t,face,X);
+const pick=(X,c,p,t,face,glad)=>X.K&&X.K.ready?renderKit(c,p,t,face,X,glad):render(c,p,t,face,X,glad);
 
 /** A character that remembers its pose: state changes blend over ~0.25 s (shades ~0.4 s). */
 function makeRig(X){
   const w={fly:1};let sh=null,face='fly';
-  return{draw(c,mood,t,st,dt){
+  return{draw(c,mood,t,st,dt,glad){
     st=STATES.includes(st)?st:'fly';const m=clamp(mood,0,1);dt=clamp(dt||0,0,.1);
     const a=1-Math.exp(-dt*11);
     for(const s of STATES)w[s]=(w[s]||0)+((s===st?1:0)-(w[s]||0))*a;
     const sum=STATES.reduce((q,s)=>q+w[s],0)||1,p=mix(STATES.filter(s=>w[s]>.002).map(s=>[poseFor(X,s,m,t),w[s]/sum]));
+    if(glad>=0&&st==='fly'){p.open=1;p.brow=Math.min(p.brow,-1);p.shades=1}   // a wide grin, brows up, the shades slide down
     sh=sh===null?p.shades:sh+(p.shades-sh)*(1-Math.exp(-dt*7));p.shades=sh;
     face=STATES.reduce((b,s)=>w[s]>w[b]?s:b,st);
-    pick(X,c,p,t,face)}};
+    pick(X,c,p,t,face,st==='fly'?glad:undefined)}};
 }
 const stateless=X=>(c,mood,t,st)=>{st=STATES.includes(st)?st:'fly';pick(X,c,poseFor(X,st,clamp(mood,0,1),t),t,st)};
 
