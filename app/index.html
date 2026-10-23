@@ -313,7 +313,7 @@ html.tg .device>.app{border-radius:0}
       /* Telegram and GitHub Pages may hand out a cached copy of this page after a release. Ask the site for the
          current version, bypassing every cache; if it is newer, reload once with it in the address (the #hash with
          Telegram's login data is kept). Bump APP_VER here and in version.json on every release. */
-      (()=>{const APP_VER='20261023c';
+      (()=>{const APP_VER='20261023d';
         fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(r=>r.json()).then(d=>{
           if(!d||!d.v||d.v===APP_VER)return;const u=new URL(location.href);
           if(u.searchParams.get('v')===d.v)return;          // already asked for it once: never loop
@@ -926,4 +926,4 @@ requestAnimationFrame(tick);
 <script src="screens.js?v=20261007"></script>
 <script src="net.js?v=20261023c"></script>
 <script src="round.js?v=20261023c"></script>
-<script src="menu.js?v=20261007b"></script>
+<script src="menu.js?v=20261023d"></script>
