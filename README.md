@@ -1,4 +1,4 @@
-# Crash Rocket
+# Boomy
 
 Telegram Mini App crash game (front-end prototype). The round, players and balance are simulated in the browser for now.
 

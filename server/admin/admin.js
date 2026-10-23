@@ -1,4 +1,4 @@
-/* Crash Rocket admin panel. Two views: the dashboard and the player card (#p=<id>). Talks to /admin/api/*. */
+/* Boomy admin panel. Two views: the dashboard and the player card (#p=<id>). Talks to /admin/api/*. */
 (() => {
 const $ = (s, r = document) => r.querySelector(s);
 const root = $('#root');
@@ -22,7 +22,7 @@ function signOut() { token = ''; try { sessionStorage.removeItem('adm.t'); } cat
 /* ---------------- sign-in ---------------- */
 async function login() {
   const cfg = await fetch('/admin/api/config').then((r) => r.json()).catch(() => ({}));
-  root.innerHTML = `<div class="login"><div class="brand" style="font-size:22px">Crash Rocket · Админка</div>
+  root.innerHTML = `<div class="login"><div class="brand" style="font-size:22px">Boomy · Админка</div>
     <p class="muted">Вход только для администраторов из белого списка.</p><div id="tg"></div>
     ${cfg.dev ? '<form id="dev" style="display:flex;gap:8px"><input id="devName" placeholder="Имя (dev-режим)" required><button class="btn">Войти</button></form>' : ''}
     ${!cfg.botUsername && !cfg.dev ? '<p class="err">На сервере не задан BOT_USERNAME: кнопка входа через Telegram недоступна.</p>' : ''}
@@ -47,7 +47,7 @@ async function doLogin(body) {
 
 /* ---------------- shell ---------------- */
 function shell(inner) {
-  root.innerHTML = `<header class="top"><span class="brand"><a href="#" style="color:inherit">Crash Rocket · Админка</a></span>
+  root.innerHTML = `<header class="top"><span class="brand"><a href="#" style="color:inherit">Boomy · Админка</a></span>
     <div class="seg" id="per" role="group" aria-label="Период">${[['today', 'Сегодня'], ['week', 'Неделя'], ['month', 'Месяц'], ['year', 'Год']].map(([k, l]) => `<button data-p="${k}" aria-pressed="${period === k}">${l}</button>`).join('')}</div>
     <span class="pill" id="srv"><i class="dot"></i>сервер</span><span class="pill" id="onl">онлайн: —</span>
     <span class="sp"></span>

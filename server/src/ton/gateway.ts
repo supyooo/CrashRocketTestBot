@@ -220,7 +220,7 @@ export class TonGateway extends EventEmitter {
         if (idle < RESEND_AFTER_MS) return; // give it time to land
         if (w.attempts >= GIVE_UP_AFTER) { if (idle >= FINAL_WAIT_MS) await this.fail(w, 'not confirmed on chain'); return; }
         await this.db.query('UPDATE ton_withdrawals SET attempts = attempts + 1, updated_at = now() WHERE id = $1', [w.id]);
-        await this.chain.send(w.seqno, w.address, BigInt(w.amount) * NANO_PER_UNIT, `Crash Rocket payout #${w.id}`).catch((err) => console.error('resend failed', err.message));
+        await this.chain.send(w.seqno, w.address, BigInt(w.amount) * NANO_PER_UNIT, `Boomy payout #${w.id}`).catch((err) => console.error('resend failed', err.message));
         return;
       }
       const next = await this.db.query("SELECT * FROM ton_withdrawals WHERE status = 'pending' ORDER BY id LIMIT 1");
@@ -236,7 +236,7 @@ export class TonGateway extends EventEmitter {
       const claimed = await this.db.query("UPDATE ton_withdrawals SET status = 'sending', seqno = $2, attempts = 1, error = NULL, updated_at = now() WHERE id = $1 AND status = 'pending' RETURNING id", [p.id, seqno]);
       if (!claimed.rows.length) return;
       this.emit('withdraw', { uid: p.user_id, id: Number(p.id), status: 'sending', amount: Number(p.amount) });
-      await this.chain.send(seqno, p.address, nano, `Crash Rocket payout #${p.id}`).catch((err) => console.error('send failed, will retry', err.message));
+      await this.chain.send(seqno, p.address, nano, `Boomy payout #${p.id}`).catch((err) => console.error('send failed, will retry', err.message));
     } finally { this.busyWd = false; }
   }
 

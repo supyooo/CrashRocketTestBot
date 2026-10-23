@@ -1,4 +1,4 @@
-# Crash Rocket server
+# Boomy server
 
 Game server for the Telegram Mini App. Play money only for now: no deposits or withdrawals.
 

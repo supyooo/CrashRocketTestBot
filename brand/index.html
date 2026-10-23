@@ -1,6 +1,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Crash Rocket Bot Kit</title>
+<title>Boomy Bot Kit</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700;800&family=Unbounded:wght@600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap">
@@ -93,7 +93,7 @@ ol.steps p{margin:0;color:var(--ink-2);font-size:14px}
 
 <div class="wrap">
   <header class="top">
-    <h1>Crash Rocket · оформление бота<span>Всё для профиля бота в Telegram: аватарка, приветствие, экран загрузки, превью и тексты. Картинки нарисованы той же графикой, что и в игре, в тех размерах, которые просит Telegram.</span></h1>
+    <h1>Boomy · оформление бота<span>Всё для профиля бота в Telegram: аватарка, приветствие, экран загрузки, превью и тексты. Картинки нарисованы той же графикой, что и в игре, в тех размерах, которые просит Telegram.</span></h1>
     <div class="save" data-local>
       <button class="btn" id="saveAll">Сохранить все PNG</button>
       <small id="saveMsg">в папку brand/out</small>
@@ -121,7 +121,7 @@ ol.steps p{margin:0;color:var(--ink-2);font-size:14px}
     <p class="lead">Telegram показывает его, пока игра грузится. В @BotFather это Configure Mini App → Configure Splash Screen: иконка, цвет фона и цвет шапки. Иконку он принимает только как WEBP 512 × 512 или SVG 512 × 512 с одним контуром (<code>brand/icon_svg.py</code>).</p>
     <div class="grid g3">
       <div class="tile"><h3>Иконка <i>прозрачный фон</i></h3><canvas class="art check" id="icon" width="512" height="512"></canvas></div>
-      <div class="tile"><h3>Как это выглядит</h3><div class="load"><img id="iconImg" alt=""><b>Crash Rocket</b><div class="dots"><i></i><i></i><i></i></div></div></div>
+      <div class="tile"><h3>Как это выглядит</h3><div class="load"><img id="iconImg" alt=""><b>Boomy</b><div class="dots"><i></i><i></i><i></i></div></div></div>
       <div class="tile"><h3>Цвета</h3><div class="sw">
         <div><i style="background:#12092A"></i>#12092A · фон (тёмная и светлая тема)</div>
         <div><i style="background:#12092A"></i>#12092A · шапка (Header Color)</div>
@@ -278,10 +278,10 @@ function promo(c,lang,i){
    Texts
    ===================================================================== */
 const TEXTS=[
- {k:'Name',lim:64,v:'Crash Rocket'},
+ {k:'Name',lim:64,v:'Boomy'},
  {k:'About · RU',lim:120,v:'Краш-игра на ракете: лови множитель и прыгай с парашютом до взрыва. Скины, друзья, три мира.'},
  {k:'About · EN',lim:120,v:'Crash game on a rocket: ride the multiplier and bail out before it blows. Skins, friends, three worlds.'},
- {k:'Description · RU',lim:512,v:`🚀 Crash Rocket — краш-игра прямо в Telegram.
+ {k:'Description · RU',lim:512,v:`🚀 Boomy — краш-игра прямо в Telegram.
 
 Ракета взлетает, множитель растёт: 1.5x, 3x, 10x… Жми «Забрать», и твой герой прыгает с парашютом вместе с выигрышем. Не успел — ракета взрывается.
 
@@ -290,7 +290,7 @@ const TEXTS=[
 • Синтвейв, Луна и Биржа — три мира полёта
 
 Нажми «Играть» внизу, чтобы начать.`},
- {k:'Description · EN',lim:512,v:`🚀 Crash Rocket is a crash game right inside Telegram.
+ {k:'Description · EN',lim:512,v:`🚀 Boomy is a crash game right inside Telegram.
 
 The rocket takes off and the multiplier climbs: 1.5x, 3x, 10x… Hit “Cash out” and your rider parachutes off with the win. Too late, and the rocket blows up.
 
@@ -317,10 +317,10 @@ function build(){
   const av=document.getElementById('avatars');
   AVATARS.forEach(a=>{const cv=mk(640,640,`avatar-${a.id}.png`,'art round');a.draw(prep(cv,320,320));const url=cv.toDataURL();
     const tile=document.createElement('div');tile.className='tile';tile.innerHTML=`<h3>${a.name}<i>avatar-${a.id}.png</i></h3>`;tile.appendChild(cv);
-    tile.insertAdjacentHTML('beforeend',`<div class="tgrow"><img src="${url}" alt=""><div><b>Crash Rocket</b><span>бот · Играть 🚀</span></div><img class="tiny" src="${url}" alt=""></div>`);av.appendChild(tile)});
+    tile.insertAdjacentHTML('beforeend',`<div class="tgrow"><img src="${url}" alt=""><div><b>Boomy</b><span>бот · Играть 🚀</span></div><img class="tiny" src="${url}" alt=""></div>`);av.appendChild(tile)});
   const wl=document.getElementById('welcome'),desc={ru:TEXTS[3].v,en:TEXTS[4].v},q={ru:'Что умеет этот бот?',en:'What can this bot do?'},st={ru:'Запустить',en:'Start'},menu={ru:'Играть',en:'Play'},ph={ru:'Сообщение',en:'Message'};
   ['ru','en'].forEach(l=>{const cv=mk(640,360,`welcome-${l}.png`);welcome(prep(cv,640,360),l);
-    const chat=document.createElement('div');chat.className='chat';chat.innerHTML=`<div class="bar"><img src="${FILES[0].toDataURL()}" alt=""><div><b>Crash Rocket</b><span>${l==='ru'?'бот':'bot'}</span></div></div><div class="body"><div class="card"></div></div><div class="start">${st[l]}</div><div class="menu"><span>${menu[l]}</span><i>${ph[l]}</i></div>`;
+    const chat=document.createElement('div');chat.className='chat';chat.innerHTML=`<div class="bar"><img src="${FILES[0].toDataURL()}" alt=""><div><b>Boomy</b><span>${l==='ru'?'бот':'bot'}</span></div></div><div class="body"><div class="card"></div></div><div class="start">${st[l]}</div><div class="menu"><span>${menu[l]}</span><i>${ph[l]}</i></div>`;
     const card=chat.querySelector('.card');card.appendChild(cv);card.insertAdjacentHTML('beforeend',`<div><b>${q[l]}</b>${desc[l].replace(/</g,'&lt;')}</div>`);
     const tile=document.createElement('div');tile.className='tile';tile.innerHTML=`<h3>${l==='ru'?'Русская':'Английская'} версия<i>welcome-${l}.png</i></h3>`;tile.appendChild(chat);wl.appendChild(tile)});
   const ic=document.getElementById('icon');ic.dataset.file='loading-icon.png';FILES.push(ic);loadingIcon(prep(ic,256,256));document.getElementById('iconImg').src=ic.toDataURL();

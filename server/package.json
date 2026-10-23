@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Crash Rocket game server: provably fair rounds, play-money wallet, Telegram auth",
+  "description": "Boomy game server: provably fair rounds, play-money wallet, Telegram auth",
   "scripts": {
     "dev": "tsx watch src/main.ts",
     "start": "tsx src/main.ts",

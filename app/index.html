@@ -1,6 +1,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<title>Crash Rocket Neon</title>
+<title>Boomy</title>
 <script src="https://telegram.org/js/telegram-web-app.js?59"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -212,35 +212,94 @@ html.tg .device>.app{border-radius:0}
 .card[aria-pressed="true"] i{background:var(--gold);color:#1a1204}
 @media (prefers-reduced-motion:reduce){.main.cash,.main.cash::before,.main.cash::after{animation:none}.mult.punch,.mult.glitch{animation:none}}
 /* ---------- loading screen ---------- */
-.boot{position:absolute;inset:0;z-index:60;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;overflow:hidden;
-  background:radial-gradient(110% 60% at 50% 105%,rgba(255,62,165,.35),transparent 60%),linear-gradient(#1a0b3d,var(--bg) 70%);transition:opacity .4s ease,visibility .4s}
-.boot::after{content:"";position:absolute;left:-20%;right:-20%;bottom:0;height:34%;pointer-events:none;opacity:.5;
-  background:repeating-linear-gradient(0deg,rgba(255,62,165,.55) 0 1px,transparent 1px 22px),repeating-linear-gradient(90deg,rgba(255,62,165,.55) 0 1px,transparent 1px 38px);
-  transform:perspective(220px) rotateX(58deg);transform-origin:bottom;-webkit-mask-image:linear-gradient(transparent,#000 70%);mask-image:linear-gradient(transparent,#000 70%)}
+/* The scene (art/boot/scene.webp, 720x1020) is the mockup's picture down to the horizon, with its progress bar painted out.
+   It is as wide as the screen (up to 12% wider, cropping the cloudy edges) and stands on the neon floor, which takes the
+   rest of the height (at least 16%). Everything that moves is drawn on top: the floor grid, sparkles, falling stars,
+   the flame, a shine over the logo and the real progress bar. Positions inside .boot-art are fractions of the picture. */
+.boot{position:absolute;inset:0;z-index:60;overflow:hidden;container-type:size;background:#0c0723;transition:opacity .4s ease,visibility .4s;
+  --iw:min(clamp(100cqw,56.47cqh,112cqw),59.3cqh);--ih:calc(var(--iw)*1.41667);--fl:max(calc(100cqh - var(--ih)),16cqh)}
 .boot.out{opacity:0;visibility:hidden}
-.boot-logo{width:96px;height:96px;border-radius:26px;box-shadow:0 0 44px rgba(43,255,136,.35);animation:bootFloat 2.4s ease-in-out infinite;position:relative;z-index:1}
-.boot-name{position:relative;z-index:1;font:800 26px/1.05 'Unbounded','Golos Text',sans-serif;letter-spacing:.04em;text-align:center;color:var(--text);text-shadow:0 0 18px rgba(255,62,165,.6)}
-.boot-bar{position:relative;z-index:1;width:min(220px,60%);height:6px;margin-top:10px;border-radius:6px;background:rgba(255,255,255,.08);overflow:hidden}
-.boot-bar i{display:block;height:100%;width:12%;border-radius:inherit;background:linear-gradient(90deg,var(--green),var(--cyan));box-shadow:0 0 12px var(--green);transition:width .35s ease}
-.boot-msg{position:relative;z-index:1;font:600 12.5px 'Golos Text',sans-serif;color:var(--muted)}
-@keyframes bootFloat{50%{transform:translateY(-8px) rotate(-3deg)}}
-@media (prefers-reduced-motion:reduce){.boot-logo{animation:none}}
+.boot-art{position:absolute;left:50%;bottom:var(--fl);width:var(--iw);height:var(--ih);margin-left:calc(var(--iw)/-2)}
+.boot-scene{position:absolute;inset:0;width:100%;height:100%;display:block;opacity:0;transition:opacity .35s ease}
+.boot-scene.on{opacity:1}
+/* blend the picture's top and side edges into the page colour (seen on tall or wide screens).
+   The layers above stack in source order without z-index: a stacking context here would cut the blend modes off the picture. */
+.boot-edge{position:absolute;inset:-1px;pointer-events:none;
+  background:linear-gradient(#0c0723,rgba(12,7,35,0) 9%),linear-gradient(90deg,#0c0723,rgba(12,7,35,0) 4%,rgba(12,7,35,0) 96%,#0c0723)}
+/* wider than the picture can fill (landscape windows): softer side edges */
+@container (min-aspect-ratio:593/1000){
+  .boot-edge{background:linear-gradient(#0c0723,rgba(12,7,35,0) 9%),linear-gradient(90deg,rgba(12,7,35,.95),rgba(12,7,35,0) 16%,rgba(12,7,35,0) 84%,rgba(12,7,35,.95))}
+}
+.boot-fx{position:absolute;inset:0;pointer-events:none}
+/* sparkles: four-point stars over some of the painted ones */
+.boot-tw{position:absolute;left:var(--x);top:var(--y);width:var(--s);aspect-ratio:1;margin:calc(var(--s)/-2) 0 0 calc(var(--s)/-2);opacity:0;mix-blend-mode:screen;
+  background:radial-gradient(closest-side,#fff,rgba(255,255,255,0) 30%),linear-gradient(rgba(255,255,255,0) 46%,#fff 50%,rgba(255,255,255,0) 54%),linear-gradient(90deg,rgba(255,255,255,0) 46%,#fff 50%,rgba(255,255,255,0) 54%);
+  -webkit-mask:radial-gradient(closest-side,#000 15%,transparent);mask:radial-gradient(closest-side,#000 15%,transparent);animation:bootTw 2.8s ease-in-out var(--d) infinite}
+@keyframes bootTw{0%,100%{opacity:0;transform:scale(.3)}45%{opacity:1;transform:scale(1)}60%{opacity:.85;transform:scale(.85)}}
+/* falling stars: a short streak slides down-left and fades */
+.boot-ss{position:absolute;left:var(--x);top:var(--y);width:1.5px;height:12%;opacity:0;transform-origin:50% 0;
+  background:linear-gradient(rgba(255,255,255,0),rgba(255,220,250,.9));border-radius:2px;animation:bootSs var(--t) linear var(--d) infinite}
+@keyframes bootSs{0%{opacity:0;transform:rotate(28deg) translateY(-40%)}4%{opacity:1}14%{opacity:0;transform:rotate(28deg) translateY(160%)}100%{opacity:0;transform:rotate(28deg) translateY(160%)}}
+/* the flame at the nozzle breathes */
+.boot-flame{position:absolute;left:43.3%;top:51.5%;width:30%;aspect-ratio:1;translate:-50% -50%;mix-blend-mode:screen;
+  background:radial-gradient(closest-side,rgba(255,240,250,.85),rgba(255,110,210,.45) 45%,rgba(255,62,165,0));animation:bootFlame .9s ease-in-out infinite alternate}
+@keyframes bootFlame{0%{opacity:.25;transform:scale(.8)}35%{opacity:.6;transform:scale(1.05)}70%{opacity:.4;transform:scale(.92)}100%{opacity:.7;transform:scale(1.1)}}
+/* a light sweeps over the logo letters now and then (logo-mask.png is the letters' shape cut from the same picture) */
+.boot-shine{position:absolute;left:19.44%;top:63.73%;width:63.89%;height:21.57%;overflow:hidden;mix-blend-mode:overlay;
+  -webkit-mask:url(art/boot/logo-mask.png) 0 0/100% 100% no-repeat;mask:url(art/boot/logo-mask.png) 0 0/100% 100% no-repeat}
+.boot-shine::before{content:"";position:absolute;top:0;bottom:0;left:0;width:40%;transform:translateX(-110%) skewX(-18deg);
+  background:linear-gradient(90deg,rgba(255,255,255,0),#fff 50%,rgba(255,255,255,0));animation:bootShine 3.4s ease-in-out 1s infinite}
+@keyframes bootShine{0%{transform:translateX(-110%) skewX(-18deg)}38%,100%{transform:translateX(290%) skewX(-18deg)}}
+/* progress bar where the mockup had it */
+.boot-bar{position:absolute;left:25.8%;width:47.8%;top:87.2%;height:max(7px,2%);border-radius:99px;
+  background:rgba(14,9,40,.82);box-shadow:inset 0 0 0 1px rgba(255,255,255,.07),0 0 14px rgba(0,0,0,.35)}
+.boot-bar i{position:relative;display:block;height:100%;width:12%;border-radius:inherit;background:linear-gradient(90deg,#2bff88,#29e6ff);
+  box-shadow:0 0 10px rgba(41,230,255,.75),0 0 3px rgba(43,255,136,.9);transition:width .35s ease}
+.boot-bar i::after{content:"";position:absolute;right:0;top:15%;bottom:15%;width:14px;max-width:100%;border-radius:inherit;
+  background:linear-gradient(90deg,rgba(255,255,255,0),rgba(235,255,255,.95))}
+.boot-msg{position:absolute;left:4%;right:4%;top:calc(87.2% + max(7px,2%) + 7px);text-align:center;
+  font:600 12px/1.3 'Golos Text',sans-serif;color:#d9d2ff;text-shadow:0 1px 6px #0c0723,0 0 2px #0c0723}
+/* the neon floor: a tilted grid rolling towards the viewer, the sun's reflection and the horizon glow */
+/* Geometry fitted to the mockup: seen at 75 degrees from a distance of 1.3 floor heights, rows one tenth of the floor
+   apart land where the mockup's lines are (each gap about 1.4 times the one before), and the columns meet behind the scene. */
+.boot-floor{position:absolute;left:0;right:0;bottom:0;height:var(--fl);overflow:hidden;perspective:calc(var(--fl)*1.3);perspective-origin:50% 0;
+  --ga:75deg;--gc:calc(var(--fl)*.108);--gv:13cqw;--gl:1px;
+  background:radial-gradient(14% 95% at 50% 0,rgba(255,110,90,.75),rgba(255,62,120,.25) 55%,transparent),linear-gradient(#3d1160,#1d0a36 35%,#0d0525)}
+.boot-grid{position:absolute;left:-100%;width:300%;top:calc(var(--fl)*-.15);height:calc(var(--fl)*1.3);transform-origin:50% calc(var(--fl)*.15);animation:bootGrid 1.1s linear infinite;
+  background:linear-gradient(90deg,rgba(255,70,205,0) calc(50% - var(--gl)),rgba(255,70,205,.85) calc(50% - var(--gl)) calc(50% + var(--gl)),rgba(255,70,205,0) calc(50% + var(--gl))) 50% 0/var(--gv) 100%,
+    linear-gradient(rgba(255,70,205,.9) 0 var(--gl),rgba(255,70,205,.22) var(--gl) calc(var(--gl)*2),rgba(255,70,205,0) calc(var(--gl)*2)) 0 0/100% var(--gc)}
+@keyframes bootGrid{from{transform:rotateX(var(--ga)) translateY(0)}to{transform:rotateX(var(--ga)) translateY(var(--gc))}}
+.boot-floor::before{content:"";position:absolute;z-index:1;left:0;right:0;top:0;height:100%;pointer-events:none;
+  background:linear-gradient(rgba(150,32,128,.75),rgba(110,22,120,.3) 12%,rgba(70,16,100,0) 38%),linear-gradient(90deg,rgba(255,139,224,0) calc(50% - 1.5px),#ff8be0 calc(50% - 1px) calc(50% + 1px),rgba(255,139,224,0) calc(50% + 1.5px))}
+.boot-floor::after{content:"";position:absolute;z-index:1;left:0;right:0;top:0;height:2px;pointer-events:none;
+  background:linear-gradient(90deg,#8a1d8e,#c93092 25%,#ffb08f 50%,#c93092 75%,#8a1d8e);box-shadow:0 0 12px 3px rgba(255,90,150,.55)}
+@media (prefers-reduced-motion:reduce){.boot-tw,.boot-ss,.boot-flame,.boot-shine::before,.boot-grid{animation:none}.boot-tw{opacity:.8;transform:none}}
 </style>
 
 <div class="shell">
   <div class="device">
     <div class="app" id="app">
       <div class="boot" id="boot" role="status" aria-live="polite">
-        <img class="boot-logo" src="icon.png" alt="" width="96" height="96">
-        <div class="boot-name">CRASH<br>ROCKET</div>
-        <div class="boot-bar"><i id="bootBar"></i></div>
-        <div class="boot-msg" id="bootMsg">Загрузка…</div>
+        <div class="boot-floor"><div class="boot-grid"></div></div>
+        <div class="boot-art">
+          <img class="boot-scene" src="art/boot/scene.webp" alt="BOOMY" width="720" height="1020" fetchpriority="high" onload="this.classList.add('on')">
+          <i class="boot-edge"></i>
+          <div class="boot-fx" aria-hidden="true">
+            <i class="boot-flame"></i><i class="boot-shine"></i>
+            <i class="boot-tw" style="--x:13%;--y:18.6%;--s:9%;--d:0s"></i><i class="boot-tw" style="--x:78%;--y:35%;--s:7%;--d:1.1s"></i>
+            <i class="boot-tw" style="--x:35%;--y:39.7%;--s:6%;--d:.5s"></i><i class="boot-tw" style="--x:87%;--y:63.6%;--s:7%;--d:1.8s"></i>
+            <i class="boot-tw" style="--x:23%;--y:53.6%;--s:5%;--d:2.3s"></i><i class="boot-tw" style="--x:62%;--y:8%;--s:6%;--d:1.5s"></i>
+            <i class="boot-ss" style="--x:70%;--y:6%;--t:4.2s;--d:.8s"></i><i class="boot-ss" style="--x:30%;--y:14%;--t:5.6s;--d:2.9s"></i>
+          </div>
+          <div class="boot-bar"><i id="bootBar"></i></div>
+          <div class="boot-msg" id="bootMsg">Загрузка…</div>
+        </div>
       </div>
       <script>
       /* Telegram and GitHub Pages may hand out a cached copy of this page after a release. Ask the site for the
          current version, bypassing every cache; if it is newer, reload once with it in the address (the #hash with
          Telegram's login data is kept). Bump APP_VER here and in version.json on every release. */
-      (()=>{const APP_VER='20261007c';
+      (()=>{const APP_VER='20261023a';
         fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(r=>r.json()).then(d=>{
           if(!d||!d.v||d.v===APP_VER)return;const u=new URL(location.href);
           if(u.searchParams.get('v')===d.v)return;          // already asked for it once: never loop

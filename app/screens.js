@@ -1,4 +1,4 @@
-/* Crash Rocket screens: Hangar, Tournaments and Profile, plus the demo coin economy.
+/* Boomy screens: Hangar, Tournaments and Profile, plus the demo coin economy.
    Until the backend exists, coins, owned skins, stats and quest progress live on this device (localStorage).
    Loaded after the main game script, so it can use S, SC, SEL, T, lang, fmtTon, toast, haptic, AU. */
 (()=>{
@@ -26,7 +26,7 @@ const TX={
   copy:'Копировать',share:'Поделиться',copied:'Ссылка скопирована',invited:'Приглашено',earned:'Заработано',
   hist:'Последние ставки',noHist:'Здесь появятся твои ставки',sound:'Звук',vibro:'Вибрация',lite:'Плавный режим',liteSub:'Без эффектов, для слабых телефонов',liteOn:'Плавный режим включён',liteOff:'Эффекты включены',langL:'Язык',langV:'Русский',
   fair:'Честность раундов',fairV:'Проверить',support:'Поддержка',soonBack:'Появится вместе с бэкендом',
-  shareText:'Лечу на ракете в Crash Rocket, залетай!',pilot:'Пилот',plusCoins:n=>`+${n} монет`},
+  shareText:'Лечу на ракете в Boomy, залетай!',pilot:'Пилот',plusCoins:n=>`+${n} монет`},
  en:{hangar:'Hangar',tour:'Tournaments',profile:'Profile',coins:'coins',build:'Your build',beasts:'Crypto Beasts',retro:'Retro Space',bonus:'Complete it: +5% coins',bonusOn:'+5% coins bonus active',
   cats:{char:'Rider',rocket:'Rocket',trail:'Trail',chute:'Parachute',bg:'Backdrop',emote:'Emote'},
   rar:{c:'Common',r:'Rare',e:'Epic',l:'Legendary',t:'Test'},
@@ -46,7 +46,7 @@ const TX={
   copy:'Copy',share:'Share',copied:'Link copied',invited:'Invited',earned:'Earned',
   hist:'Recent bets',noHist:'Your bets will show up here',sound:'Sound',vibro:'Vibration',lite:'Smooth mode',liteSub:'No effects, for weaker phones',liteOn:'Smooth mode on',liteOff:'Effects on',langL:'Language',langV:'English',
   fair:'Provably fair',fairV:'Verify',support:'Support',soonBack:'Arrives with the backend',
-  shareText:'I\'m riding a rocket in Crash Rocket, jump in!',pilot:'Pilot',plusCoins:n=>`+${n} coins`}
+  shareText:'I\'m riding a rocket in Boomy, jump in!',pilot:'Pilot',plusCoins:n=>`+${n} coins`}
 };
 const tx=k=>TX[lang][k];
 const num=n=>Math.round(n).toLocaleString(lang==='ru'?'ru-RU':'en-US');
