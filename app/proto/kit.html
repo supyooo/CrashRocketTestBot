@@ -31,7 +31,7 @@ ul{margin:6px 0;padding-left:20px}li{margin:3px 0;color:#d6d3ee}
 </style>
 <main>
 <h1>Медведь и ракета: что сгенерировать</h1>
-<p>Чтобы персонаж выглядел как на заставке, а не собранным из фигур, рисуем его генератором изображений, а игра потом анимирует готовые картинки: двигает тело, меняет головы с эмоциями, качает на парашюте. Готово: 2–10. Сейчас нужны 7G, 8G, 10G: те же картинки со старой зелёной ракетой (зелёные блоки ниже).</p>
+<p>Чтобы персонаж выглядел как на заставке, а не собранным из фигур, рисуем его генератором изображений, а игра потом анимирует готовые картинки: двигает тело, меняет головы с эмоциями, качает на парашюте. Готово: 2–10. Сейчас нужны R1 и R2 (первые зелёные блоки): медведь на готовой прямой зелёной ракете.</p>
 
 <div class="box">
   <h2>Перед началом</h2>
@@ -48,7 +48,27 @@ ul{margin:6px 0;padding-left:20px}li{margin:3px 0;color:#d6d3ee}
 </div>
 
 <div class="box new">
-  <h2>Сейчас нужно: тот же медведь на старой зелёной ракете (7G, 8G, 10G)</h2>
+  <h2>Самый надёжный способ: даём генератору готовую ракету (R1, R2)</h2>
+  <p>Генератор рисует длинную ракету по диагонали с изгибом, сколько его ни проси. Поэтому даём ему уже готовую прямую зелёную ракету под нужным углом и просим только <b>добавить медведя</b>: при правке картинки он почти не трогает то, что на ней уже есть. Эта же картинка будет и ракетой без медведя, так что №10 не нужна.</p>
+  <figure style="margin:10px 0 0"><img src="rocket-base.png" alt="Прямая зелёная ракета под углом полёта" style="width:100%;border-radius:12px;background:#fff;display:block"><figcaption class="muted" style="margin-top:4px">Основа: долгое нажатие → сохранить. <a href="rocket-base.png" download style="color:var(--green)">Скачать файлом</a></figcaption></figure>
+  <p class="muted">В чате генератора прикрепите <b>основу</b> (первой) и <b>последнюю картинку медведя на зелёной ракете</b> (чтобы он взял медведя и позу), дайте промпт R1. Потом R2 как правку результата.</p>
+</div>
+
+<div class="box new"><div class="step"><span class="num">R1</span><div><h2>Добавить медведя на ракету</h2><span class="file">ride-hype</span></div></div>
+<div class="prompt">Edit the first attached picture (the green rocket on white). Do NOT change the rocket in any way: keep its shape, its perfectly straight line, its angle, size, position and colours, the zig-zag line, the band, the fins and the nozzle exactly as they are. The rocket must stay identical to the input picture; you may only paint over it where the bear covers it.
+
+Only add the bear from the other attached picture, sitting astride this rocket just behind the dark band, his body facing the nose: the near leg along the hull with the boot pressed against it, the far leg hidden behind the rocket, the far paw gripping the band, the near arm raised high with a clenched fist, an excited open-mouth laugh. A soft contact shadow of the bear on the hull, the hull reflecting his jacket.
+
+Keep the plain white background and the framing, the whole bear inside the picture.<button class="copy">Скопировать</button></div></div>
+
+<div class="box new"><div class="step"><span class="num">R2</span><div><h2>Он же, спокойный</h2><span class="file">ride-calm</span></div></div>
+<div class="prompt">Edit the picture you just made. Keep everything exactly the same: the rocket, the bear's position, size and legs, the framing. Change only his arms and his face: both paws hold the rocket's dark band, a calm, confident smile. Plain white background.<button class="copy">Скопировать</button></div></div>
+
+<div class="box new"><div class="step"><span class="num">R3</span><div><h2>Он же, в испуге (по желанию)</h2><span class="file">ride-scared</span></div></div>
+<div class="prompt">Edit the picture with the raised fist. Keep the rocket and the framing exactly the same and the bear in the same place. Change only his pose and his face: he clutches the rocket with both paws and leans back in fear, mouth open in a scream, eyebrows raised high above the glasses, a small sweat drop. Plain white background.<button class="copy">Скопировать</button></div></div>
+
+<div class="box new">
+  <h2>Было: тот же медведь на старой зелёной ракете (7G, 8G, 10G)</h2>
   <p>Ракета в картинках 7–10 вышла серебряной и чуть изогнутой: нос отклонён от корпуса примерно на 6°. Перерисуем их со старой зелёной ракетой, она прямая.</p>
   <p class="muted">В чате генератора прикрепите <b>старую зелёную ракету</b> (картинка №6) и <b>картинку №7</b>, затем дайте промпт 7G. Потом 8G и 10G как правки получившейся картинки. Важно: ракета целиком в кадре, с соплом и стабилизаторами, с отступом от краёв.</p>
 </div>
