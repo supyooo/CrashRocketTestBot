@@ -327,8 +327,15 @@ function create(cv,opts){
     const mood=st.phase==='stall'?'scared':st.phase==='wait'?'calm':st.m>1.3?'hype':'calm';
     const pose=st.phase==='stall'?'scared':st.phase==='fly'?(st.m>1.6?'cheer':'grip'):'grip';
     bear.update(dt,t,pose,mood);
-    let face=st.phase==='stall'?'scared':st.phase==='fly'&&st.m>=1.25?'hype':'calm';if(KIT.ride&&!KIT.ride.faces.includes(face))face='calm';
-    if(face!==st.face){st.facePrev=st.face||face;st.face=face;st.faceT=0}st.faceT=Math.min(1,(st.faceT||0)+dt/.2);
+    let face=st.phase==='stall'?'scared':st.phase==='fly'&&st.m>=1.25?'hype':'calm';if(KIT.ride&&!KIT.ride.faces.includes(face))face=st.face||'calm';
+    if(face!==st.face){st.facePrev=st.face||face;st.face=face;st.faceT=st.phase==='wait'?1:0;
+      // the riding pictures change pose inside a motion: a dip, a kick up (the swap happens here), a settle
+      if(KIT.ride&&st.phase==='fly')st.pop={t:0,sparked:false}}
+    if(st.pop){const p=st.pop;p.t+=dt;st.faceT=clamp((p.t-.12)/.05,0,1);
+      if(!p.sparked&&p.t>=.1){p.sparked=true;const c=seat();st.fire.push({x:c.x,y:c.y-8*kh,r:46*kh,t:0,d:.22,col:'white'});st.rings.push({x:c.x,y:c.y,t:0,d:.45,r0:6,r1:46*kh,col:'255,225,120',w:3});
+        for(let i=0;i<18;i++){const a=rnd(0,TAU),v=rnd(90,230)*k;st.sparks.push({x:c.x,y:c.y,vx:Math.cos(a)*v,vy:Math.sin(a)*v-40*k,life:rnd(.35,.7),max:.7,col:['#ffd23f','#2bff88','#29e6ff','#fff3b0'][i%4],w:2})}}
+      if(p.t>.55)st.pop=null}
+    else st.faceT=Math.min(1,(st.faceT||0)+dt/.2);
     const j=st.jumper;if(j){j.t+=dt;if(j.t<.45){j.vy+=900*k*dt;j.rot+=j.vr*dt}else{j.open=Math.min(1,j.open+dt/.4);j.rot*=1-Math.min(1,dt*6);j.vy+=(70*k-j.vy)*dt*2.4;j.vx*=1-dt*1.4}
       j.x+=j.vx*dt+cdx*.6;j.y+=j.vy*dt+cdy*.6;jbear.update(dt,t,j.open>0?'hang':'cheer','win');if(j.y>H+160*k)st.jumper=null}
     const tb=st.tumble;if(tb){tb.vy+=700*k*dt;tb.x+=tb.vx*dt;tb.y+=tb.vy*dt;tb.rot+=tb.vr*dt;jbear.update(dt,t,'fall','scared');if(tb.y>H+120*k)st.tumble=null}
@@ -380,8 +387,8 @@ function create(cv,opts){
       g.save();g.translate(p.x,p.y);g.rotate(p.rot);g.drawImage(spr,-sz/2,-sz/2,sz,sz);g.restore()}g.globalAlpha=1;
     // the rocket, its flame, and the bear astride it
     const r=st.rk;if(r.vis){g.save();g.translate(r.x,r.y);g.rotate(r.ang);
-      const firing=st.phase==='fly'||(st.phase==='wait'&&st.t>2.6),stall=st.phase==='stall';
-      if(firing||stall)flame(g,t,stall?(Math.sin(t*40)>0?.35:.05):st.phase==='fly'?1+Math.min(.6,Math.log(st.m)*.3):.35);
+      const firing=st.phase==='fly'||(st.phase==='wait'&&st.t>2.6),stall=st.phase==='stall',P=popPose();g.translate(0,P.y*kh);g.rotate(P.r);
+      if(firing||stall)flame(g,t,stall?(Math.sin(t*40)>0?.35:.05):st.phase==='fly'?(1+Math.min(.6,Math.log(st.m)*.3))*(1+P.boost*.7):.35);
       if(KIT.ride){rideDraw(g,t,r,stall)}else{
       if(st.rider&&!KIT.ready){g.save();g.translate(RK.seat[0]*kh,RK.seat[1]*kh);g.rotate(-r.ang*.8);g.scale(kh*BS,kh*BS);bear.back(g);g.restore()}
       const s=rocketCv.s;g.drawImage(stall&&Math.sin(t*50)>0?rocketRed:rocketCv,-rocketCv.ox*kh,-rocketCv.oy*kh,rocketCv.width/s*kh,rocketCv.height/s*kh);
@@ -411,6 +418,11 @@ function create(cv,opts){
 
   // the bear riding the rocket in one picture: turned from its own tilt to the flight angle, faces cross-fading;
   // after the bail-out, the rocket alone. Called inside the rocket's frame (origin at its middle, x along the axis).
+  /** The pose-change motion: dip 0-.11 s, kick up .11-.22 s, settle with an overshoot to .55 s. */
+  function popPose(){const p=st.pop;if(!p)return{y:0,r:0,boost:0};const t=p.t;
+    if(t<.11){const e=sm(t/.11);return{y:3*e,r:.02*e,boost:0}}
+    if(t<.22){const e=sm((t-.11)/.11);return{y:lerp(3,-7,e),r:lerp(.02,-.05,e),boost:Math.sin(e*Math.PI)}}
+    const e=easeBack(clamp((t-.22)/.33,0,1));return{y:lerp(-7,0,e),r:lerp(-.05,0,e),boost:0}}
   function rideDraw(g,t,r,stall){const D=KIT.ride,s=kh*D.rs,red=stall&&Math.sin(t*50)>0;
     g.save();g.rotate(-D.angle);g.scale(s,s);g.translate(-D.M[0],-D.M[1]);
     const img=f=>red?KIT.red[f]:KIT.img['ride-'+f],draw=(f,a)=>{if(a<=0)return;g.globalAlpha=a;g.drawImage(img(f),0,0,D.w,D.h)};

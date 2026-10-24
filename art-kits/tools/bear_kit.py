@@ -207,8 +207,115 @@ def fade_bottom(im, frac=.16):
     return Image.fromarray(a, 'RGBA')
 
 
+# ---------------- the bear riding the rocket ----------------
+RIDE_K = .32                                     # the riding pictures are made 2000 px wide; the game files are 640
+RIDE_TIP, RIDE_TAIL = (1835, 232), (470, 1010)   # rough nose tip and nozzle in the riding pictures (the axis is fitted)
+BOOT = [(850, 772), (1005, 765), (1068, 795), (1082, 880), (1058, 920), (858, 920), (845, 860)]   # the near boot, on the hull
+GREEN = [(0, (2, 14, 8)), (.1, (4, 48, 27)), (.25, (8, 112, 62)), (.42, (18, 176, 98)), (.6, (60, 230, 140)), (.8, (165, 255, 205)), (1, (240, 255, 248))]
+
+
+def axis_frame(shape, tail, tip):
+    """Per pixel: S along the axis from the tail, D across it (positive below), and the axis length."""
+    L = np.linalg.norm(tip - tail); u = (tip - tail) / L; n = np.array([-u[1], u[0]])
+    yy, xx = np.mgrid[0:shape[0], 0:shape[1]]
+    rx, ry = xx - tail[0], yy - tail[1]
+    return rx * u[0] + ry * u[1], rx * n[0] + ry * n[1], L, u, n
+
+
+def hull_radius(A, S, D, L):
+    """The hull's half width along the axis, from its free lower edge; the rear (fins, the cut bottom) keeps the middle's."""
+    rs = np.zeros(int(L) + 5)
+    below = A & (D > 0)
+    for s in range(0, int(L) + 1, 4):
+        sel = below & (np.abs(S - s) < 2)
+        rs[s:s + 4] = D[sel].max() if sel.any() else 0
+    mid = np.median(rs[int(L * .3):int(L * .55)])
+    rs[:int(L * .3)] = mid
+    return lambda s: np.interp(s, np.arange(len(rs)), rs)
+
+
+def greenify(img, tail, tip, protect=None):
+    """The silver chrome of the hull turned emerald, like the separate rocket, with its neon zig-zag along the body.
+    Only grey metal inside the hull changes: the bear, the pink and cyan rims and the violet fins keep their colours."""
+    a = np.asarray(img).astype(np.float32); rgb = a[..., :3] / 255; al = a[..., 3]
+    S, D, L, u, n = axis_frame(al.shape, tail, tip)
+    rad = hull_radius(al > 128, S, D, L)
+    hull = (S > -L * .03) & (S < L * 1.01) & (np.abs(D) <= rad(np.clip(S, 0, L)) + 4) & (al > 0)
+    mx, mn = rgb.max(axis=2), rgb.min(axis=2); sat = (mx - mn) / (mx + 1e-4); Y = rgb @ np.array([.299, .587, .114])
+    # grey metal and the sky's blue-violet in it turn green; the hot pink and cyan rims (strong colour) stay
+    hue = np.degrees(np.arctan2(np.sqrt(3) * (rgb[..., 1] - rgb[..., 2]), 2 * rgb[..., 0] - rgb[..., 1] - rgb[..., 2])) % 360
+    rim = (sat > .5) & (((hue > 280) | (hue < 20)) | ((hue > 140) & (hue < 200)))
+    w = np.clip(1.25 - sat / .6, 0, 1) * hull * ~rim
+    if protect is not None:                       # the boot: its dark leather stays, the bright hull around it turns
+        pm = Image.new('L', img.size); ImageDraw.Draw(pm).polygon(protect, fill=255)
+        w = np.where((np.asarray(pm) > 0) & (Y < .3), 0, w)
+    xs = [p for p, _ in GREEN]; ramp = np.stack([np.interp(Y, xs, [c[i] for _, c in GREEN]) for i in range(3)], -1)
+    out = a.copy(); out[..., :3] = a[..., :3] * (1 - w[..., None]) + ramp * w[..., None]
+    # the zig-zag: a glow and a core, only on the metal (the boot and the legs cover it)
+    r0 = float(rad(L * .45))
+    pts = [(L * s, r0 * d) for s, d in [(.16, .22), (.27, .22), (.32, .02), (.4, .34), (.46, .06), (.53, .3), (.6, .16)]]
+    to_xy = lambda s, d: (tail[0] + u[0] * s + n[0] * d, tail[1] + u[1] * s + n[1] * d)
+    line = [to_xy(s, d) for s, d in pts]
+    glow = Image.new('L', img.size); ImageDraw.Draw(glow).line(line, fill=255, width=max(4, int(r0 * .12)), joint='curve')
+    glow = np.asarray(glow.filter(ImageFilter.GaussianBlur(r0 * .06))).astype(np.float32) / 255
+    core = Image.new('L', img.size); ImageDraw.Draw(core).line(line, fill=255, width=max(2, int(r0 * .035)), joint='curve')
+    core = np.asarray(core.filter(ImageFilter.GaussianBlur(1))).astype(np.float32) / 255
+    metal = (w > .5).astype(np.float32)
+    g1 = (glow * .85 * metal)[..., None]; c1 = (core * metal)[..., None]
+    out[..., :3] = out[..., :3] * (1 - g1) + np.array([43, 255, 136]) * g1
+    out[..., :3] = out[..., :3] * (1 - c1) + np.array([210, 255, 230]) * c1
+    return Image.fromarray(np.clip(out, 0, 255).astype(np.uint8), 'RGBA')
+
+
+def cut_ride(path):
+    sp = Image.open(path)
+    c = restore_convex(sp, holes(sp, remove_white(sp)), 1262)
+    a = np.asarray(c).copy(); hgt = a.shape[0]; n = 40          # the picture's cut bottom edge melts away
+    a[hgt - n:, :, 3] = (a[hgt - n:, :, 3] * np.linspace(1, 0, n)[:, None]).astype(np.uint8)
+    return Image.fromarray(a, 'RGBA')
+
+
+def build_ride(kit):
+    """The bear riding the rocket, one picture per face (edits of one picture: same rocket, same framing), the rocket
+    turned green, and the rocket alone for the bail-out laid along the same axis."""
+    faces = [f for f in ['calm', 'hype', 'scared'] if os.path.exists(os.path.join(SRC, 'ride-' + f + '.webp'))]
+    if not faces:
+        return
+    ride = {f: cut_ride(os.path.join(SRC, 'ride-' + f + '.webp')) for f in faces}
+    tail, tip, ang = rocket_axis(ride[faces[0]], RIDE_TIP, RIDE_TAIL)
+    print('ride axis', tail.round(1), tip.round(1), round(np.degrees(ang), 2), file=sys.stderr)
+    for f, im in ride.items():
+        scale(greenify(im, tail, tip, BOOT), RIDE_K).save(os.path.join(OUT, 'ride-' + f + '.webp'), 'WEBP', quality=86, method=6)
+    W0, H0 = ride[faces[0]].size
+    kit['ride'] = {'w': round(W0 * RIDE_K), 'h': round(H0 * RIDE_K), 'tail': (tail * RIDE_K).round(1).tolist(), 'tip': (tip * RIDE_K).round(1).tolist(),
+                   'angle': round(ang, 4), 'chest': [round(860 * RIDE_K), round(440 * RIDE_K)], 'faces': faces}
+    ep = os.path.join(SRC, 'ride-empty.webp')
+    if os.path.exists(ep):
+        e = cut_ride(ep)
+        A = np.asarray(e)[..., 3] > 128; ys, xs = np.where(A)
+        tip_g = (xs.max(), ys[xs == xs.max()].mean())
+        tail_g = (xs.min() + 60, ys[xs == xs.min()].mean())       # rough, the axis fit refines it
+        et, ep2, ea = rocket_axis(e, tip_g, tail_g)
+        k = np.linalg.norm(tip - tail) / np.linalg.norm(ep2 - et); rot = ang - ea
+        c, s_ = np.cos(rot) * k, np.sin(rot) * k
+        # output = M @ input + t: the empty rocket scaled and turned onto the riding rocket's axis, tips together
+        M = np.array([[c, -s_], [s_, c]]); t = tip - M @ ep2
+        Mi = np.linalg.inv(M); ti = -Mi @ t
+        e = e.transform((W0, H0), Image.AFFINE, (Mi[0, 0], Mi[0, 1], ti[0], Mi[1, 0], Mi[1, 1], ti[1]), resample=Image.BICUBIC)
+        print('empty rocket: scale', round(k, 3), 'turn', round(np.degrees(rot), 2), file=sys.stderr)
+        scale(greenify(e, tail, tip), RIDE_K).save(os.path.join(OUT, 'ride-empty.webp'), 'WEBP', quality=86, method=6)
+
+
 if __name__ == '__main__':
     os.makedirs(OUT, exist_ok=True)
+    if '--ride-only' in sys.argv:                 # just the riding pictures (the heads fit takes minutes)
+        with open(os.path.join(OUT, 'kit.json')) as fh:
+            kit = json.load(fh)
+        build_ride(kit)
+        with open(os.path.join(OUT, 'kit.json'), 'w') as fh:
+            json.dump(kit, fh, indent=1)
+        print(json.dumps(kit.get('ride')))
+        sys.exit(0)
     src, cut = {}, {}
     for name in ['bear-cheer', 'bear-hang', 'bear-fall', 'bear-heads', 'rocket']:
         src[name] = Image.open(os.path.join(SRC, name + '.png'))
@@ -289,47 +396,7 @@ if __name__ == '__main__':
     im.save(os.path.join(OUT, 'rocket.webp'), 'WEBP', quality=86, method=6)
     rp = {'nozzle': (96, 445), 'tip': (1700, 432), 'seat': (1195, 290)}
     kit['rocket'] = {'w': im.width, 'h': im.height, **{p: [round((x - ox) * k), round((y - oy) * k)] for p, (x, y) in rp.items()}}
-    # the bear riding the rocket, one picture per face (edits of one picture: same rocket, same framing)
-    RIDE_K = .32
-    faces = [f for f in ['calm', 'hype', 'scared'] if os.path.exists(os.path.join(SRC, 'ride-' + f + '.webp'))]
-    if faces:
-        ride = {}
-        for f in faces:
-            sp = Image.open(os.path.join(SRC, 'ride-' + f + '.webp'))
-            c = restore_convex(sp, holes(sp, remove_white(sp)), 1262)
-            a = np.asarray(c).copy(); hgt = a.shape[0]; n = 40          # the picture's cut bottom edge melts away
-            a[hgt - n:, :, 3] = (a[hgt - n:, :, 3] * np.linspace(1, 0, n)[:, None]).astype(np.uint8)
-            ride[f] = Image.fromarray(a, 'RGBA')
-        tail, tip, ang = rocket_axis(ride[faces[0]], (1835, 232), (470, 1010))
-        print('ride axis', tail.round(1), tip.round(1), round(np.degrees(ang), 2), file=sys.stderr)
-        for f, im in ride.items():
-            scale(im, RIDE_K).save(os.path.join(OUT, 'ride-' + f + '.webp'), 'WEBP', quality=86, method=6)
-        W0, H0 = ride[faces[0]].size
-        kit['ride'] = {'w': round(W0 * RIDE_K), 'h': round(H0 * RIDE_K), 'tail': (tail * RIDE_K).round(1).tolist(), 'tip': (tip * RIDE_K).round(1).tolist(),
-                       'angle': round(ang, 4), 'chest': [round(860 * RIDE_K), round(440 * RIDE_K)], 'faces': faces}
-        # the rocket alone for the bail-out: the generator's own (ride-empty) or, until then, the separate rocket
-        # turned silver and laid along the same axis
-        ep = os.path.join(SRC, 'ride-empty.webp')
-        if os.path.exists(ep):
-            sp = Image.open(ep); e = restore_convex(sp, holes(sp, remove_white(sp)), 1262)
-        else:
-            r = cut['rocket']; ra = np.asarray(r).astype(np.float32)
-            g = ra[..., 1] > ra[..., 0] + 25                              # the green hull -> grey chrome
-            lum = ra[..., :3].mean(axis=2, keepdims=True) * 1.15
-            ra[..., :3] = np.where(g[..., None], np.clip(lum * np.array([1.0, 1.0, 1.06]), 0, 255), ra[..., :3])
-            r = Image.fromarray(ra.astype(np.uint8), 'RGBA')
-            rx, ry = np.array([96., 445.]), np.array([1700., 432.])      # its nozzle and tip in the source picture
-            k2 = np.linalg.norm(tip - tail) / np.linalg.norm(ry - rx) * 1.04
-            r = scale(r, k2); rx, ry = rx * k2, ry * k2
-            rot = -np.degrees(ang - np.arctan2(ry[1] - rx[1], ry[0] - rx[0]))
-            c0 = np.array(r.size) / 2
-            r2 = r.rotate(rot, resample=Image.BICUBIC, expand=True)
-            c1 = np.array(r2.size) / 2; th = np.radians(-rot)
-            R = np.array([[np.cos(th), -np.sin(th)], [np.sin(th), np.cos(th)]])
-            tip_r = R @ (ry - c0) + c1
-            e = Image.new('RGBA', (W0, H0)); off = (tip - tip_r).round().astype(int)
-            e.alpha_composite(r2.crop((max(0, -off[0]), max(0, -off[1]), r2.width, r2.height)), (max(0, off[0]), max(0, off[1])))
-        scale(e, RIDE_K).save(os.path.join(OUT, 'ride-empty.webp'), 'WEBP', quality=86, method=6)
+    build_ride(kit)
     with open(os.path.join(OUT, 'kit.json'), 'w') as fh:
         json.dump(kit, fh, indent=1)
     for fn in sorted(os.listdir(OUT)):
