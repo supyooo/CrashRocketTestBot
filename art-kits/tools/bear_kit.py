@@ -13,6 +13,9 @@ import json, os, sys
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from straighten import straighten
+
 SRC = os.path.join('art-kits', 'bear', 'src')
 OUT = os.path.join('app', 'art', 'bear')
 BODY_H = 440          # px height of the bear pictures in the game files
@@ -148,33 +151,6 @@ def holes(img, rgba, min_area=300, min_white=249):
     return Image.fromarray(out, 'RGBA')
 
 
-def convex_hull(pts):
-    pts = sorted(set(map(tuple, pts)))
-    cross = lambda o, a, b: (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
-    lo, up = [], []
-    for p in pts:
-        while len(lo) >= 2 and cross(lo[-2], lo[-1], p) <= 0: lo.pop()
-        lo.append(p)
-    for p in reversed(pts):
-        while len(up) >= 2 and cross(up[-2], up[-1], p) <= 0: up.pop()
-        up.append(p)
-    return lo[:-1] + up[:-1]
-
-
-def restore_convex(src, cut, x0):
-    """The chrome nose has pure white glints touching its edge, so they went with the background. The nose is convex:
-    right of x0 everything inside the outline of what is left is rocket, put back from the source picture."""
-    s = np.asarray(src.convert('RGB')); c = np.asarray(cut).copy()
-    ys, xs = np.where(c[:, x0:, 3] > 128)
-    hp = convex_hull(np.stack([xs + x0, ys], 1)[::7])
-    S = 4; m = Image.new('L', (c.shape[1] * S, c.shape[0] * S)); ImageDraw.Draw(m).polygon([(x * S + S / 2, y * S + S / 2) for x, y in hp], fill=255)
-    hm = np.asarray(m.resize((c.shape[1], c.shape[0]), Image.BOX)).astype(int); hm[:, :x0] = 0
-    inner = np.asarray(Image.fromarray(((hm > 250) * 255).astype(np.uint8)).filter(ImageFilter.MinFilter(9))) > 0
-    fix = inner | ((hm > 0) & (c[..., 3] == 0))
-    c[fix, :3] = s[fix]; c[..., 3] = np.maximum(c[..., 3], np.where(fix, hm, 0)).astype(np.uint8)
-    return Image.fromarray(c, 'RGBA')
-
-
 def scale(im, k):
     return im.resize((max(1, round(im.width * k)), max(1, round(im.height * k))), Image.LANCZOS)
 
@@ -190,92 +166,48 @@ def fade_bottom(im, frac=.16):
 
 # ---------------- the bear riding the rocket ----------------
 RIDE_K = .32                                     # the riding pictures are made 2000 px wide; the game files are 640
-# the axis runs from the nose tip to the centre of the nozzle's rear face, picked on the pictures: the generator's hull
-# bends a little in perspective and its nozzle is cut by the picture's edge, so a line fitted on the nose misses the nozzle
-RIDE_TIP, RIDE_TAIL = (1840, 232), (472, 1000)
-EMPTY_TIP, EMPTY_TAIL = (1690, 77), (500, 880)
-BOOT = [(850, 772), (1005, 765), (1068, 795), (1082, 880), (1058, 920), (858, 920), (845, 860)]   # the near boot, on the hull
-GREEN = [(0, (2, 14, 8)), (.1, (4, 48, 27)), (.25, (8, 112, 62)), (.42, (18, 176, 98)), (.6, (60, 230, 140)), (.8, (165, 255, 205)), (1, (240, 255, 248))]
+# The generator bends the nose a few degrees off the hull, so each picture is straightened (straighten.py) from its
+# landmarks, picked on the picture: the centres of the nozzle's rear face and of the band's rear and front faces.
+# A picture that is already straight (an edit of the straightened one) needs none.
+RIDE_FIX = {'hype': ((511.5, 1016.5), (1331.5, 560), (1396, 528.5))}
+# the axis of the straightened riding pictures: the centre of the nozzle's rear face and the nose tip
+RIDE_TAIL, RIDE_TIP = (511.5, 1016.5), (1857, 281)
+RIDE_CHEST = (880, 400)                          # where the bear leaves the rocket from at the bail-out
+# the rocket alone for after the bail-out: its landmarks and axis, picked on its picture
+EMPTY_FIX = None
+EMPTY_TAIL, EMPTY_TIP = None, None
 
 
-def axis_frame(shape, tail, tip):
-    """Per pixel: S along the axis from the tail, D across it (positive below), and the axis length."""
-    L = np.linalg.norm(tip - tail); u = (tip - tail) / L; n = np.array([-u[1], u[0]])
-    yy, xx = np.mgrid[0:shape[0], 0:shape[1]]
-    rx, ry = xx - tail[0], yy - tail[1]
-    return rx * u[0] + ry * u[1], rx * n[0] + ry * n[1], L, u, n
-
-
-def hull_radius(A, S, D, L):
-    """The hull's half width along the axis, from its free lower edge; the rear (fins, the cut bottom) keeps the middle's."""
-    rs = np.zeros(int(L) + 5)
-    below = A & (D > 0)
-    for s in range(0, int(L) + 1, 4):
-        sel = below & (np.abs(S - s) < 2)
-        rs[s:s + 4] = D[sel].max() if sel.any() else 0
-    mid = np.median(rs[int(L * .3):int(L * .55)])
-    rs[:int(L * .3)] = mid
-    return lambda s: np.interp(s, np.arange(len(rs)), rs)
-
-
-def greenify(img, tail, tip, protect=None):
-    """The silver chrome of the hull turned emerald, like the separate rocket, with its neon zig-zag along the body.
-    Only grey metal inside the hull changes: the bear, the pink and cyan rims and the violet fins keep their colours."""
-    a = np.asarray(img).astype(np.float32); rgb = a[..., :3] / 255; al = a[..., 3]
-    S, D, L, u, n = axis_frame(al.shape, tail, tip)
-    rad = hull_radius(al > 128, S, D, L)
-    hull = (S > -L * .03) & (S < L * 1.01) & (np.abs(D) <= rad(np.clip(S, 0, L)) + 4) & (al > 0)
-    mx, mn = rgb.max(axis=2), rgb.min(axis=2); sat = (mx - mn) / (mx + 1e-4); Y = rgb @ np.array([.299, .587, .114])
-    # grey metal and the sky's blue-violet in it turn green; the hot pink and cyan rims (strong colour) stay
-    hue = np.degrees(np.arctan2(np.sqrt(3) * (rgb[..., 1] - rgb[..., 2]), 2 * rgb[..., 0] - rgb[..., 1] - rgb[..., 2])) % 360
-    rim = (sat > .5) & (((hue > 280) | (hue < 20)) | ((hue > 140) & (hue < 200)))
-    w = np.clip(1.25 - sat / .6, 0, 1) * hull * ~rim
-    if protect is not None:                       # the boot: its dark leather stays, the bright hull around it turns
-        pm = Image.new('L', img.size); ImageDraw.Draw(pm).polygon(protect, fill=255)
-        w = np.where((np.asarray(pm) > 0) & (Y < .3), 0, w)
-    xs = [p for p, _ in GREEN]; ramp = np.stack([np.interp(Y, xs, [c[i] for _, c in GREEN]) for i in range(3)], -1)
-    out = a.copy(); out[..., :3] = a[..., :3] * (1 - w[..., None]) + ramp * w[..., None]
-    # the zig-zag: a glow and a core, only on the metal (the boot and the legs cover it)
-    r0 = float(rad(L * .45))
-    pts = [(L * s, r0 * d) for s, d in [(.16, .22), (.27, .22), (.32, .02), (.4, .34), (.46, .06), (.53, .3), (.6, .16)]]
-    to_xy = lambda s, d: (tail[0] + u[0] * s + n[0] * d, tail[1] + u[1] * s + n[1] * d)
-    line = [to_xy(s, d) for s, d in pts]
-    glow = Image.new('L', img.size); ImageDraw.Draw(glow).line(line, fill=255, width=max(4, int(r0 * .12)), joint='curve')
-    glow = np.asarray(glow.filter(ImageFilter.GaussianBlur(r0 * .06))).astype(np.float32) / 255
-    core = Image.new('L', img.size); ImageDraw.Draw(core).line(line, fill=255, width=max(2, int(r0 * .035)), joint='curve')
-    core = np.asarray(core.filter(ImageFilter.GaussianBlur(1))).astype(np.float32) / 255
-    metal = (w > .5).astype(np.float32)
-    g1 = (glow * .85 * metal)[..., None]; c1 = (core * metal)[..., None]
-    out[..., :3] = out[..., :3] * (1 - g1) + np.array([43, 255, 136]) * g1
-    out[..., :3] = out[..., :3] * (1 - c1) + np.array([210, 255, 230]) * c1
-    return Image.fromarray(np.clip(out, 0, 255).astype(np.uint8), 'RGBA')
-
-
-def cut_ride(path):
-    sp = Image.open(path)
-    c = restore_convex(sp, holes(sp, remove_white(sp)), 1262)
+def cut_ride(path, fix):
+    sp = Image.open(path).convert('RGB')
+    if fix:
+        sp, bend = straighten(sp, *fix)
+        sp = sp.convert('RGB')
+        print(os.path.basename(path), 'nose bent by %.2f degrees, straightened' % bend, file=sys.stderr)
+    c = holes(sp, remove_white(sp))
     a = np.asarray(c).copy(); hgt = a.shape[0]; n = 40          # the picture's cut bottom edge melts away
     a[hgt - n:, :, 3] = (a[hgt - n:, :, 3] * np.linspace(1, 0, n)[:, None]).astype(np.uint8)
     return Image.fromarray(a, 'RGBA')
 
 
 def build_ride(kit):
-    """The bear riding the rocket, one picture per face (edits of one picture: same rocket, same framing), the rocket
-    turned green, and the rocket alone for the bail-out laid along the same axis."""
+    """The bear riding the rocket, one picture per face (edits of one picture: same rocket, same framing), and the
+    rocket alone for the bail-out laid along the same axis."""
     faces = [f for f in ['calm', 'hype', 'scared'] if os.path.exists(os.path.join(SRC, 'ride-' + f + '.webp'))]
     if not faces:
         return
-    ride = {f: cut_ride(os.path.join(SRC, 'ride-' + f + '.webp')) for f in faces}
+    ride = {f: cut_ride(os.path.join(SRC, 'ride-' + f + '.webp'), RIDE_FIX.get(f)) for f in faces}
     tail, tip = np.array(RIDE_TAIL, float), np.array(RIDE_TIP, float); ang = float(np.arctan2(tip[1] - tail[1], tip[0] - tail[0]))
     print('ride axis', tail.round(1), tip.round(1), round(np.degrees(ang), 2), file=sys.stderr)
     for f, im in ride.items():
-        scale(greenify(im, tail, tip, BOOT), RIDE_K).save(os.path.join(OUT, 'ride-' + f + '.webp'), 'WEBP', quality=86, method=6)
+        scale(im, RIDE_K).save(os.path.join(OUT, 'ride-' + f + '.webp'), 'WEBP', quality=86, method=6)
     W0, H0 = ride[faces[0]].size
     kit['ride'] = {'w': round(W0 * RIDE_K), 'h': round(H0 * RIDE_K), 'tail': (tail * RIDE_K).round(1).tolist(), 'tip': (tip * RIDE_K).round(1).tolist(),
-                   'angle': round(ang, 4), 'chest': [round(860 * RIDE_K), round(440 * RIDE_K)], 'faces': faces}
+                   'angle': round(ang, 4), 'chest': [round(c * RIDE_K) for c in RIDE_CHEST], 'faces': faces}
     ep = os.path.join(SRC, 'ride-empty.webp')
     if os.path.exists(ep):
-        e = cut_ride(ep)
+        assert EMPTY_TAIL and EMPTY_TIP, 'pick the axis of ride-empty.webp first'
+        e = cut_ride(ep, EMPTY_FIX)
         et, ep2 = np.array(EMPTY_TAIL, float), np.array(EMPTY_TIP, float); ea = float(np.arctan2(ep2[1] - et[1], ep2[0] - et[0]))
         k = np.linalg.norm(tip - tail) / np.linalg.norm(ep2 - et); rot = ang - ea
         c, s_ = np.cos(rot) * k, np.sin(rot) * k
@@ -284,7 +216,7 @@ def build_ride(kit):
         Mi = np.linalg.inv(M); ti = -Mi @ t
         e = e.transform((W0, H0), Image.AFFINE, (Mi[0, 0], Mi[0, 1], ti[0], Mi[1, 0], Mi[1, 1], ti[1]), resample=Image.BICUBIC)
         print('empty rocket: scale', round(k, 3), 'turn', round(np.degrees(rot), 2), file=sys.stderr)
-        scale(greenify(e, tail, tip), RIDE_K).save(os.path.join(OUT, 'ride-empty.webp'), 'WEBP', quality=86, method=6)
+        scale(e, RIDE_K).save(os.path.join(OUT, 'ride-empty.webp'), 'WEBP', quality=86, method=6)
 
 
 if __name__ == '__main__':

@@ -31,7 +31,23 @@ ul{margin:6px 0;padding-left:20px}li{margin:3px 0;color:#d6d3ee}
 </style>
 <main>
 <h1>Медведь и ракета: что сгенерировать</h1>
-<p>Чтобы персонаж выглядел как на заставке, а не собранным из фигур, рисуем его генератором изображений, а игра потом анимирует готовые картинки: двигает тело, меняет головы с эмоциями, качает на парашюте. Готово: 2–10. Сейчас нужны R1 и R2 (первые зелёные блоки): медведь на готовой прямой зелёной ракете.</p>
+<p>Чтобы персонаж выглядел как на заставке, а не собранным из фигур, рисуем его генератором изображений, а игра потом анимирует готовые картинки: двигает тело, меняет головы с эмоциями, качает на парашюте. Готово: 2–10 и R1. Сейчас нужны две правки картинки R1: спокойный медведь (R2) и ракета без медведя (R4).</p>
+
+<div class="box new">
+  <h2>Сейчас: две правки картинки R1</h2>
+  <p>Картинка R1 получилась отличной. Нос у ракеты был загнут вверх на 5°, его уже выпрямили: ниже выпрямленная основа. Каждую правку делайте <b>от этой основы</b>, а не от предыдущего результата: так ракета и кадр совпадут на всех картинках, и смена эмоции в игре не будет заметна как подмена.</p>
+  <figure style="margin:10px 0 0"><img src="ride-base.jpg" alt="Медведь на прямой зелёной ракете, выпрямленная основа" style="width:100%;border-radius:12px;background:#fff;display:block"><figcaption class="muted" style="margin-top:4px">Основа: долгое нажатие → сохранить. <a href="ride-base.jpg" download style="color:var(--green)">Скачать файлом</a></figcaption></figure>
+  <p class="muted">В чате генератора прикрепите основу и дайте промпт R2. Для R4 снова прикрепите основу (не результат R2). Если нос в ответе опять чуть загнётся, ничего страшного: игра выпрямляет его сама.</p>
+</div>
+
+<div class="box new"><div class="step"><span class="num">R2</span><div><h2>Спокойный</h2><span class="file">ride-calm</span></div></div>
+<div class="prompt">Edit the attached picture. Keep everything exactly the same: the rocket (its shape, its perfectly straight line, its angle, size, position and colours), the bear's position, size, body and legs, the framing and the plain white background. Change only his arms and his face: the raised arm comes down and both paws hold the rocket's dark riveted band, a calm, confident closed-mouth smile.<button class="copy">Скопировать</button></div></div>
+
+<div class="box new"><div class="step"><span class="num">R4</span><div><h2>Ракета без медведя</h2><span class="file">ride-empty</span></div></div>
+<div class="prompt">Edit the attached picture: remove the bear completely. Keep the rocket exactly the same: its shape, its perfectly straight line, its angle, size, position and colours, the riveted bands, the fins and the nozzle. Where the bear covered the rocket, paint the rocket as it continues: the glossy green hull, the neon-green zig-zag line along the body, the complete dark band. No trace or shadow of the bear left. Keep the framing and the plain white background.<button class="copy">Скопировать</button></div></div>
+
+<div class="box new"><div class="step"><span class="num">R3</span><div><h2>В испуге (по желанию)</h2><span class="file">ride-scared</span></div></div>
+<div class="prompt">Edit the attached picture. Keep the rocket and the framing exactly the same and the bear in the same place and size. Change only his pose and his face: he clutches the rocket's dark band with both paws and leans back in fear, mouth open in a scream, eyebrows raised high above the glasses, a small sweat drop. Plain white background.<button class="copy">Скопировать</button></div></div>
 
 <div class="box">
   <h2>Перед началом</h2>
@@ -47,52 +63,52 @@ ul{margin:6px 0;padding-left:20px}li{margin:3px 0;color:#d6d3ee}
   </div>
 </div>
 
-<div class="box new">
+<div class="box">
   <h2>Самый надёжный способ: даём генератору готовую ракету (R1, R2)</h2>
   <p>Генератор рисует длинную ракету по диагонали с изгибом, сколько его ни проси. Поэтому даём ему уже готовую прямую зелёную ракету под нужным углом и просим только <b>добавить медведя</b>: при правке картинки он почти не трогает то, что на ней уже есть. Эта же картинка будет и ракетой без медведя, так что №10 не нужна.</p>
   <figure style="margin:10px 0 0"><img src="rocket-base.png" alt="Прямая зелёная ракета под углом полёта" style="width:100%;border-radius:12px;background:#fff;display:block"><figcaption class="muted" style="margin-top:4px">Основа: долгое нажатие → сохранить. <a href="rocket-base.png" download style="color:var(--green)">Скачать файлом</a></figcaption></figure>
   <p class="muted">В чате генератора прикрепите <b>основу</b> (первой) и <b>последнюю картинку медведя на зелёной ракете</b> (чтобы он взял медведя и позу), дайте промпт R1. Потом R2 как правку результата.</p>
 </div>
 
-<div class="box new"><div class="step"><span class="num">R1</span><div><h2>Добавить медведя на ракету</h2><span class="file">ride-hype</span></div></div>
+<div class="box"><div class="step"><span class="num">R1</span><div><h2>Добавить медведя на ракету</h2><span class="file">ride-hype</span></div></div>
 <div class="prompt">Edit the first attached picture (the green rocket on white). Do NOT change the rocket in any way: keep its shape, its perfectly straight line, its angle, size, position and colours, the zig-zag line, the band, the fins and the nozzle exactly as they are. The rocket must stay identical to the input picture; you may only paint over it where the bear covers it.
 
 Only add the bear from the other attached picture, sitting astride this rocket just behind the dark band, his body facing the nose: the near leg along the hull with the boot pressed against it, the far leg hidden behind the rocket, the far paw gripping the band, the near arm raised high with a clenched fist, an excited open-mouth laugh. A soft contact shadow of the bear on the hull, the hull reflecting his jacket.
 
 Keep the plain white background and the framing, the whole bear inside the picture.<button class="copy">Скопировать</button></div></div>
 
-<div class="box new"><div class="step"><span class="num">R2</span><div><h2>Он же, спокойный</h2><span class="file">ride-calm</span></div></div>
+<div class="box"><div class="step"><span class="num">R2</span><div><h2>Он же, спокойный</h2><span class="file">ride-calm</span></div></div>
 <div class="prompt">Edit the picture you just made. Keep everything exactly the same: the rocket, the bear's position, size and legs, the framing. Change only his arms and his face: both paws hold the rocket's dark band, a calm, confident smile. Plain white background.<button class="copy">Скопировать</button></div></div>
 
-<div class="box new"><div class="step"><span class="num">R3</span><div><h2>Он же, в испуге (по желанию)</h2><span class="file">ride-scared</span></div></div>
+<div class="box"><div class="step"><span class="num">R3</span><div><h2>Он же, в испуге (по желанию)</h2><span class="file">ride-scared</span></div></div>
 <div class="prompt">Edit the picture with the raised fist. Keep the rocket and the framing exactly the same and the bear in the same place. Change only his pose and his face: he clutches the rocket with both paws and leans back in fear, mouth open in a scream, eyebrows raised high above the glasses, a small sweat drop. Plain white background.<button class="copy">Скопировать</button></div></div>
 
-<div class="box new">
+<div class="box">
   <h2>Было: тот же медведь на старой зелёной ракете (7G, 8G, 10G)</h2>
   <p>Ракета в картинках 7–10 вышла серебряной и чуть изогнутой: нос отклонён от корпуса примерно на 6°. Перерисуем их со старой зелёной ракетой, она прямая.</p>
   <p class="muted">В чате генератора прикрепите <b>старую зелёную ракету</b> (картинка №6) и <b>картинку №7</b>, затем дайте промпт 7G. Потом 8G и 10G как правки получившейся картинки. Важно: ракета целиком в кадре, с соплом и стабилизаторами, с отступом от краёв.</p>
 </div>
 
-<div class="box new"><div class="step"><span class="num">7G</span><div><h2>Медведь верхом на зелёной ракете</h2><span class="file">ride-hype</span></div></div>
+<div class="box"><div class="step"><span class="num">7G</span><div><h2>Медведь верхом на зелёной ракете</h2><span class="file">ride-hype</span></div></div>
 <div class="prompt">Edit the attached picture of the bear riding the rocket: replace the rocket with the green rocket from the other attached picture, exactly its design: a glossy emerald-green chrome body, a pointed nose cone, a dark metal ring band behind the nose, a glowing neon-green zig-zag line along the body, violet-purple swept fins, a dark gunmetal nozzle.
 
 The rocket must be perfectly straight: the body and the nose on one straight axis. It flies diagonally up to the right at the same angle and size as now. Keep the bear exactly the same, in the same pose, sitting astride the rocket: the near leg along the hull with the boot pressed against it, the far leg hidden behind the rocket, the far paw on the band, the near arm raised with a fist, laughing; a soft contact shadow of the bear on the hull.
 
 The whole rocket inside the picture with a clear margin on every side, the nozzle and all the fins included. No flame, no smoke, no background: a plain pure white background.<button class="copy">Скопировать</button></div></div>
 
-<div class="box new"><div class="step"><span class="num">8G</span><div><h2>Он же, спокойный</h2><span class="file">ride-calm</span></div></div>
+<div class="box"><div class="step"><span class="num">8G</span><div><h2>Он же, спокойный</h2><span class="file">ride-calm</span></div></div>
 <div class="prompt">Edit the picture you just made. Keep everything else exactly the same: the green rocket, its position, angle and size, the bear's position, size and legs, the lighting and the framing. Change only his arms and his face: both paws now hold on to the rocket's dark band, a calm, confident smile. Plain pure white background.<button class="copy">Скопировать</button></div></div>
 
-<div class="box new"><div class="step"><span class="num">10G</span><div><h2>Зелёная ракета без медведя</h2><span class="file">ride-empty</span></div></div>
+<div class="box"><div class="step"><span class="num">10G</span><div><h2>Зелёная ракета без медведя</h2><span class="file">ride-empty</span></div></div>
 <div class="prompt">Edit the picture of the bear riding the green rocket (the one with the raised fist). Remove the bear completely and keep the rocket exactly the same: the same position, angle, size, lighting and framing. Where the bear was, show the rocket's hull, its zig-zag line and its band as they would look. Plain pure white background.<button class="copy">Скопировать</button></div></div>
 
-<div class="box new">
+<div class="box">
   <h2>Было: медведь на ракете одной картинкой (7–10)</h2>
   <p>Картинки 2–6 уже в прототипе. Но медведь, наклеенный на отдельную ракету, выглядит плоско: у них разная перспектива, он не обхватывает ракету ногами, нет тени и общего света. Поэтому рисуем их вместе, как на заставке. Игра будет двигать эту картинку целиком и добавит пламя и дым.</p>
   <p class="muted">Продолжайте в том же чате генератора, где делали медведя и ракету: так он сохранит их вид. Если начинаете новый чат, прикрепите заставку (референс 2), картинку «кулак вверх» и ракету.</p>
 </div>
 
-<div class="box new"><div class="step"><span class="num">7</span><div><h2>Медведь верхом на ракете</h2><span class="file">ride-hype</span>
+<div class="box"><div class="step"><span class="num">7</span><div><h2>Медведь верхом на ракете</h2><span class="file">ride-hype</span>
 <p class="muted">Главная картинка. Ракета по диагонали вверх-вправо, медведь сидит на ней верхом лицом к носу, кулак вверх. Без пламени и фона.</p></div></div>
 <div class="prompt">Use the attached pictures: the poster for the style and the composition, the bear and the rocket from before for the character and the rocket design.
 
@@ -102,15 +118,15 @@ He really sits ON the rocket: his weight presses on it, a soft contact shadow of
 
 No flame, no smoke, no stars, no sun, no background: only the rocket with the bear on a plain pure white background, the whole rocket inside the image with a margin. Glossy 3D cartoon render like the poster, synthwave rim light: hot pink from the left and below, neon cyan-green from the right. Square image.<button class="copy">Скопировать</button></div></div>
 
-<div class="box new"><div class="step"><span class="num">8</span><div><h2>Он же, спокойный</h2><span class="file">ride-calm</span>
+<div class="box"><div class="step"><span class="num">8</span><div><h2>Он же, спокойный</h2><span class="file">ride-calm</span>
 <p class="muted">Та же картинка, меняются только лапы и морда. Для площадки и первых секунд полёта.</p></div></div>
 <div class="prompt">Edit the picture you just made (the bear riding the rocket). Keep everything else exactly the same: the rocket, its position, angle and size, the bear's position, size and legs, the lighting and the framing. Change only his arms and his face: both paws now hold on to the rocket's dark band, a calm, confident smile. Plain pure white background.<button class="copy">Скопировать</button></div></div>
 
-<div class="box new"><div class="step"><span class="num">9</span><div><h2>Он же, в испуге</h2><span class="file">ride-scared</span>
+<div class="box"><div class="step"><span class="num">9</span><div><h2>Он же, в испуге</h2><span class="file">ride-scared</span>
 <p class="muted">Для момента, когда глохнет двигатель перед взрывом.</p></div></div>
 <div class="prompt">Edit the first picture of the bear riding the rocket (the one with the raised fist). Keep the rocket, its position, angle and size and the framing exactly the same, the bear in the same place. Change only his pose and face: he clutches the rocket with both paws and leans back in fear, mouth open in a scream, eyebrows raised high above the glasses, a small sweat drop. Plain pure white background.<button class="copy">Скопировать</button></div></div>
 
-<div class="box new"><div class="step"><span class="num">10</span><div><h2>Ракета без медведя</h2><span class="file">ride-empty</span>
+<div class="box"><div class="step"><span class="num">10</span><div><h2>Ракета без медведя</h2><span class="file">ride-empty</span>
 <p class="muted">Нужна для момента, когда медведь катапультируется и ракета летит дальше одна.</p></div></div>
 <div class="prompt">Edit the first picture of the bear riding the rocket. Remove the bear completely and keep the rocket exactly the same: the same position, angle, size, lighting and framing. Where the bear was, show the rocket's hull and band as they would look. Plain pure white background.<button class="copy">Скопировать</button></div></div>
 
