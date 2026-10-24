@@ -41,14 +41,16 @@ html,body{height:100%;margin:0;background:#07040f;color:var(--text);font:14px/1.
 </div>
 <script>
 /* GitHub Pages lets a browser keep this page for 10 minutes. Ask for the current version past every cache and, if this
-   copy is older, reload once with the version in the address (a new address is never served from the cache). */
-(()=>{const V='7';fetch('ver.json?t='+Date.now(),{cache:'no-store'}).then(r=>r.json()).then(d=>{
-  if(!d||d.v===V)return;const u=new URL(location.href);if(u.searchParams.get('pv')===d.v)return;u.searchParams.set('pv',d.v);location.replace(u)}).catch(()=>{})})();
+   copy is older, reload once with the version in the address (a new address is never served from the cache). The
+   bear's pictures carry the version too. */
+const PV='8';
+(()=>{fetch('ver.json?t='+Date.now(),{cache:'no-store'}).then(r=>r.json()).then(d=>{
+  if(!d||d.v===PV)return;const u=new URL(location.href);if(u.searchParams.get('pv')===d.v)return;u.searchParams.set('pv',d.v);location.replace(u)}).catch(()=>{})})();
 </script>
-<script src="scene2.js?v=7"></script>
+<script src="scene2.js?v=8"></script>
 <script>
 (()=>{
-const $=id=>document.getElementById(id),cv=$('cv'),stage=$('stage'),scene=Scene2.create(cv,{kit:"../art/bear/"});
+const $=id=>document.getElementById(id),cv=$('cv'),stage=$('stage'),scene=Scene2.create(cv,{kit:"../art/bear/",ver:PV});
 const q=new URLSearchParams(location.search),FIX=parseFloat(q.get('x'))||0,AUTO=parseFloat(q.get('auto'))||0;
 const K=.12,WAIT=5,HOLD=5;
 let phase='wait',t0=performance.now(),m=1,crashAt=2,cashed=false,last=performance.now();

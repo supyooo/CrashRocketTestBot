@@ -178,14 +178,14 @@ function create(cv,opts){
   /* The painted bear and rocket (app/art/bear, made by art-kits/tools/bear_kit.py). Until every picture is in, the
      vector ones stand in. The rocket picture is scaled to 150 units from the nozzle to the tip; RK follows it. */
   const KIT={ready:false,img:{}};
-  if(opts&&opts.kit){const base=opts.kit;fetch(base+'kit.json').then(r=>r.ok?r.json():Promise.reject(r.status)).then(j=>{KIT.j=j;
+  if(opts&&opts.kit){const base=opts.kit,v=opts.ver?'?v='+opts.ver:'';fetch(base+'kit.json'+v).then(r=>r.ok?r.json():Promise.reject(r.status)).then(j=>{KIT.j=j;
     const files=['cheer-calm','cheer-hype','cheer-scared','cheer-win','hang','fall','rocket'].concat(j.ride?j.ride.faces.map(f=>'ride-'+f).concat('ride-empty'):[]);let n=0;
     files.forEach(f=>{const im=new Image();im.decoding='async';im.onload=()=>{if(++n<files.length)return;
       const R=j.rocket;KIT.u=150/(R.tip[0]-R.nozzle[0]);KIT.M=[(R.nozzle[0]+R.tip[0])/2,(R.nozzle[1]+R.tip[1])/2];
       RK.tail=(R.nozzle[0]-KIT.M[0])*KIT.u;RK.seat=[(R.seat[0]-KIT.M[0])*KIT.u,(R.seat[1]-KIT.M[1])*KIT.u];
       if(j.ride){const D=j.ride,L=Math.hypot(D.tip[0]-D.tail[0],D.tip[1]-D.tail[1]);
         KIT.ride={...D,M:[(D.tail[0]+D.tip[0])/2,(D.tail[1]+D.tip[1])/2],rs:RIDE_LEN/L};RK.tail=-RIDE_LEN/2;ANG.fly=D.angle;ANG.pad=D.angle-.12}
-      KIT.ready=true;if(W>1){paintStatic();if(st.phase==='wait'&&!st.drop)api.placeOnPad()}};im.src=base+f+'.webp';KIT.img[f]=im})}).catch(()=>{})}
+      KIT.ready=true;if(W>1){paintStatic();if(st.phase==='wait'&&!st.drop)api.placeOnPad()}};im.src=base+f+'.webp'+v;KIT.img[f]=im})}).catch(()=>{})}
 
   function paintStatic(){
     const R=rng(7);

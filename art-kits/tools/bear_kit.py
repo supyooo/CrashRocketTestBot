@@ -166,57 +166,161 @@ def fade_bottom(im, frac=.16):
 
 # ---------------- the bear riding the rocket ----------------
 RIDE_K = .32                                     # the riding pictures are made 2000 px wide; the game files are 640
-# The generator bends the nose a few degrees off the hull, so each picture is straightened (straighten.py) from its
-# landmarks, picked on the picture: the centres of the nozzle's rear face and of the band's rear and front faces.
-# A picture that is already straight (an edit of the straightened one) needs none.
-RIDE_FIX = {'hype': ((511.5, 1016.5), (1331.5, 560), (1396, 528.5))}
+# The other faces are edits of the reference picture: the generator keeps the framing within a few pixels, so each
+# edit is matched onto the reference on rocket parts no pose covers (the nozzle, the band's bottom, the tip).
+RIDE_REF = 'hype'
+RIDE_PATCHES = [(430, 880, 640, 1100), (1350, 620, 1520, 750), (1700, 200, 1850, 330)]
+# The generator bends the nose a few degrees off the hull, so the pictures are straightened (straighten.py) from
+# landmarks picked on the reference: the centres of the nozzle's rear face and of the band's rear and front faces.
+RIDE_FIX = ((511.5, 1016.5), (1331.5, 560), (1396, 528.5))
 # the axis of the straightened riding pictures: the centre of the nozzle's rear face and the nose tip
 RIDE_TAIL, RIDE_TIP = (511.5, 1016.5), (1857, 281)
 RIDE_CHEST = (880, 400)                          # where the bear leaves the rocket from at the bail-out
-# the rocket alone for after the bail-out: its landmarks and axis, picked on its picture
-EMPTY_FIX = None
-EMPTY_TAIL, EMPTY_TIP = None, None
+# The rocket alone for after the bail-out, a picture of its own framing. Its hull is in full view, so the straightening
+# takes two points of the hull's mid-line (the nozzle is drawn a little off it) and the band's front; the axis is then
+# the nozzle's centre and the tip of the straightened picture, as on the riding ones. Then it is reshaped onto the
+# riding rocket (fit_empty).
+EMPTY_FIX = ((851.0, 683.6), (1254.7, 424.0), (1355.7, 359.1))
+EMPTY_TAIL, EMPTY_TIP = (436, 926), (1795.5, 79.7)
 
 
-def cut_ride(path, fix):
-    sp = Image.open(path).convert('RGB')
+def register(img, ref, patches, r=10):
+    """An edit laid exactly over the reference picture: each patch's shift found by comparing pixels (to a fraction of
+    a pixel), then the turn, scale and shift that fit them all."""
+    a = np.asarray(ref.convert('RGB')).astype(np.float32); b = np.asarray(img.convert('RGB')).astype(np.float32)
+    src, dst = [], []
+    for x0, y0, x1, y1 in patches:
+        P = a[y0:y1, x0:x1]
+        E = np.full((2 * r + 1, 2 * r + 1), np.inf)
+        for dy in range(-r, r + 1):
+            for dx in range(-r, r + 1):
+                if y0 + dy >= 0 and x0 + dx >= 0 and y1 + dy <= b.shape[0] and x1 + dx <= b.shape[1]:
+                    E[dy + r, dx + r] = np.abs(b[y0 + dy:y1 + dy, x0 + dx:x1 + dx] - P).mean()
+        iy, ix = np.unravel_index(np.argmin(E), E.shape)
+
+        def sub(e0, e1, e2):                      # the parabola's low point through three neighbours
+            d = e0 - 2 * e1 + e2
+            return .5 * (e0 - e2) / d if np.isfinite(d) and d > 0 else 0
+        fx = sub(E[iy, ix - 1], E[iy, ix], E[iy, ix + 1]) if 0 < ix < 2 * r else 0
+        fy = sub(E[iy - 1, ix], E[iy, ix], E[iy + 1, ix]) if 0 < iy < 2 * r else 0
+        c = np.array([(x0 + x1) / 2, (y0 + y1) / 2])
+        dst.append(c); src.append(c + (ix - r + fx, iy - r + fy))
+    # least squares for [x', y'] = [[p, -q], [q, p]] [x, y] + t, from the edit's points to the reference's
+    rows, rhs = [], []
+    for (x, y), (X, Y) in zip(src, dst):
+        rows += [[x, -y, 1, 0], [y, x, 0, 1]]; rhs += [X, Y]
+    p, q, tx, ty = np.linalg.lstsq(np.array(rows), np.array(rhs), rcond=None)[0]
+    M = np.array([[p, -q], [q, p]]); t = np.array([tx, ty])
+    Mi = np.linalg.inv(M); ti = -Mi @ t
+    print('  matched: scale %.4f, turn %.3f deg, shift %s' % (np.hypot(p, q), np.degrees(np.arctan2(q, p)), t.round(1)), file=sys.stderr)
+    return img.convert('RGB').transform(img.size, Image.AFFINE, (Mi[0, 0], Mi[0, 1], ti[0], Mi[1, 0], Mi[1, 1], ti[1]),
+                                        resample=Image.BICUBIC, fillcolor=(255, 255, 255))
+
+
+def cut_ride(sp, fix, name, pockets=True):
+    """Straightened and cut out. `pockets`: enclosed white between the paws and the body goes too (the rocket alone has
+    none, and its white glints would go with it)."""
+    sp = sp.convert('RGB')
     if fix:
         sp, bend = straighten(sp, *fix)
         sp = sp.convert('RGB')
-        print(os.path.basename(path), 'nose bent by %.2f degrees, straightened' % bend, file=sys.stderr)
-    c = holes(sp, remove_white(sp))
-    a = np.asarray(c).copy(); hgt = a.shape[0]; n = 40          # the picture's cut bottom edge melts away
+        print(name, 'nose bent by %.2f degrees, straightened' % bend, file=sys.stderr)
+    return holes(sp, remove_white(sp)) if pockets else remove_white(sp)
+
+
+def melt_bottom(im, n=40):
+    """The riding picture's bottom edge cuts the fin and the nozzle: it melts away instead of ending in a straight line."""
+    a = np.asarray(im).copy(); hgt = a.shape[0]
     a[hgt - n:, :, 3] = (a[hgt - n:, :, 3] * np.linspace(1, 0, n)[:, None]).astype(np.uint8)
     return Image.fromarray(a, 'RGBA')
+
+
+def hull_profile(alpha, tail, tip, n=400):
+    """The hull's lower edge: its distance below the axis at n points from the nozzle (0) to the tip (1)."""
+    T, P = np.array(tail, float), np.array(tip, float); L = np.linalg.norm(P - T); u = (P - T) / L; nv = np.array([-u[1], u[0]])
+    s = np.linspace(0, 1, n); d = np.arange(0, 500, .5)
+    xs = T[0] + u[0] * s[:, None] * L + nv[0] * d[None, :]; ys = T[1] + u[1] * s[:, None] * L + nv[1] * d[None, :]
+    ok = (xs >= 0) & (ys >= 0) & (xs < alpha.shape[1] - 1) & (ys < alpha.shape[0] - 1)
+    inside = ok & (alpha[np.clip(np.round(ys).astype(int), 0, alpha.shape[0] - 1), np.clip(np.round(xs).astype(int), 0, alpha.shape[1] - 1)] > 128)
+    out = ~inside
+    return s, d[np.where(out.any(1), out.argmax(1), len(d) - 1)]
+
+
+def band_marks(s, r):
+    """The hull's half width along the body, and where the band bulges out of it: its start, its widest point, its end."""
+    body = np.median(r[(s > .4) & (s < .58)])
+    i0 = np.where((s > .5) & (s < .8) & (r > body * 1.04))[0][0]
+    i1 = i0
+    while i1 + 1 < len(s) and r[i1 + 1] > body * 1.04:
+        i1 += 1
+    return body, (s[i0], s[i0 + np.argmax(r[i0:i1 + 1])], s[i1])
+
+
+def sample(a, sx, sy):
+    """Bilinear samples of an RGBA array (premultiplied, so the edges do not darken), transparent outside."""
+    H, W = a.shape[:2]
+    pm = a.astype(np.float32); pm[..., :3] *= pm[..., 3:] / 255
+    x0 = np.floor(sx).astype(int); y0 = np.floor(sy).astype(int); fx = (sx - x0)[..., None]; fy = (sy - y0)[..., None]
+    inside = (x0 >= 0) & (y0 >= 0) & (x0 < W - 1) & (y0 < H - 1)
+    x0 = np.clip(x0, 0, W - 2); y0 = np.clip(y0, 0, H - 2)
+    v = (pm[y0, x0] * (1 - fx) * (1 - fy) + pm[y0, x0 + 1] * fx * (1 - fy) + pm[y0 + 1, x0] * (1 - fx) * fy + pm[y0 + 1, x0 + 1] * fx * fy)
+    v[~inside] = 0
+    return v                                      # premultiplied
+
+
+def fit_empty(ride, empty, r_axis, e_axis):
+    """The rocket alone laid over the riding picture's rocket. The generator drew it as a picture of its own (a little
+    fatter, the band a little narrower), so it is reshaped along the axis: lengthwise piecewise through the band's
+    marks, across by the ratio of the hulls' widths. Then the swap at the bail-out keeps the outline and the bands."""
+    R = np.asarray(ride); E = np.asarray(empty)
+    (Tr, Pr), (Te, Pe) = [(np.array(a, float), np.array(b, float)) for a, b in (r_axis, e_axis)]
+    Lr, Le = np.linalg.norm(Pr - Tr), np.linalg.norm(Pe - Te)
+    ur, ue = (Pr - Tr) / Lr, (Pe - Te) / Le; nr, ne = np.array([-ur[1], ur[0]]), np.array([-ue[1], ue[0]])
+    s, rr = hull_profile(R[..., 3], Tr, Pr); _, re = hull_profile(E[..., 3], Te, Pe)
+    br, mr = band_marks(s, rr); be, me = band_marks(s, re)
+    xs, ys = [0, *mr, 1], [0, *me, 1]
+
+    def f(q):                                     # lengthwise: through the marks, straight on past the ends
+        return np.where(q < 0, q * ys[1] / xs[1], np.where(q > 1, 1 + (q - 1) * (1 - ys[-2]) / (1 - xs[-2]), np.interp(q, xs, ys)))
+    # across: the ratio of the widths, the body's in the back (the fins hide the hull's edge there), smoothed
+    ratio = np.interp(f(s), s, re) / np.maximum(rr, 1)
+    ratio = np.where(s < .4, be / br, ratio)
+    ratio = np.where(s > .96, ratio[np.searchsorted(s, .96)], ratio)
+    ratio = np.convolve(np.pad(ratio, 6, mode='edge'), np.ones(13) / 13, mode='valid')
+    H, W = R.shape[:2]; yy, xx = np.mgrid[0:H, 0:W].astype(np.float32)
+    S = ((xx - Tr[0]) * ur[0] + (yy - Tr[1]) * ur[1]) / Lr; D = (xx - Tr[0]) * nr[0] + (yy - Tr[1]) * nr[1]
+    S2 = f(S) * Le; D2 = D * np.interp(np.clip(S, 0, 1), s, ratio)
+    out = sample(E, Te[0] + ue[0] * S2 + ne[0] * D2, Te[1] + ue[1] * S2 + ne[1] * D2)
+    a = out[..., 3:]; out[..., :3] = np.where(a > 0, out[..., :3] * 255 / np.maximum(a, 1e-3), 0)
+    print('empty rocket: band %s -> %s, widths %.0f -> %.0f' % (np.round(me, 3), np.round(mr, 3), be, br), file=sys.stderr)
+    return Image.fromarray(np.clip(out, 0, 255).astype(np.uint8), 'RGBA')
 
 
 def build_ride(kit):
     """The bear riding the rocket, one picture per face (edits of one picture: same rocket, same framing), and the
     rocket alone for the bail-out laid along the same axis."""
     faces = [f for f in ['calm', 'hype', 'scared'] if os.path.exists(os.path.join(SRC, 'ride-' + f + '.webp'))]
-    if not faces:
+    if RIDE_REF not in faces:
         return
-    ride = {f: cut_ride(os.path.join(SRC, 'ride-' + f + '.webp'), RIDE_FIX.get(f)) for f in faces}
+    ref = Image.open(os.path.join(SRC, 'ride-' + RIDE_REF + '.webp')).convert('RGB')
+    ride = {}
+    for f in faces:
+        im = ref if f == RIDE_REF else Image.open(os.path.join(SRC, 'ride-' + f + '.webp'))
+        if f != RIDE_REF:
+            print('ride-' + f, file=sys.stderr)
+            im = register(im, ref, RIDE_PATCHES)
+        ride[f] = cut_ride(im, RIDE_FIX, 'ride-' + f)
     tail, tip = np.array(RIDE_TAIL, float), np.array(RIDE_TIP, float); ang = float(np.arctan2(tip[1] - tail[1], tip[0] - tail[0]))
     print('ride axis', tail.round(1), tip.round(1), round(np.degrees(ang), 2), file=sys.stderr)
     for f, im in ride.items():
-        scale(im, RIDE_K).save(os.path.join(OUT, 'ride-' + f + '.webp'), 'WEBP', quality=86, method=6)
-    W0, H0 = ride[faces[0]].size
+        scale(melt_bottom(im), RIDE_K).save(os.path.join(OUT, 'ride-' + f + '.webp'), 'WEBP', quality=86, method=6)
+    W0, H0 = ride[RIDE_REF].size
     kit['ride'] = {'w': round(W0 * RIDE_K), 'h': round(H0 * RIDE_K), 'tail': (tail * RIDE_K).round(1).tolist(), 'tip': (tip * RIDE_K).round(1).tolist(),
                    'angle': round(ang, 4), 'chest': [round(c * RIDE_K) for c in RIDE_CHEST], 'faces': faces}
     ep = os.path.join(SRC, 'ride-empty.webp')
     if os.path.exists(ep):
-        assert EMPTY_TAIL and EMPTY_TIP, 'pick the axis of ride-empty.webp first'
-        e = cut_ride(ep, EMPTY_FIX)
-        et, ep2 = np.array(EMPTY_TAIL, float), np.array(EMPTY_TIP, float); ea = float(np.arctan2(ep2[1] - et[1], ep2[0] - et[0]))
-        k = np.linalg.norm(tip - tail) / np.linalg.norm(ep2 - et); rot = ang - ea
-        c, s_ = np.cos(rot) * k, np.sin(rot) * k
-        # output = M @ input + t: the empty rocket scaled and turned onto the riding rocket's axis, tips together
-        M = np.array([[c, -s_], [s_, c]]); t = tip - M @ ep2
-        Mi = np.linalg.inv(M); ti = -Mi @ t
-        e = e.transform((W0, H0), Image.AFFINE, (Mi[0, 0], Mi[0, 1], ti[0], Mi[1, 0], Mi[1, 1], ti[1]), resample=Image.BICUBIC)
-        print('empty rocket: scale', round(k, 3), 'turn', round(np.degrees(rot), 2), file=sys.stderr)
-        scale(e, RIDE_K).save(os.path.join(OUT, 'ride-empty.webp'), 'WEBP', quality=86, method=6)
+        e = fit_empty(ride[RIDE_REF], cut_ride(Image.open(ep), EMPTY_FIX, 'ride-empty', pockets=False), (RIDE_TAIL, RIDE_TIP), (EMPTY_TAIL, EMPTY_TIP))
+        scale(melt_bottom(e), RIDE_K).save(os.path.join(OUT, 'ride-empty.webp'), 'WEBP', quality=86, method=6)
 
 
 if __name__ == '__main__':
