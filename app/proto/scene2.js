@@ -163,7 +163,9 @@ function drawCanopy(g,open,t,hands,top,size){hands=hands||HANDS;top=top||[5,-96]
   g.restore()}
 
 /* ---------------- the scene ---------------- */
-const BU=.22;   // rocket units per pixel of the painted bear pictures (its head about as wide as the rocket)
+const BU=.22,RIDE_LEN=160;   // RIDE_LEN: the riding picture's rocket, nozzle to tip, in rocket units
+const ANG={pad:-1,fly:-.76};
+   // rocket units per pixel of the painted bear pictures (its head about as wide as the rocket)
 function create(cv,opts){
   const ctx=cv.getContext('2d');
   let W=1,H=1,DPR=1,k=1,kh=1,yH=1;      // kh: the rocket and the bear, 1.3x the scene scale so their details read on a phone                    // stage size, its scale (1 = a 390 px wide phone), the horizon at rest
@@ -177,10 +179,12 @@ function create(cv,opts){
      vector ones stand in. The rocket picture is scaled to 150 units from the nozzle to the tip; RK follows it. */
   const KIT={ready:false,img:{}};
   if(opts&&opts.kit){const base=opts.kit;fetch(base+'kit.json').then(r=>r.ok?r.json():Promise.reject(r.status)).then(j=>{KIT.j=j;
-    const files=['cheer-calm','cheer-hype','cheer-scared','cheer-win','hang','fall','rocket'];let n=0;
+    const files=['cheer-calm','cheer-hype','cheer-scared','cheer-win','hang','fall','rocket'].concat(j.ride?j.ride.faces.map(f=>'ride-'+f).concat('ride-empty'):[]);let n=0;
     files.forEach(f=>{const im=new Image();im.decoding='async';im.onload=()=>{if(++n<files.length)return;
       const R=j.rocket;KIT.u=150/(R.tip[0]-R.nozzle[0]);KIT.M=[(R.nozzle[0]+R.tip[0])/2,(R.nozzle[1]+R.tip[1])/2];
       RK.tail=(R.nozzle[0]-KIT.M[0])*KIT.u;RK.seat=[(R.seat[0]-KIT.M[0])*KIT.u,(R.seat[1]-KIT.M[1])*KIT.u];
+      if(j.ride){const D=j.ride,L=Math.hypot(D.tip[0]-D.tail[0],D.tip[1]-D.tail[1]);
+        KIT.ride={...D,M:[(D.tail[0]+D.tip[0])/2,(D.tail[1]+D.tip[1])/2],rs:RIDE_LEN/L};RK.tail=-RIDE_LEN/2;ANG.fly=D.angle;ANG.pad=D.angle-.12}
       KIT.ready=true;if(W>1){paintStatic();if(st.phase==='wait'&&!st.drop)api.placeOnPad()}};im.src=base+f+'.webp';KIT.img[f]=im})}).catch(()=>{})}
 
   function paintStatic(){
@@ -217,6 +221,8 @@ function create(cv,opts){
     if(KIT.ready){const R=KIT.j.rocket,u=KIT.u;rocketCv=canvas((R.w*u+4)*s,(R.h*u+4)*s);const g=rocketCv.getContext('2d');g.scale(s,s);g.imageSmoothingQuality='high';
       g.drawImage(KIT.img.rocket,2,2,R.w*u,R.h*u);rocketCv.ox=KIT.M[0]*u+2;rocketCv.oy=KIT.M[1]*u+2}
     else{rocketCv=canvas(170*s,96*s);const g=rocketCv.getContext('2d');g.scale(s,s);g.translate(84,48);drawRocket(g);rocketCv.ox=84;rocketCv.oy=48}
+    if(KIT.ride){KIT.red={};for(const f of KIT.ride.faces.concat('empty')){const im=KIT.img['ride-'+f],c=canvas(im.width,im.height),g=c.getContext('2d');
+      g.drawImage(im,0,0);g.globalCompositeOperation='source-atop';g.fillStyle='rgba(255,40,80,.45)';g.fillRect(0,0,c.width,c.height);KIT.red[f]=c}}
     rocketCv.s=s;paintOverlays();rocketRed=canvas(rocketCv.width,rocketCv.height);rocketRed.ox=rocketCv.ox;rocketRed.oy=rocketCv.oy;{const g=rocketRed.getContext('2d');g.drawImage(rocketCv,0,0);g.globalCompositeOperation='source-atop';g.fillStyle='rgba(255,40,80,.5)';g.fillRect(0,0,rocketRed.width,rocketRed.height)}
   }
   function paintOverlays(){
@@ -250,9 +256,11 @@ function create(cv,opts){
 
   /* ---------- geometry helpers ---------- */
   const padPos=()=>({x:W*.3,y:yH+(H-yH)*.42+st.alt});                 // the pad stands on the floor, which sinks as we climb
-  const home=()=>{const p=padPos(),d=(2-RK.tail)*kh;return{x:p.x+Math.cos(-1)*d,y:p.y+Math.sin(-1)*d-5*k}};   // the rocket's centre when its nozzle rests on the pad
+  const home=()=>{const p=padPos(),d=(2-RK.tail)*kh;return{x:p.x+Math.cos(ANG.pad)*d,y:p.y+Math.sin(ANG.pad)*d-5*k}};   // the rocket's centre when its nozzle rests on the pad
   function nozzle(){const r=st.rk,s=kh;return{x:r.x+Math.cos(r.ang)*RK.tail*s,y:r.y+Math.sin(r.ang)*RK.tail*s}}
-  function seat(){const r=st.rk,s=kh,[sx,sy]=RK.seat;return{x:r.x+(Math.cos(r.ang)*sx-Math.sin(r.ang)*sy)*s,y:r.y+(Math.sin(r.ang)*sx+Math.cos(r.ang)*sy)*s}}
+  function seat(){const r=st.rk;if(KIT.ride){const D=KIT.ride,s=kh*D.rs,lx=(D.chest[0]-D.M[0])*s,ly=(D.chest[1]-D.M[1])*s,a=r.ang-D.angle;
+    return{x:r.x+Math.cos(a)*lx-Math.sin(a)*ly,y:r.y+Math.sin(a)*lx+Math.cos(a)*ly}}
+    const s=kh,[sx,sy]=RK.seat;return{x:r.x+(Math.cos(r.ang)*sx-Math.sin(r.ang)*sy)*s,y:r.y+(Math.sin(r.ang)*sx+Math.cos(r.ang)*sy)*s}}
 
   /* ---------- API ---------- */
   const api={
@@ -262,7 +270,7 @@ function create(cv,opts){
       puff.dark=[puffSprite(['#8a7396','#43305a','#1c1228'],5),puffSprite(['#7a6688','#3a2a4e','#170f22'],12)];
       puff.dust=[puffSprite(['#ffe0f6','#d79be8','#6d3a8c'],15)];puff.fire=[puffSprite(['#fffbe0','#ffb23a','#ff2e6a'],21),puffSprite(['#fff4c4','#ff9a2e','#e8235f'],27)];
       spark=sparkSprite();paintStatic();if(st.phase==='wait')api.placeOnPad()},
-    placeOnPad(){const h=home();st.rk.x=h.x;st.rk.y=h.y;st.rk.ang=-1},
+    placeOnPad(){const h=home();st.rk.x=h.x;st.rk.y=h.y;st.rk.ang=ANG.pad},
     wait(){st.phase='wait';st.t=0;st.rider=true;st.rk.vis=true;st.stall=0;st.drop=1;st.jumper=null;st.tumble=null;st.ridePose='grip'},
     launch(){st.phase='fly';st.t=0;st.launchT=0;for(let i=0;i<26;i++)addPuff('dust',padPos().x+rnd(-30,30)*k,padPos().y-4*k,rnd(-140,140),rnd(-50,0),rnd(10,20)*k,rnd(1.2,2),22)},
     cashout(){if(!st.rider||st.phase!=='fly')return;st.rider=false;const p=seat();st.jumper={x:p.x,y:p.y,vx:-80*k,vy:-330*k,rot:st.rk.ang*.4,vr:-6,t:0,open:0};
@@ -292,13 +300,13 @@ function create(cv,opts){
     const pad=padPos(),hm=home();
     if(st.phase==='wait'){
       if(st.drop>0){st.drop=Math.max(0,st.drop-dt*1.3);if(st.drop===0)for(let i=0;i<12;i++)addPuff('dust',pad.x+rnd(-26,26)*k,pad.y-2*k,rnd(-90,90),rnd(-30,0),rnd(8,14)*k,rnd(.8,1.3),16)}
-      const e=1-easeBack(1-st.drop);r.x=hm.x;r.y=hm.y-e*H*.9;r.ang=-1+Math.sin(st.drop*3)*.05*st.drop;
+      const e=1-easeBack(1-st.drop);r.x=hm.x;r.y=hm.y-e*H*.9;r.ang=ANG.pad+Math.sin(st.drop*3)*.05*st.drop;
       // the last two seconds of the countdown: the engine warms up, a smooth rumble
       const warm=clamp((st.t-2)/2,0,1);if(warm>0){r.x+=wob(t*22,1)*1.2*warm*k;r.y+=wob(t*25,2)*1.2*warm*k;if(Math.random()<warm*dt*30){const n=nozzle();addPuff('dust',n.x+rnd(-6,6)*k,pad.y-3*k,rnd(-70,70),rnd(-25,0),rnd(5,9)*k,rnd(.7,1.1),14)}}
     }else if(st.phase==='fly'){
       const p=easeOut(clamp(st.t/2.2,0,1)),I=clamp(Math.log(st.m)/Math.log(10),0,1.3);
       const tx=lerp(hm.x,W*.56,p)+wob(t*.9,3)*6*k,ty=lerp(hm.y,H*.46,p)+wob(t*1.1,5)*6*k;
-      r.x=st.t<.05?hm.x:tx;r.y=st.t<.05?hm.y:ty;r.ang=lerp(-1,-.76,p)+wob(t*2.2,7)*(.025+I*.04);
+      r.x=st.t<.05?hm.x:tx;r.y=st.t<.05?hm.y:ty;r.ang=lerp(ANG.pad,ANG.fly,p)+wob(t*2.2,7)*(.02+I*.03);
       // exhaust: pink billows trailing back
       const n=nozzle(),dir={x:Math.cos(r.ang),y:Math.sin(r.ang)},rate=(34+I*30)*dt;
       for(let i=0;i<Math.floor(rate)+(Math.random()<rate%1?1:0);i++){const v=rnd(90,170)*k;addPuff('pink',n.x-dir.x*10*k+rnd(-3,3)*k,n.y-dir.y*10*k+rnd(-3,3)*k,-dir.x*v+rnd(-24,24)*k,-dir.y*v+rnd(-24,24)*k,rnd(9,14)*k,rnd(1.4,2.2),26+I*14)}
@@ -319,7 +327,7 @@ function create(cv,opts){
     const mood=st.phase==='stall'?'scared':st.phase==='wait'?'calm':st.m>1.3?'hype':'calm';
     const pose=st.phase==='stall'?'scared':st.phase==='fly'?(st.m>1.6?'cheer':'grip'):'grip';
     bear.update(dt,t,pose,mood);
-    const face=st.phase==='stall'?'scared':st.phase==='fly'&&st.m>=1.25?'hype':'calm';
+    let face=st.phase==='stall'?'scared':st.phase==='fly'&&st.m>=1.25?'hype':'calm';if(KIT.ride&&!KIT.ride.faces.includes(face))face='calm';
     if(face!==st.face){st.facePrev=st.face||face;st.face=face;st.faceT=0}st.faceT=Math.min(1,(st.faceT||0)+dt/.2);
     const j=st.jumper;if(j){j.t+=dt;if(j.t<.45){j.vy+=900*k*dt;j.rot+=j.vr*dt}else{j.open=Math.min(1,j.open+dt/.4);j.rot*=1-Math.min(1,dt*6);j.vy+=(70*k-j.vy)*dt*2.4;j.vx*=1-dt*1.4}
       j.x+=j.vx*dt+cdx*.6;j.y+=j.vy*dt+cdy*.6;jbear.update(dt,t,j.open>0?'hang':'cheer','win');if(j.y>H+160*k)st.jumper=null}
@@ -374,9 +382,10 @@ function create(cv,opts){
     const r=st.rk;if(r.vis){g.save();g.translate(r.x,r.y);g.rotate(r.ang);
       const firing=st.phase==='fly'||(st.phase==='wait'&&st.t>2.6),stall=st.phase==='stall';
       if(firing||stall)flame(g,t,stall?(Math.sin(t*40)>0?.35:.05):st.phase==='fly'?1+Math.min(.6,Math.log(st.m)*.3):.35);
+      if(KIT.ride){rideDraw(g,t,r,stall)}else{
       if(st.rider&&!KIT.ready){g.save();g.translate(RK.seat[0]*kh,RK.seat[1]*kh);g.rotate(-r.ang*.8);g.scale(kh*BS,kh*BS);bear.back(g);g.restore()}
       const s=rocketCv.s;g.drawImage(stall&&Math.sin(t*50)>0?rocketRed:rocketCv,-rocketCv.ox*kh,-rocketCv.oy*kh,rocketCv.width/s*kh,rocketCv.height/s*kh);
-      if(st.rider){if(KIT.ready)rider(g,t,r,stall);else{g.save();g.translate(RK.seat[0]*kh,RK.seat[1]*kh);g.rotate(-r.ang*.8);g.scale(kh*BS,kh*BS);bear.front(g,t);g.restore()}}
+      if(st.rider){if(KIT.ready)rider(g,t,r,stall);else{g.save();g.translate(RK.seat[0]*kh,RK.seat[1]*kh);g.rotate(-r.ang*.8);g.scale(kh*BS,kh*BS);bear.front(g,t);g.restore()}}}
       g.restore()}
     // the bear under the parachute, or tumbling after the explosion
     const j=st.jumper;if(j){g.save();g.translate(j.x,j.y);g.rotate(j.rot+Math.sin(t*2.2)*.12*j.open);
@@ -400,6 +409,14 @@ function create(cv,opts){
     // a soft vignette keeps the eye in the middle
     g.drawImage(L.vig,0,0,W,H)}
 
+  // the bear riding the rocket in one picture: turned from its own tilt to the flight angle, faces cross-fading;
+  // after the bail-out, the rocket alone. Called inside the rocket's frame (origin at its middle, x along the axis).
+  function rideDraw(g,t,r,stall){const D=KIT.ride,s=kh*D.rs,red=stall&&Math.sin(t*50)>0;
+    g.save();g.rotate(-D.angle);g.scale(s,s);g.translate(-D.M[0],-D.M[1]);
+    const img=f=>red?KIT.red[f]:KIT.img['ride-'+f],draw=(f,a)=>{if(a<=0)return;g.globalAlpha=a;g.drawImage(img(f),0,0,D.w,D.h)};
+    if(!st.rider)draw('empty',1);
+    else{const ft=st.faceT;if(ft<1&&st.facePrev!==st.face&&D.faces.includes(st.facePrev))draw(st.facePrev,1);draw(st.face,ft<1?ft:1)}
+    g.globalAlpha=1;g.restore()}
   function rider(g,t,r,stall){const B=KIT.j.bear.cheer,s=kh*BU,hype=st.face==='hype';
     g.save();g.translate(RK.seat[0]*kh,RK.seat[1]*kh);
     const lean=stall?wob(t*24,1)*.06:Math.sin(t*3.1)*.03+(hype?Math.sin(t*9)*.025:0);g.rotate(-r.ang*.78+lean);

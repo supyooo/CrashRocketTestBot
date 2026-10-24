@@ -11,7 +11,7 @@
 """
 import json, os, sys
 import numpy as np
-from PIL import Image, ImageFilter
+from PIL import Image, ImageDraw, ImageFilter
 
 SRC = os.path.join('art-kits', 'bear', 'src')
 OUT = os.path.join('app', 'art', 'bear')
@@ -148,6 +148,52 @@ def holes(img, rgba, min_area=300, min_white=249):
     return Image.fromarray(out, 'RGBA')
 
 
+def convex_hull(pts):
+    pts = sorted(set(map(tuple, pts)))
+    cross = lambda o, a, b: (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+    lo, up = [], []
+    for p in pts:
+        while len(lo) >= 2 and cross(lo[-2], lo[-1], p) <= 0: lo.pop()
+        lo.append(p)
+    for p in reversed(pts):
+        while len(up) >= 2 and cross(up[-2], up[-1], p) <= 0: up.pop()
+        up.append(p)
+    return lo[:-1] + up[:-1]
+
+
+def restore_convex(src, cut, x0):
+    """The chrome nose has pure white glints touching its edge, so they went with the background. The nose is convex:
+    right of x0 everything inside the outline of what is left is rocket, put back from the source picture."""
+    s = np.asarray(src.convert('RGB')); c = np.asarray(cut).copy()
+    ys, xs = np.where(c[:, x0:, 3] > 128)
+    hp = convex_hull(np.stack([xs + x0, ys], 1)[::7])
+    S = 4; m = Image.new('L', (c.shape[1] * S, c.shape[0] * S)); ImageDraw.Draw(m).polygon([(x * S + S / 2, y * S + S / 2) for x, y in hp], fill=255)
+    hm = np.asarray(m.resize((c.shape[1], c.shape[0]), Image.BOX)).astype(int); hm[:, :x0] = 0
+    inner = np.asarray(Image.fromarray(((hm > 250) * 255).astype(np.uint8)).filter(ImageFilter.MinFilter(9))) > 0
+    fix = inner | ((hm > 0) & (c[..., 3] == 0))
+    c[fix, :3] = s[fix]; c[..., 3] = np.maximum(c[..., 3], np.where(fix, hm, 0)).astype(np.uint8)
+    return Image.fromarray(c, 'RGBA')
+
+
+def rocket_axis(cut, tip, guess_tail):
+    """The rocket's true axis in a riding picture: the middle between the upper and the lower edge of the free nose,
+    fitted with a line and carried back. Returns the tail point (axis at the nozzle), the tip and the angle."""
+    A = np.asarray(cut)[..., 3] > 128
+    tip, n0 = np.array(tip, float), np.array(guess_tail, float)
+    L = np.linalg.norm(tip - n0); u = (tip - n0) / L; n = np.array([-u[1], u[0]])
+    def edge(P, s, sign):
+        p = P + u * s; d = 0
+        while d < 320:
+            x, y = p + n * d * sign
+            if x < 0 or y < 0 or x >= A.shape[1] or y >= A.shape[0] or not A[int(y), int(x)]: break
+            d += 1
+        return d
+    ss = list(range(int(L * .64), int(L * .94), 10))
+    k, c = np.polyfit(ss, [(edge(n0, s, 1) - edge(n0, s, -1)) / 2 for s in ss], 1)
+    tail = n0 + n * c; tip2 = n0 + u * L + n * (k * L + c)
+    return tail, tip2, float(np.arctan2(tip2[1] - tail[1], tip2[0] - tail[0]))
+
+
 def scale(im, k):
     return im.resize((max(1, round(im.width * k)), max(1, round(im.height * k))), Image.LANCZOS)
 
@@ -243,6 +289,47 @@ if __name__ == '__main__':
     im.save(os.path.join(OUT, 'rocket.webp'), 'WEBP', quality=86, method=6)
     rp = {'nozzle': (96, 445), 'tip': (1700, 432), 'seat': (1195, 290)}
     kit['rocket'] = {'w': im.width, 'h': im.height, **{p: [round((x - ox) * k), round((y - oy) * k)] for p, (x, y) in rp.items()}}
+    # the bear riding the rocket, one picture per face (edits of one picture: same rocket, same framing)
+    RIDE_K = .32
+    faces = [f for f in ['calm', 'hype', 'scared'] if os.path.exists(os.path.join(SRC, 'ride-' + f + '.webp'))]
+    if faces:
+        ride = {}
+        for f in faces:
+            sp = Image.open(os.path.join(SRC, 'ride-' + f + '.webp'))
+            c = restore_convex(sp, holes(sp, remove_white(sp)), 1262)
+            a = np.asarray(c).copy(); hgt = a.shape[0]; n = 40          # the picture's cut bottom edge melts away
+            a[hgt - n:, :, 3] = (a[hgt - n:, :, 3] * np.linspace(1, 0, n)[:, None]).astype(np.uint8)
+            ride[f] = Image.fromarray(a, 'RGBA')
+        tail, tip, ang = rocket_axis(ride[faces[0]], (1835, 232), (470, 1010))
+        print('ride axis', tail.round(1), tip.round(1), round(np.degrees(ang), 2), file=sys.stderr)
+        for f, im in ride.items():
+            scale(im, RIDE_K).save(os.path.join(OUT, 'ride-' + f + '.webp'), 'WEBP', quality=86, method=6)
+        W0, H0 = ride[faces[0]].size
+        kit['ride'] = {'w': round(W0 * RIDE_K), 'h': round(H0 * RIDE_K), 'tail': (tail * RIDE_K).round(1).tolist(), 'tip': (tip * RIDE_K).round(1).tolist(),
+                       'angle': round(ang, 4), 'chest': [round(860 * RIDE_K), round(440 * RIDE_K)], 'faces': faces}
+        # the rocket alone for the bail-out: the generator's own (ride-empty) or, until then, the separate rocket
+        # turned silver and laid along the same axis
+        ep = os.path.join(SRC, 'ride-empty.webp')
+        if os.path.exists(ep):
+            sp = Image.open(ep); e = restore_convex(sp, holes(sp, remove_white(sp)), 1262)
+        else:
+            r = cut['rocket']; ra = np.asarray(r).astype(np.float32)
+            g = ra[..., 1] > ra[..., 0] + 25                              # the green hull -> grey chrome
+            lum = ra[..., :3].mean(axis=2, keepdims=True) * 1.15
+            ra[..., :3] = np.where(g[..., None], np.clip(lum * np.array([1.0, 1.0, 1.06]), 0, 255), ra[..., :3])
+            r = Image.fromarray(ra.astype(np.uint8), 'RGBA')
+            rx, ry = np.array([96., 445.]), np.array([1700., 432.])      # its nozzle and tip in the source picture
+            k2 = np.linalg.norm(tip - tail) / np.linalg.norm(ry - rx) * 1.04
+            r = scale(r, k2); rx, ry = rx * k2, ry * k2
+            rot = -np.degrees(ang - np.arctan2(ry[1] - rx[1], ry[0] - rx[0]))
+            c0 = np.array(r.size) / 2
+            r2 = r.rotate(rot, resample=Image.BICUBIC, expand=True)
+            c1 = np.array(r2.size) / 2; th = np.radians(-rot)
+            R = np.array([[np.cos(th), -np.sin(th)], [np.sin(th), np.cos(th)]])
+            tip_r = R @ (ry - c0) + c1
+            e = Image.new('RGBA', (W0, H0)); off = (tip - tip_r).round().astype(int)
+            e.alpha_composite(r2.crop((max(0, -off[0]), max(0, -off[1]), r2.width, r2.height)), (max(0, off[0]), max(0, off[1])))
+        scale(e, RIDE_K).save(os.path.join(OUT, 'ride-empty.webp'), 'WEBP', quality=86, method=6)
     with open(os.path.join(OUT, 'kit.json'), 'w') as fh:
         json.dump(kit, fh, indent=1)
     for fn in sorted(os.listdir(OUT)):
