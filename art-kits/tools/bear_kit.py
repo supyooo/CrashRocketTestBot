@@ -175,25 +175,6 @@ def restore_convex(src, cut, x0):
     return Image.fromarray(c, 'RGBA')
 
 
-def rocket_axis(cut, tip, guess_tail):
-    """The rocket's true axis in a riding picture: the middle between the upper and the lower edge of the free nose,
-    fitted with a line and carried back. Returns the tail point (axis at the nozzle), the tip and the angle."""
-    A = np.asarray(cut)[..., 3] > 128
-    tip, n0 = np.array(tip, float), np.array(guess_tail, float)
-    L = np.linalg.norm(tip - n0); u = (tip - n0) / L; n = np.array([-u[1], u[0]])
-    def edge(P, s, sign):
-        p = P + u * s; d = 0
-        while d < 320:
-            x, y = p + n * d * sign
-            if x < 0 or y < 0 or x >= A.shape[1] or y >= A.shape[0] or not A[int(y), int(x)]: break
-            d += 1
-        return d
-    ss = list(range(int(L * .64), int(L * .94), 10))
-    k, c = np.polyfit(ss, [(edge(n0, s, 1) - edge(n0, s, -1)) / 2 for s in ss], 1)
-    tail = n0 + n * c; tip2 = n0 + u * L + n * (k * L + c)
-    return tail, tip2, float(np.arctan2(tip2[1] - tail[1], tip2[0] - tail[0]))
-
-
 def scale(im, k):
     return im.resize((max(1, round(im.width * k)), max(1, round(im.height * k))), Image.LANCZOS)
 
@@ -209,7 +190,10 @@ def fade_bottom(im, frac=.16):
 
 # ---------------- the bear riding the rocket ----------------
 RIDE_K = .32                                     # the riding pictures are made 2000 px wide; the game files are 640
-RIDE_TIP, RIDE_TAIL = (1835, 232), (470, 1010)   # rough nose tip and nozzle in the riding pictures (the axis is fitted)
+# the axis runs from the nose tip to the centre of the nozzle's rear face, picked on the pictures: the generator's hull
+# bends a little in perspective and its nozzle is cut by the picture's edge, so a line fitted on the nose misses the nozzle
+RIDE_TIP, RIDE_TAIL = (1840, 232), (472, 1000)
+EMPTY_TIP, EMPTY_TAIL = (1690, 77), (500, 880)
 BOOT = [(850, 772), (1005, 765), (1068, 795), (1082, 880), (1058, 920), (858, 920), (845, 860)]   # the near boot, on the hull
 GREEN = [(0, (2, 14, 8)), (.1, (4, 48, 27)), (.25, (8, 112, 62)), (.42, (18, 176, 98)), (.6, (60, 230, 140)), (.8, (165, 255, 205)), (1, (240, 255, 248))]
 
@@ -282,7 +266,7 @@ def build_ride(kit):
     if not faces:
         return
     ride = {f: cut_ride(os.path.join(SRC, 'ride-' + f + '.webp')) for f in faces}
-    tail, tip, ang = rocket_axis(ride[faces[0]], RIDE_TIP, RIDE_TAIL)
+    tail, tip = np.array(RIDE_TAIL, float), np.array(RIDE_TIP, float); ang = float(np.arctan2(tip[1] - tail[1], tip[0] - tail[0]))
     print('ride axis', tail.round(1), tip.round(1), round(np.degrees(ang), 2), file=sys.stderr)
     for f, im in ride.items():
         scale(greenify(im, tail, tip, BOOT), RIDE_K).save(os.path.join(OUT, 'ride-' + f + '.webp'), 'WEBP', quality=86, method=6)
@@ -292,10 +276,7 @@ def build_ride(kit):
     ep = os.path.join(SRC, 'ride-empty.webp')
     if os.path.exists(ep):
         e = cut_ride(ep)
-        A = np.asarray(e)[..., 3] > 128; ys, xs = np.where(A)
-        tip_g = (xs.max(), ys[xs == xs.max()].mean())
-        tail_g = (xs.min() + 60, ys[xs == xs.min()].mean())       # rough, the axis fit refines it
-        et, ep2, ea = rocket_axis(e, tip_g, tail_g)
+        et, ep2 = np.array(EMPTY_TAIL, float), np.array(EMPTY_TIP, float); ea = float(np.arctan2(ep2[1] - et[1], ep2[0] - et[0]))
         k = np.linalg.norm(tip - tail) / np.linalg.norm(ep2 - et); rot = ang - ea
         c, s_ = np.cos(rot) * k, np.sin(rot) * k
         # output = M @ input + t: the empty rocket scaled and turned onto the riding rocket's axis, tips together

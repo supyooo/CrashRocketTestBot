@@ -164,7 +164,7 @@ function drawCanopy(g,open,t,hands,top,size){hands=hands||HANDS;top=top||[5,-96]
 
 /* ---------------- the scene ---------------- */
 const BU=.22,RIDE_LEN=160;   // RIDE_LEN: the riding picture's rocket, nozzle to tip, in rocket units
-const ANG={pad:-1,fly:-.76};
+const ANG={pad:-1,fly:-.76},JOY_X=2;   // JOY_X: the multiplier where the bear raises his fist
    // rocket units per pixel of the painted bear pictures (its head about as wide as the rocket)
 function create(cv,opts){
   const ctx=cv.getContext('2d');
@@ -327,7 +327,7 @@ function create(cv,opts){
     const mood=st.phase==='stall'?'scared':st.phase==='wait'?'calm':st.m>1.3?'hype':'calm';
     const pose=st.phase==='stall'?'scared':st.phase==='fly'?(st.m>1.6?'cheer':'grip'):'grip';
     bear.update(dt,t,pose,mood);
-    let face=st.phase==='stall'?'scared':st.phase==='fly'&&st.m>=1.25?'hype':'calm';if(KIT.ride&&!KIT.ride.faces.includes(face))face=st.face||'calm';
+    let face=st.phase==='stall'?'scared':st.phase==='fly'&&st.m>=JOY_X?'hype':'calm';if(KIT.ride&&!KIT.ride.faces.includes(face))face=st.face||'calm';
     if(face!==st.face){st.facePrev=st.face||face;st.face=face;st.faceT=st.phase==='wait'?1:0;
       // the riding pictures change pose inside a motion: a dip, a kick up (the swap happens here), a settle
       if(KIT.ride&&st.phase==='fly')st.pop={t:0,sparked:false}}
