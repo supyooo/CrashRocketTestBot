@@ -25,11 +25,13 @@ p{margin:8px 0;color:#d6d3ee}
 .copy{position:absolute;right:8px;bottom:8px;height:30px;padding:0 12px;border-radius:9px;border:0;background:var(--green);color:#04150d;font:700 13px 'Golos Text',sans-serif;cursor:pointer}
 .copy.done{background:var(--gold)}
 ul{margin:6px 0;padding-left:20px}li{margin:3px 0;color:#d6d3ee}
+.box.new{border-color:var(--green);box-shadow:0 0 0 1px rgba(43,255,136,.25),0 10px 30px rgba(43,255,136,.08)}
+.done{opacity:.55}
 .tip{border-left:3px solid var(--pink);padding:2px 0 2px 10px;margin:10px 0;color:#e8dcff}
 </style>
 <main>
 <h1>Медведь и ракета: что сгенерировать</h1>
-<p>Чтобы персонаж выглядел как на заставке, а не собранным из фигур, рисуем его генератором изображений, а игра потом анимирует готовые картинки: двигает тело, меняет головы с эмоциями, качает на парашюте. Нужно 6 картинок.</p>
+<p>Чтобы персонаж выглядел как на заставке, а не собранным из фигур, рисуем его генератором изображений, а игра потом анимирует готовые картинки: двигает тело, меняет головы с эмоциями, качает на парашюте. Готово: 2–6. Сейчас нужны 7–10 (зелёные блоки ниже).</p>
 
 <div class="box">
   <h2>Перед началом</h2>
@@ -45,7 +47,35 @@ ul{margin:6px 0;padding-left:20px}li{margin:3px 0;color:#d6d3ee}
   </div>
 </div>
 
-<div class="box"><div class="step"><span class="num">1</span><div><h2>Медведь верхом (основная поза)</h2><span class="file">bear-ride</span>
+<div class="box new">
+  <h2>Сейчас нужно: медведь на ракете одной картинкой (7–10)</h2>
+  <p>Картинки 2–6 уже в прототипе. Но медведь, наклеенный на отдельную ракету, выглядит плоско: у них разная перспектива, он не обхватывает ракету ногами, нет тени и общего света. Поэтому рисуем их вместе, как на заставке. Игра будет двигать эту картинку целиком и добавит пламя и дым.</p>
+  <p class="muted">Продолжайте в том же чате генератора, где делали медведя и ракету: так он сохранит их вид. Если начинаете новый чат, прикрепите заставку (референс 2), картинку «кулак вверх» и ракету.</p>
+</div>
+
+<div class="box new"><div class="step"><span class="num">7</span><div><h2>Медведь верхом на ракете</h2><span class="file">ride-hype</span>
+<p class="muted">Главная картинка. Ракета по диагонали вверх-вправо, медведь сидит на ней верхом лицом к носу, кулак вверх. Без пламени и фона.</p></div></div>
+<div class="prompt">Use the attached pictures: the poster for the style and the composition, the bear and the rocket from before for the character and the rocket design.
+
+Draw the bear RIDING the rocket, as one picture, like on the poster: side view, the rocket flying diagonally up to the right at about 40 degrees, nose at the top right, nozzle at the bottom left. The bear sits astride the rocket just behind the dark metal band near the nose, his body facing the nose: the near leg hangs down along the near side of the rocket with the boot pressed against the hull, the far leg is hidden behind the rocket, the far paw grips the band, the near arm is raised high with a clenched fist, an excited open-mouth laugh.
+
+He really sits ON the rocket: his weight presses on it, a soft contact shadow of the bear on the hull, the rocket's chrome reflects his jacket, the same lighting on both.
+
+No flame, no smoke, no stars, no sun, no background: only the rocket with the bear on a plain pure white background, the whole rocket inside the image with a margin. Glossy 3D cartoon render like the poster, synthwave rim light: hot pink from the left and below, neon cyan-green from the right. Square image.<button class="copy">Скопировать</button></div></div>
+
+<div class="box new"><div class="step"><span class="num">8</span><div><h2>Он же, спокойный</h2><span class="file">ride-calm</span>
+<p class="muted">Та же картинка, меняются только лапы и морда. Для площадки и первых секунд полёта.</p></div></div>
+<div class="prompt">Edit the picture you just made (the bear riding the rocket). Keep everything else exactly the same: the rocket, its position, angle and size, the bear's position, size and legs, the lighting and the framing. Change only his arms and his face: both paws now hold on to the rocket's dark band, a calm, confident smile. Plain pure white background.<button class="copy">Скопировать</button></div></div>
+
+<div class="box new"><div class="step"><span class="num">9</span><div><h2>Он же, в испуге</h2><span class="file">ride-scared</span>
+<p class="muted">Для момента, когда глохнет двигатель перед взрывом.</p></div></div>
+<div class="prompt">Edit the first picture of the bear riding the rocket (the one with the raised fist). Keep the rocket, its position, angle and size and the framing exactly the same, the bear in the same place. Change only his pose and face: he clutches the rocket with both paws and leans back in fear, mouth open in a scream, eyebrows raised high above the glasses, a small sweat drop. Plain pure white background.<button class="copy">Скопировать</button></div></div>
+
+<div class="box new"><div class="step"><span class="num">10</span><div><h2>Ракета без медведя</h2><span class="file">ride-empty</span>
+<p class="muted">Нужна для момента, когда медведь катапультируется и ракета летит дальше одна.</p></div></div>
+<div class="prompt">Edit the first picture of the bear riding the rocket. Remove the bear completely and keep the rocket exactly the same: the same position, angle, size, lighting and framing. Where the bear was, show the rocket's hull and band as they would look. Plain pure white background.<button class="copy">Скопировать</button></div></div>
+
+<div class="box done"><div class="step"><span class="num">1</span><div><h2>Медведь верхом (основная поза) — больше не нужна, её заменяют 7–10</h2><span class="file">bear-ride</span>
 <p class="muted">Сидит верхом, как на коне, одна лапа держится впереди. Голову игра потом заменит на нужную эмоцию.</p></div></div>
 <div class="prompt" id="p1">Use the two attached images as the reference for the character and the style.
 
