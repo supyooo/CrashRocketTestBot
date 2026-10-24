@@ -147,10 +147,10 @@ function makeBear(){
   return api}
 
 /* ---------------- parachute: a striped dome (gores from the crown to a scalloped hem), its lines end in the paws ---------------- */
-function drawCanopy(g,open,t){const o=easeBack(clamp(open,0,1));if(o<=.01)return;const R=44*o,Hh=30*o,cx=5,cy=-96,n=7,w=2*R/n;
+function drawCanopy(g,open,t,hands,top,size){hands=hands||HANDS;top=top||[5,-96];size=size||1;const o=easeBack(clamp(open,0,1));if(o<=.01)return;const R=44*o*size,Hh=30*o*size,cx=top[0],cy=top[1],n=7,w=2*R/n;
   const cols=['#ff3ea5','#ffd23f','#29e6ff','#ff3ea5','#ffd23f','#29e6ff','#ff3ea5'];
   g.strokeStyle='rgba(255,255,255,.7)';g.lineWidth=.9;g.beginPath();            // lines behind the dome
-  for(const [x,h] of [[-R,HANDS.B],[-R+w*2,HANDS.B],[R-w*2,HANDS.F],[R,HANDS.F]]){g.moveTo(cx+x,cy);g.lineTo(h[0],h[1])}g.stroke();
+  for(const [x,h] of [[-R,hands.B],[-R+w*2,hands.B],[R-w*2,hands.F],[R,hands.F]]){g.moveTo(cx+x,cy);g.lineTo(h[0],h[1])}g.stroke();
   g.save();g.translate(cx,cy);
   const gore=(xa,xb)=>{g.beginPath();g.moveTo(0,-Hh);g.quadraticCurveTo(xa,-Hh,xa,0);g.quadraticCurveTo((xa+xb)/2,5*o,xb,0);g.quadraticCurveTo(xb,-Hh,0,-Hh);g.closePath()};
   for(let i=0;i<n;i++){const xa=-R+i*w,xb=xa+w;gore(xa,xb);const gr=g.createLinearGradient(0,-Hh,0,5*o);
@@ -163,15 +163,25 @@ function drawCanopy(g,open,t){const o=easeBack(clamp(open,0,1));if(o<=.01)return
   g.restore()}
 
 /* ---------------- the scene ---------------- */
-function create(cv){
+const BU=.22;   // rocket units per pixel of the painted bear pictures (its head about as wide as the rocket)
+function create(cv,opts){
   const ctx=cv.getContext('2d');
-  let W=1,H=1,DPR=1,k=1,yH=1;                    // stage size, its scale (1 = a 390 px wide phone), the horizon at rest
+  let W=1,H=1,DPR=1,k=1,kh=1,yH=1;      // kh: the rocket and the bear, 1.3x the scene scale so their details read on a phone                    // stage size, its scale (1 = a 390 px wide phone), the horizon at rest
   const L={};                                    // painted layers
   const glow={},puff={};let spark=null;
   const st={phase:'wait',t:0,m:1,alt:0,camX:0,dAlt:0,dCamX:0,sp:0,shake:0,stall:0,launchT:0,crashT:0,drop:0,rider:true,ridePose:'grip',
     rk:{x:0,y:0,ang:-1,vis:true},smoke:[],fire:[],sparks:[],debris:[],rings:[],bursts:[],jumper:null,tumble:null,shoot:[],flash:0};
   const bear=makeBear(),jbear=makeBear();
   let rocketCv=null,rocketRed=null;
+  /* The painted bear and rocket (app/art/bear, made by art-kits/tools/bear_kit.py). Until every picture is in, the
+     vector ones stand in. The rocket picture is scaled to 150 units from the nozzle to the tip; RK follows it. */
+  const KIT={ready:false,img:{}};
+  if(opts&&opts.kit){const base=opts.kit;fetch(base+'kit.json').then(r=>r.ok?r.json():Promise.reject(r.status)).then(j=>{KIT.j=j;
+    const files=['cheer-calm','cheer-hype','cheer-scared','cheer-win','hang','fall','rocket'];let n=0;
+    files.forEach(f=>{const im=new Image();im.decoding='async';im.onload=()=>{if(++n<files.length)return;
+      const R=j.rocket;KIT.u=150/(R.tip[0]-R.nozzle[0]);KIT.M=[(R.nozzle[0]+R.tip[0])/2,(R.nozzle[1]+R.tip[1])/2];
+      RK.tail=(R.nozzle[0]-KIT.M[0])*KIT.u;RK.seat=[(R.seat[0]-KIT.M[0])*KIT.u,(R.seat[1]-KIT.M[1])*KIT.u];
+      KIT.ready=true;if(W>1){paintStatic();if(st.phase==='wait'&&!st.drop)api.placeOnPad()}};im.src=base+f+'.webp';KIT.img[f]=im})}).catch(()=>{})}
 
   function paintStatic(){
     const R=rng(7);
@@ -203,8 +213,11 @@ function create(cv){
     // clouds: big billows at the horizon, lit from the sun
     L.clouds=[cloud(W*.66,H*.34,11,.85),cloud(W*.66,H*.36,23,.15),cloud(W*.9,H*.13,31,.5)];
     // rocket sprite at the scale it is drawn
-    const s=k*DPR*1.6;rocketCv=canvas(170*s,96*s);{const g=rocketCv.getContext('2d');g.scale(s,s);g.translate(84,48);drawRocket(g)}
-    rocketCv.s=s;paintOverlays();rocketRed=canvas(rocketCv.width,rocketCv.height);{const g=rocketRed.getContext('2d');g.drawImage(rocketCv,0,0);g.globalCompositeOperation='source-atop';g.fillStyle='rgba(255,40,80,.5)';g.fillRect(0,0,rocketRed.width,rocketRed.height)}
+    const s=kh*DPR*1.4;
+    if(KIT.ready){const R=KIT.j.rocket,u=KIT.u;rocketCv=canvas((R.w*u+4)*s,(R.h*u+4)*s);const g=rocketCv.getContext('2d');g.scale(s,s);g.imageSmoothingQuality='high';
+      g.drawImage(KIT.img.rocket,2,2,R.w*u,R.h*u);rocketCv.ox=KIT.M[0]*u+2;rocketCv.oy=KIT.M[1]*u+2}
+    else{rocketCv=canvas(170*s,96*s);const g=rocketCv.getContext('2d');g.scale(s,s);g.translate(84,48);drawRocket(g);rocketCv.ox=84;rocketCv.oy=48}
+    rocketCv.s=s;paintOverlays();rocketRed=canvas(rocketCv.width,rocketCv.height);rocketRed.ox=rocketCv.ox;rocketRed.oy=rocketCv.oy;{const g=rocketRed.getContext('2d');g.drawImage(rocketCv,0,0);g.globalCompositeOperation='source-atop';g.fillStyle='rgba(255,40,80,.5)';g.fillRect(0,0,rocketRed.width,rocketRed.height)}
   }
   function paintOverlays(){
     L.vig=canvas(W*DPR,H*DPR);{const g=L.vig.getContext('2d');g.scale(DPR,DPR);const vg=g.createRadialGradient(W/2,H*.48,Math.min(W,H)*.35,W/2,H*.5,Math.max(W,H)*.75);
@@ -237,13 +250,13 @@ function create(cv){
 
   /* ---------- geometry helpers ---------- */
   const padPos=()=>({x:W*.3,y:yH+(H-yH)*.42+st.alt});                 // the pad stands on the floor, which sinks as we climb
-  const home=()=>{const p=padPos();return{x:p.x+Math.cos(-1)*68*k,y:p.y+Math.sin(-1)*68*k-5*k}};   // the rocket's centre when its nozzle rests on the pad
-  function nozzle(){const r=st.rk,s=k*1.0;return{x:r.x+Math.cos(r.ang)*RK.tail*s,y:r.y+Math.sin(r.ang)*RK.tail*s}}
-  function seat(){const r=st.rk,s=k,[sx,sy]=RK.seat;return{x:r.x+(Math.cos(r.ang)*sx-Math.sin(r.ang)*sy)*s,y:r.y+(Math.sin(r.ang)*sx+Math.cos(r.ang)*sy)*s}}
+  const home=()=>{const p=padPos(),d=(2-RK.tail)*kh;return{x:p.x+Math.cos(-1)*d,y:p.y+Math.sin(-1)*d-5*k}};   // the rocket's centre when its nozzle rests on the pad
+  function nozzle(){const r=st.rk,s=kh;return{x:r.x+Math.cos(r.ang)*RK.tail*s,y:r.y+Math.sin(r.ang)*RK.tail*s}}
+  function seat(){const r=st.rk,s=kh,[sx,sy]=RK.seat;return{x:r.x+(Math.cos(r.ang)*sx-Math.sin(r.ang)*sy)*s,y:r.y+(Math.sin(r.ang)*sx+Math.cos(r.ang)*sy)*s}}
 
   /* ---------- API ---------- */
   const api={
-    resize(w,h,dpr){W=w;H=h;DPR=Math.min(2,dpr||1);k=Math.min(W/390,H/520)*1.0;yH=H*.78;cv.width=Math.round(W*DPR);cv.height=Math.round(H*DPR);
+    resize(w,h,dpr){W=w;H=h;DPR=Math.min(2,dpr||1);k=Math.min(W/390,H/520)*1.0;kh=k*1.3;yH=H*.78;cv.width=Math.round(W*DPR);cv.height=Math.round(H*DPR);
       glow.pink=glowSprite('rgba(255,90,190,1)');glow.orange=glowSprite('rgba(255,170,60,1)');glow.white=glowSprite('rgba(255,250,235,1)');glow.green=glowSprite('rgba(80,255,170,1)');
       puff.pink=[puffSprite(['#ffc4f2','#c060e0','#4a1a72'],3),puffSprite(['#f4b4ff','#a74fd6','#3d1666'],8)];
       puff.dark=[puffSprite(['#8a7396','#43305a','#1c1228'],5),puffSprite(['#7a6688','#3a2a4e','#170f22'],12)];
@@ -306,6 +319,8 @@ function create(cv){
     const mood=st.phase==='stall'?'scared':st.phase==='wait'?'calm':st.m>1.3?'hype':'calm';
     const pose=st.phase==='stall'?'scared':st.phase==='fly'?(st.m>1.6?'cheer':'grip'):'grip';
     bear.update(dt,t,pose,mood);
+    const face=st.phase==='stall'?'scared':st.phase==='fly'&&st.m>=1.25?'hype':'calm';
+    if(face!==st.face){st.facePrev=st.face||face;st.face=face;st.faceT=0}st.faceT=Math.min(1,(st.faceT||0)+dt/.2);
     const j=st.jumper;if(j){j.t+=dt;if(j.t<.45){j.vy+=900*k*dt;j.rot+=j.vr*dt}else{j.open=Math.min(1,j.open+dt/.4);j.rot*=1-Math.min(1,dt*6);j.vy+=(70*k-j.vy)*dt*2.4;j.vx*=1-dt*1.4}
       j.x+=j.vx*dt+cdx*.6;j.y+=j.vy*dt+cdy*.6;jbear.update(dt,t,j.open>0?'hang':'cheer','win');if(j.y>H+160*k)st.jumper=null}
     const tb=st.tumble;if(tb){tb.vy+=700*k*dt;tb.x+=tb.vx*dt;tb.y+=tb.vy*dt;tb.rot+=tb.vr*dt;jbear.update(dt,t,'fall','scared');if(tb.y>H+120*k)st.tumble=null}
@@ -359,13 +374,17 @@ function create(cv){
     const r=st.rk;if(r.vis){g.save();g.translate(r.x,r.y);g.rotate(r.ang);
       const firing=st.phase==='fly'||(st.phase==='wait'&&st.t>2.6),stall=st.phase==='stall';
       if(firing||stall)flame(g,t,stall?(Math.sin(t*40)>0?.35:.05):st.phase==='fly'?1+Math.min(.6,Math.log(st.m)*.3):.35);
-      if(st.rider){g.save();g.translate(RK.seat[0]*k,RK.seat[1]*k);g.rotate(-r.ang*.8);g.scale(k*BS,k*BS);bear.back(g);g.restore()}
-      const s=rocketCv.s;g.drawImage(stall&&Math.sin(t*50)>0?rocketRed:rocketCv,-84*k,-48*k,rocketCv.width/s*k,rocketCv.height/s*k);
-      if(st.rider){g.save();g.translate(RK.seat[0]*k,RK.seat[1]*k);g.rotate(-r.ang*.8);g.scale(k*BS,k*BS);bear.front(g,t);g.restore()}
+      if(st.rider&&!KIT.ready){g.save();g.translate(RK.seat[0]*kh,RK.seat[1]*kh);g.rotate(-r.ang*.8);g.scale(kh*BS,kh*BS);bear.back(g);g.restore()}
+      const s=rocketCv.s;g.drawImage(stall&&Math.sin(t*50)>0?rocketRed:rocketCv,-rocketCv.ox*kh,-rocketCv.oy*kh,rocketCv.width/s*kh,rocketCv.height/s*kh);
+      if(st.rider){if(KIT.ready)rider(g,t,r,stall);else{g.save();g.translate(RK.seat[0]*kh,RK.seat[1]*kh);g.rotate(-r.ang*.8);g.scale(kh*BS,kh*BS);bear.front(g,t);g.restore()}}
       g.restore()}
     // the bear under the parachute, or tumbling after the explosion
-    const j=st.jumper;if(j){g.save();g.translate(j.x,j.y);g.rotate(j.rot+Math.sin(t*2.2)*.12*j.open);g.scale(k*BS,k*BS);drawCanopy(g,j.open,t);jbear.back(g);jbear.front(g,t);g.restore()}
-    const tb=st.tumble;if(tb){g.save();g.translate(tb.x,tb.y);g.rotate(tb.rot);g.scale(k*BS,k*BS);jbear.back(g);jbear.front(g,t);g.restore()}
+    const j=st.jumper;if(j){g.save();g.translate(j.x,j.y);g.rotate(j.rot+Math.sin(t*2.2)*.12*j.open);
+      if(KIT.ready){const B=KIT.j.bear.hang,mx=(B.handL[0]+B.handR[0])/2,my=(B.handL[1]+B.handR[1])/2,hx=(B.handR[0]-mx)*BU;g.scale(kh,kh);
+        drawCanopy(g,j.open,t,{B:[-hx,0],F:[hx,0]},[0,-60],1.45);g.drawImage(KIT.img.hang,-mx*BU,-my*BU,B.w*BU,B.h*BU)}
+      else{g.scale(k*BS,k*BS);drawCanopy(g,j.open,t);jbear.back(g);jbear.front(g,t)}g.restore()}
+    const tb=st.tumble;if(tb){g.save();g.translate(tb.x,tb.y);g.rotate(tb.rot);
+      if(KIT.ready){const B=KIT.j.bear.fall;g.scale(kh,kh);g.drawImage(KIT.img.fall,-B.mid[0]*BU,-B.mid[1]*BU,B.w*BU,B.h*BU)}else{g.scale(k*BS,k*BS);jbear.back(g);jbear.front(g,t)}g.restore()}
     // explosion: fire, debris, sparks, rings
     g.globalCompositeOperation='lighter';
     for(const fb of st.fire){if(fb.t<0)continue;const q=fb.t/fb.d,R=fb.r*(.35+easeOut(q)*.9),a=(1-q)*(1-q);g.globalAlpha=a;g.drawImage(glow[fb.col],fb.x-R,fb.y-R,R*2,R*2);
@@ -381,6 +400,14 @@ function create(cv){
     // a soft vignette keeps the eye in the middle
     g.drawImage(L.vig,0,0,W,H)}
 
+  function rider(g,t,r,stall){const B=KIT.j.bear.cheer,s=kh*BU,hype=st.face==='hype';
+    g.save();g.translate(RK.seat[0]*kh,RK.seat[1]*kh);
+    const lean=stall?wob(t*24,1)*.06:Math.sin(t*3.1)*.03+(hype?Math.sin(t*9)*.025:0);g.rotate(-r.ang*.78+lean);
+    const bob=st.phase==='fly'?Math.abs(Math.sin(t*(hype?9:5)))*-(hype?1.6:.8):Math.sin(t*2)*.3;g.translate(0,bob*kh);
+    const br=st.phase==='wait'?Math.sin(t*2)*.012:hype?Math.sin(t*18)*.012:0;g.scale(s*(1-br*.5),s*(1+br));
+    const draw=(f,a)=>{if(a<=0)return;g.globalAlpha=a;g.drawImage(KIT.img['cheer-'+f],-B.seat[0],-B.seat[1],B.w,B.h)};
+    const ft=st.faceT;if(ft<1&&st.facePrev!==st.face)draw(st.facePrev,1);draw(st.face,ft<1?ft:1);g.globalAlpha=1;
+    g.restore()}
   function drawCloud(g,c,x,y,s){const w=c.width/DPR*s,h=c.height/DPR*s;g.drawImage(c,x,y+(c.height/DPR-h),w,h)}
   function floor(g,hz,t){const fh=H-hz;
     const bg=g.createLinearGradient(0,hz,0,H);bg.addColorStop(0,'#3d1160');bg.addColorStop(.35,'#1d0a36');bg.addColorStop(1,'#0d0525');g.fillStyle=bg;g.fillRect(0,hz,W,fh);
@@ -408,7 +435,7 @@ function create(cv){
     for(let i=0;i<10;i++){const a=i/10*TAU+t*1.6,x=Math.cos(a)*48*s,y=Math.sin(a)*9.6*s;if(Math.sin(a)<-.2)continue;const on=(i+Math.floor(t*6))%3===0;
       g.globalCompositeOperation=on?'lighter':'source-over';g.fillStyle=on?'#29e6ff':'#4b2a6e';g.beginPath();g.arc(x,y,(on?2.1:1.5)*s,0,TAU);g.fill();if(on)g.drawImage(glow.green,x-7*s,y-7*s,14*s,14*s)}
     g.globalCompositeOperation='source-over';g.restore()}
-  function flame(g,t,power){const s=k,len=(40+wob(t*9,1)*7+wob(t*23,2)*4)*power*s,w=(9.5+wob(t*17,3)*1.2)*s,x0=RK.tail*s;
+  function flame(g,t,power){const s=kh,len=(40+wob(t*9,1)*7+wob(t*23,2)*4)*power*s,w=(9.5+wob(t*17,3)*1.2)*s,x0=RK.tail*s;
     g.globalCompositeOperation='lighter';
     g.globalAlpha=.75*Math.min(1,power);g.drawImage(glow.pink,x0-len*.9,-w*3,len*1.8,w*6);g.drawImage(glow.orange,x0-w*2.2,-w*2.2,w*4.4,w*4.4);
     const fg=g.createLinearGradient(x0,0,x0-len,0);fg.addColorStop(0,'rgba(255,255,245,1)');fg.addColorStop(.18,'rgba(255,240,170,.95)');fg.addColorStop(.5,'rgba(255,110,200,.75)');fg.addColorStop(1,'rgba(255,62,165,0)');

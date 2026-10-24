@@ -39,10 +39,10 @@ html,body{height:100%;margin:0;background:#07040f;color:var(--text);font:14px/1.
     <div class="note">Прототип новой графики: раунды идут сами. «Забрать» в полёте — катапульта с парашютом.</div>
   </div>
 </div>
-<script src="scene2.js?v=1"></script>
+<script src="scene2.js?v=2"></script>
 <script>
 (()=>{
-const $=id=>document.getElementById(id),cv=$('cv'),stage=$('stage'),scene=Scene2.create(cv);
+const $=id=>document.getElementById(id),cv=$('cv'),stage=$('stage'),scene=Scene2.create(cv,{kit:"../art/bear/"});
 const q=new URLSearchParams(location.search),FIX=parseFloat(q.get('x'))||0,AUTO=parseFloat(q.get('auto'))||0;
 const K=.12,WAIT=5,HOLD=5;
 let phase='wait',t0=performance.now(),m=1,crashAt=2,cashed=false,last=performance.now();

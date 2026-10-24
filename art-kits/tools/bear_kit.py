@@ -11,7 +11,7 @@
 """
 import json, os, sys
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageFilter
 
 SRC = os.path.join('art-kits', 'bear', 'src')
 OUT = os.path.join('app', 'art', 'bear')
@@ -193,21 +193,49 @@ if __name__ == '__main__':
 
     # the bear: every pose scaled so its head is the same size; points in the source pictures, moved with the trim
     k0 = BODY_H / 1400
-    kit = {'bear': {}, 'heads': {}, 'rocket': {}}
+    kit = {'bear': {}, 'rocket': {}}
     pts = {'bear-cheer': {'seat': (545, 1062)}, 'bear-hang': {'handL': (187, 122), 'handR': (765, 122)}, 'bear-fall': {'mid': (500, 760)}}
+    for fn in os.listdir(OUT):                     # start clean: old names would linger otherwise
+        os.remove(os.path.join(OUT, fn))
     for pose in ['bear-cheer', 'bear-hang', 'bear-fall']:
         k = k0 * size['bear-cheer'] / size[pose]
         im, (ox, oy) = trim(cut[pose])
         im = scale(im, k)
-        im.save(os.path.join(OUT, pose[5:] + '.webp'), 'WEBP', quality=86, method=6)
         kit['bear'][pose[5:]] = {'w': im.width, 'h': im.height, **{p: [round((x - ox) * k), round((y - oy) * k)] for p, (x, y) in pts[pose].items()}}
         if pose == 'bear-cheer':
-            cheer_off, cheer_k = (ox, oy), k
+            cheer_im, cheer_off, cheer_k = im, (ox, oy), k
+            continue
+        im.save(os.path.join(OUT, pose[5:] + '.webp'), 'WEBP', quality=86, method=6)
+    # the riding body with each face, painted together: the head goes over the original one (the hype face); where
+    # the original laughing jaw would still show under a smaller face, the neck fur is painted over it first
+    W, H = cheer_im.size
+    def layer(img, x, y):
+        L = Image.new('RGBA', (W, H)); L.alpha_composite(img, (x, y)); return np.asarray(L)
+    place = {}
     for n, hd in zip(names, heads):
         f = fits[n]; k = cheer_k * f['s']
-        im = fade_bottom(scale(hd, k))
-        im.save(os.path.join(OUT, 'head-' + n + '.webp'), 'WEBP', quality=86, method=6)
-        kit['heads'][n] = {'w': im.width, 'h': im.height, 'x': round((f['x'] - cheer_off[0]) * cheer_k), 'y': round((f['y'] - cheer_off[1]) * cheer_k)}
+        place[n] = (fade_bottom(scale(hd, k), .12), round((f['x'] - cheer_off[0]) * cheer_k), round((f['y'] - cheer_off[1]) * cheer_k))
+    old = layer(*place['hype'])[..., 3] > 120
+    for n in names:
+        h, x, y = place[n]
+        if n == 'hype':
+            comp = cheer_im
+        else:
+            body = np.asarray(cheer_im).copy()
+            new = layer(h, x, y)[..., 3] > 160
+            rows = np.arange(H)[:, None]
+            peek = old & ~new & (rows >= y + h.height * .5) & (body[..., 3] > 0)
+            ha = np.asarray(h)
+            low = ha[int(ha.shape[0] * .65):]
+            fur = np.median(low[low[..., 3] > 200][:, :3], axis=0)
+            body[peek, :3] = fur
+            grow = Image.fromarray((peek * 255).astype(np.uint8)).filter(ImageFilter.MaxFilter(7))
+            soft = Image.fromarray(body).filter(ImageFilter.GaussianBlur(2.5))
+            comp = Image.composite(soft, Image.fromarray(body), grow)
+            comp.alpha_composite(h, (x, y))
+            print('face', n, 'jaw pixels painted', int(peek.sum()), file=sys.stderr)
+        comp.save(os.path.join(OUT, 'cheer-' + n + '.webp'), 'WEBP', quality=86, method=6)
+    kit['bear']['cheer']['faces'] = names
     # the rocket: nose to the right; the nozzle mouth, the axis and the seat on its back
     im, (ox, oy) = trim(cut['rocket'])
     k = ROCKET_W / im.width
