@@ -39,7 +39,13 @@ html,body{height:100%;margin:0;background:#07040f;color:var(--text);font:14px/1.
     <div class="note">Прототип новой графики: раунды идут сами. «Забрать» в полёте — катапульта с парашютом.</div>
   </div>
 </div>
-<script src="scene2.js?v=6"></script>
+<script>
+/* GitHub Pages lets a browser keep this page for 10 minutes. Ask for the current version past every cache and, if this
+   copy is older, reload once with the version in the address (a new address is never served from the cache). */
+(()=>{const V='7';fetch('ver.json?t='+Date.now(),{cache:'no-store'}).then(r=>r.json()).then(d=>{
+  if(!d||d.v===V)return;const u=new URL(location.href);if(u.searchParams.get('pv')===d.v)return;u.searchParams.set('pv',d.v);location.replace(u)}).catch(()=>{})})();
+</script>
+<script src="scene2.js?v=7"></script>
 <script>
 (()=>{
 const $=id=>document.getElementById(id),cv=$('cv'),stage=$('stage'),scene=Scene2.create(cv,{kit:"../art/bear/"});
