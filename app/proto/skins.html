@@ -36,14 +36,14 @@ ul,ol{margin:6px 0;padding-left:20px}li{margin:3px 0;color:#d6d3ee}
 </style>
 <main>
 <h1>Скины: промпты для генератора</h1>
-<p>Медведь и ракета готовы, поэтому любой новый скин делаем правкой готовой картинки. Генератор меняет персонажа или окраску ракеты, а позу, ракурс, размер и кадр оставляет. Тогда игра соберёт скин по тем же правилам, что и медведя.</p>
+<p>Скин — это персонаж и транспорт. Всё рисуем правкой нашей картинки с медведем: генератор меняет персонажа и транспорт, но держит ракурс, наклон полёта, размер и стиль. Тогда игра соберёт скин так же, как медведя.</p>
 
 <div class="box">
   <h2>Как работать</h2>
   <ol>
-    <li>Выберите персонажа и ракету ниже: промпты под ними перепишутся сами. Можно выбрать готовый вариант или написать своё описание (лучше по-английски).</li>
+    <li>Выберите персонажа и транспорт ниже: промпты под ними перепишутся сами. Можно взять готовый вариант или написать своё описание (лучше по-английски).</li>
     <li><b>Новый чат на каждый скин</b> (ChatGPT или Gemini). Прикрепите основу и дайте промпт S1.</li>
-    <li>Сохраните результат S1. Для S2–S8 каждый раз <b>прикрепляйте S1</b> (не предыдущую картинку): так все картинки скина останутся согласованы между собой.</li>
+    <li>Сохраните результат S1. Для S2–S8 каждый раз <b>прикрепляйте S1</b> (не предыдущую картинку): так все картинки скина останутся согласованы.</li>
     <li>Пришлите картинки в чат с Claude, подписав номера S1–S8 и название скина.</li>
   </ol>
   <figure style="margin:10px 0 0"><img src="ride-base.jpg" alt="Медведь на прямой зелёной ракете: основа для правок" style="width:100%;border-radius:12px;background:#fff;display:block"><figcaption class="muted" style="margin-top:4px">Основа для S1: долгое нажатие → сохранить. <a href="ride-base.jpg" download>Скачать файлом</a></figcaption></figure>
@@ -53,10 +53,11 @@ ul,ol{margin:6px 0;padding-left:20px}li{margin:3px 0;color:#d6d3ee}
   <h2>Персонаж</h2>
   <div class="chips" id="charChips"></div>
   <textarea id="charText" aria-label="Описание персонажа"></textarea>
-  <h2 style="margin-top:14px">Ракета</h2>
-  <div class="chips" id="rocketChips"></div>
-  <textarea id="rocketText" aria-label="Описание ракеты"></textarea>
-  <p class="why">Ракета меняет только цвета и материалы: форма, обод, кольцо, стабилизаторы и сопло остаются на своих местах, иначе игре не за что зацепиться.</p>
+  <p class="why" id="charNote"></p>
+  <h2 style="margin-top:14px">Транспорт</h2>
+  <div class="chips" id="vehChips"></div>
+  <textarea id="vehText" aria-label="Описание транспорта"></textarea>
+  <p class="why" id="vehNote"></p>
 </div>
 
 <div id="steps"></div>
@@ -64,71 +65,87 @@ ul,ol{margin:6px 0;padding-left:20px}li{margin:3px 0;color:#d6d3ee}
 <div class="box">
   <h2>Проверьте перед отправкой</h2>
   <ul>
-    <li>Персонаж везде один и тот же: те же цвета, одежда и аксессуары.</li>
-    <li>Ракета целиком в кадре, с соплом и стабилизаторами. Небольшой изгиб носа не страшен: игра выпрямит его сама.</li>
-    <li>Фон белый, без теней и пола. Фигура не обрезана краем.</li>
+    <li>Персонаж везде один и тот же: лицо, одежда, аксессуары.</li>
+    <li>Транспорт целиком в кадре, летит по диагонали вверх-вправо, как ракета на основе. Он прямой, без изгиба. Небольшой изгиб не страшен: игра выпрямит.</li>
+    <li>Фон белый, без теней, пола, огня и дыма: огонь и след игра рисует сама.</li>
+    <li>Никаких логотипов, надписей и значков марок.</li>
   </ul>
-  <p class="tip">Если вышло не так, поправьте в том же чате, например: «keep the same pose, only make the jacket red» или «the rocket must stay perfectly straight, as in the attached picture».</p>
+  <p class="tip">Если вышло не так, поправьте в том же чате, например: «keep the same pose, only make the suit darker» или «the car must point diagonally up to the right, at the same angle as the rocket in the first picture».</p>
 </div>
 <p class="muted"><a href="kit.html">← Медведь и ракета: что сгенерировать</a></p>
 </main>
 <script>
 (()=>{
+const REAL='Реальный человек: генератор может отказаться его рисовать (чаще политиков). Имя в самой игре лучше не подписывать.';
 const CHARS=[
-  ['Медведь (как сейчас)',''],
-  ['Лис','a cute cartoon red fox: bright orange fur, a white muzzle and chest, black-tipped ears, a big bushy tail with a white tip; wearing aviator sunglasses with gold rims, a brown leather flight jacket with a cream fleece collar, dark jeans and dark boots'],
-  ['Кот','a cute cartoon ginger tabby cat with green eyes and white paws; wearing round pink-tinted sunglasses, a purple bomber jacket with an orange lining, dark pants and white sneakers'],
-  ['Сиба-ину','a cute cartoon shiba inu dog with cream-and-orange fur and a curled tail; wearing pilot goggles pushed up on the forehead, a sky-blue puffer jacket, dark pants and dark boots'],
-  ['Панда','a cute cartoon giant panda with black-and-white fur; wearing gold-rimmed aviator sunglasses, a red racing jacket with white stripes, black pants and red sneakers'],
-  ['Робот','a cute cartoon robot: a glossy white and chrome body, a round head with a dark glass face showing glowing cyan LED eyes and an LED smile, a small antenna, orange accents on the joints'],
-  ['Своё',null]];
-const ROCKETS=[
-  ['Как сейчас',''],
-  ['Золотая','a polished gold rocket with a dark bronze riveted band and ring, a glowing amber zig-zag line along the body, deep crimson fins and a dark bronze nozzle'],
-  ['Красная ретро','a glossy candy-red retro rocket with two white racing stripes along the body instead of the zig-zag, a chrome riveted band and ring, chrome fins and a chrome nozzle'],
-  ['Синяя','a glossy sapphire-blue rocket with a glowing cyan zig-zag line along the body, a silver riveted band and ring, white fins with cyan edges and a dark steel nozzle'],
-  ['Неон-розовая','a glossy hot-pink rocket with a glowing white zig-zag line along the body, a dark purple riveted band and ring, turquoise fins and a dark gunmetal nozzle'],
-  ['Своя',null]];
+  {name:'Медведь (как сейчас)',d:''},
+  {name:'Илон Маск',d:'a 3D cartoon caricature of Elon Musk with his recognizable face and short dark hair; wearing a black t-shirt under a dark bomber jacket, dark jeans and black sneakers',note:REAL},
+  {name:'Павел Дуров',d:'a 3D cartoon caricature of Pavel Durov with his recognizable face, short dark hair and light stubble, slim; dressed all in black: a black t-shirt, black pants and black sneakers',note:REAL},
+  {name:'Трамп',d:'a 3D cartoon caricature of Donald Trump with his recognizable face and golden-blond swept hair; wearing a dark navy suit, a white shirt, a long red tie and black shoes',note:REAL},
+  {name:'Путин',d:'a 3D cartoon caricature of Vladimir Putin with his recognizable face and short thinning light hair; wearing a dark grey suit, a white shirt, a dark tie and black shoes',note:REAL},
+  {name:'Ким Чен Ын',d:'a 3D cartoon caricature of Kim Jong Un with his recognizable round face and distinctive short haircut; wearing a dark grey suit buttoned up to the collar and black shoes',note:REAL},
+  {name:'Бык',d:'a cute cartoon muscular bull, the stock market bull: dark brown fur, big curved cream horns, a golden nose ring, hooves; wearing a green trader vest over a white shirt with rolled-up sleeves and dark pants'},
+  {name:'Хомяк',d:'a cute chubby cartoon hamster with golden-orange and white fur, round puffy cheeks and big dark eyes; wearing a black hoodie with a small gold coin pendant and tiny white sneakers'},
+  {name:'Своё',d:null}];
+const POSE_TAIL=', an excited open-mouth laugh';
+const VEHS=[
+  {name:'Ракета (как сейчас)',d:'',part:'the rocket',
+    pose:'sitting astride the rocket just behind the band, body facing the nose, the near leg along the hull with the foot pressed against it, the far leg hidden behind the rocket, the far hand gripping the band, the near arm raised high with a clenched fist',
+    calm:'both hands hold the rocket\'s band',scared:'both hands clutch the rocket\'s band',
+    note:'Огонь из сопла и дым рисует игра.'},
+  {name:'Родстер',d:'a flying cherry-red open-top electric sports roadster in the style of the Tesla Roadster, sleek and glossy, the wheels tucked up, small rocket thrusters at the back instead of a trunk; no logos, no badges, no number plates',part:'the car',
+    pose:'sitting in the driver\'s seat, the upper body above the door, one hand on the steering wheel, the other arm raised high with a clenched fist',
+    calm:'both hands on the steering wheel',scared:'both hands gripping the steering wheel',
+    empty:'the driver\'s seat empty',note:'Огонь из двигателей сзади рисует игра.'},
+  {name:'Бумажный самолётик',d:'a giant paper airplane folded from one sheet of crisp white paper, with sharp clean folds, a thin glowing neon-green chart line printed along its side',part:'the paper airplane',
+    pose:'sitting astride the airplane\'s top fold just behind the middle, legs on both sides, one hand holding the front of the fold, the other arm raised high with a clenched fist',
+    calm:'both hands hold the front of the fold',scared:'both hands clutch the front of the fold',
+    note:'Огня у самолётика нет: игра нарисует за ним след ветра.'},
+  {name:'Своё',d:null,part:'the vehicle',
+    pose:'riding it near the middle, holding on with one hand, the other arm raised high with a clenched fist',
+    calm:'both hands holding on to it',scared:'both hands clutching it',note:'Сзади игра рисует огонь или след: напишите в чат с Claude, что подходит.'}];
 const $=id=>document.getElementById(id);
-const store={get(k){try{return localStorage.getItem('skins.'+k)}catch(e){return null}},set(k,v){try{localStorage.setItem('skins.'+k,v)}catch(e){}}};
+const store={get(k){try{return localStorage.getItem('skins2.'+k)}catch(e){return null}},set(k,v){try{localStorage.setItem('skins2.'+k,v)}catch(e){}}};
 
-function picker(list,chipsId,textId,key,def){
-  const chips=$(chipsId),text=$(textId);let sel=+(store.get(key+'.i')??def);if(!(sel>=0&&sel<list.length))sel=def;
-  text.value=store.get(key+'.t')??(list[sel][1]||'');
-  const show=()=>{[...chips.children].forEach((b,i)=>b.setAttribute('aria-pressed',i===sel));const keep=list[sel][1]==='';text.disabled=keep;
-    text.placeholder=keep?'Не меняется':'Опишите по-английски: внешность, цвета, одежда, аксессуары'};
-  list.forEach(([name,desc],i)=>{const b=document.createElement('button');b.className='chip';b.type='button';b.textContent=name;
-    b.onclick=()=>{sel=i;if(desc!==null)text.value=desc;else if(list.some(([,d])=>d===text.value))text.value='';show();save();render();if(desc===null)text.focus()};chips.appendChild(b)});
+function picker(list,chipsId,textId,noteId,key,def){
+  const chips=$(chipsId),text=$(textId),note=$(noteId);let sel=+(store.get(key+'.i')??def);if(!(sel>=0&&sel<list.length))sel=def;
+  const stored=store.get(key+'.t');text.value=stored!==null?stored:(list[sel].d||'');
+  const show=()=>{[...chips.children].forEach((b,i)=>b.setAttribute('aria-pressed',i===sel));const keep=list[sel].d==='';text.disabled=keep;
+    text.placeholder=keep?'Не меняется':'Опишите по-английски: как выглядит, цвета, одежда или детали';note.textContent=list[sel].note||''};
   const save=()=>{store.set(key+'.i',sel);store.set(key+'.t',text.value)};
+  list.forEach((o,i)=>{const b=document.createElement('button');b.className='chip';b.type='button';b.textContent=o.name;
+    b.onclick=()=>{sel=i;if(o.d!==null)text.value=o.d;else if(list.some(x=>x.d===text.value))text.value='';show();save();render();if(o.d===null)text.focus()};chips.appendChild(b)});
   text.addEventListener('input',()=>{save();render()});show();
-  return{keep:()=>list[sel][1]==='',desc:()=>text.value.trim().replace(/\s+/g,' ').replace(/[.;]+$/,'')}}
+  return{keep:()=>list[sel].d==='',o:()=>list[sel],desc:()=>text.value.trim().replace(/\s+/g,' ').replace(/[.;]+$/,'')}}
 
-const ch=picker(CHARS,'charChips','charText','char',1),rk=picker(ROCKETS,'rocketChips','rocketText','rocket',0);
+const ch=picker(CHARS,'charChips','charText','charNote','char',1),vh=picker(VEHS,'vehChips','vehText','vehNote','veh',0);
 const WHITE='Plain pure white background, no ground, no shadow, no text, the whole figure inside the image with a margin. Portrait image.';
-const POSE='sitting astride the rocket just behind the band, body facing the nose, the near leg along the hull with the foot pressed against it, the far leg hidden behind the rocket, the far hand gripping the band, the near arm raised high with a clenched fist, an excited open-mouth laugh';
+const STYLE='Keep the same glossy 3D cartoon render style and lighting (hot pink rim light from the left, neon cyan-green from the right), the plain white background. No flame, no smoke, no motion lines, no logos, no text.';
 
 function steps(){
-  const keepC=ch.keep(),keepR=rk.keep(),C=ch.desc()||'[describe the character]',R=rk.desc()||'[describe the rocket]';
-  const who=keepC?'the bear':'the character';
-  let s1;
-  if(keepC&&keepR)s1='';
-  else{
-    s1='Edit the attached picture. Keep the composition exactly: the rocket\'s outline, its perfectly straight line, angle, size and position, the framing, and the rider\'s pose, size and place.\n\n';
-    s1+=keepC?'Keep the bear exactly as he is.\n\n':'Replace the bear with this character: '+C+'. The same pose as the bear: '+POSE+'. The same size as the bear, the whole character inside the picture.\n\n';
-    s1+=keepR?'Keep the rocket exactly as it is: do not change its shape, colours or details.\n\n':'Repaint the rocket as '+R+'. Change only its colours and materials: keep its exact outline and perfectly straight line, the band and the ring in the same places, the fins and the nozzle.\n\n';
-    s1+='Keep the same glossy 3D cartoon render style and lighting (hot pink rim light from the left, neon cyan-green from the right), a soft contact shadow of '+who+' on the hull, the plain white background.'}
-  const keepRocket='Keep everything exactly the same: the rocket (its shape, its perfectly straight line, angle, size, position and colours), '+who+'\'s position, size, body and legs, the framing and the plain white background.';
+  const keepC=ch.keep(),keepV=vh.keep(),V=vh.o(),C=ch.desc()||'[describe the character]',D=vh.desc()||'[describe the vehicle]';
+  const who=keepC?'the bear':'the character',veh=V.part;
+  let s1='';
+  if(!(keepC&&keepV)){
+    s1='Edit the attached picture.\n\n';
+    if(keepV)s1+='Keep the rocket exactly as it is: its shape, perfectly straight line, angle, size, position, colours and details.\n\n';
+    else s1+='Replace the rocket with '+D+'. It flies exactly like the rocket: diagonally up to the right at the same angle, its front at the top right and its back at the bottom left, about the same length and in the same place in the picture, perfectly straight, not bent or curved, the whole of it inside the picture with a margin.\n\n';
+    s1+=keepC?'The same bear as in the picture, now '+V.pose+POSE_TAIL+'.\n\n'
+             :'Replace the bear with this character: '+C+'. Pose: '+V.pose+POSE_TAIL+'. About the same size as the bear, the whole character inside the picture.\n\n';
+    s1+=STYLE}
+  const same='Keep everything exactly the same: '+veh+' (its shape, angle, size, position and colours), '+who+'\'s position, size, body and legs, the framing and the plain white background.';
+  const sameChar=keepC?'Не нужно: персонаж прежний.':'';
   return[
-    {n:'S1',t:'Верхом, радуется',f:'ride-hype',a:'основа',p:s1,skip:keepC&&keepR?'Ничего не меняется: выберите другого персонажа или ракету.':''},
-    {n:'S2',t:'Верхом, спокоен',f:'ride-calm',a:'S1',p:'Edit the attached picture. '+keepRocket+' Change only the arms and the face: the raised arm comes down and both hands hold the rocket\'s band, a calm, confident closed-mouth smile.'},
-    {n:'S3',t:'Ракета без персонажа',f:'ride-empty',a:'S1',p:'Edit the attached picture: remove '+who+' completely. Keep the rocket exactly the same: its shape, its perfectly straight line, angle, size, position and colours, the band and the ring, the fins and the nozzle. Where '+who+' covered the rocket, paint the rocket as it continues: the hull, the decoration along the body, the complete band. No trace or shadow of '+who+' left. Keep the framing and the plain white background.',
-      opt:keepR?'Можно пропустить: ракета прежняя, подойдёт наша пустая.':''},
-    {n:'S4',t:'Верхом, в испуге (по желанию)',f:'ride-scared',a:'S1',p:'Edit the attached picture. Keep the rocket and the framing exactly the same and '+who+' in the same place and size. Change only the pose and the face: both hands clutch the rocket\'s band, leaning back in fear, mouth open in a scream, eyebrows raised high, a small sweat drop. Plain white background.',opt:'По желанию: испуг перед взрывом.'},
-    {n:'S5',t:'Катапульта',f:'cheer',a:'S1',p:'The same character as in the attached picture, the same style and lighting, full body, without the rocket: the same riding pose (sitting astride, knees bent and apart, 3/4 view facing right), the near arm raised high above the head with a clenched fist, the far hand forward as if it just let go of the band, a big triumphant toothy grin. '+WHITE,skip:keepC?'Не нужно: персонаж прежний.':''},
-    {n:'S6',t:'На парашюте',f:'hang',a:'S1',p:'The same character as in the attached picture, the same style and lighting, full body, hanging under a parachute, but do NOT draw the parachute: both arms raised up above the head, each hand holding the end of a strap (draw only short strap ends), legs dangling down slightly apart, body turned 3/4 to the right, a big happy grin. '+WHITE,skip:keepC?'Не нужно: персонаж прежний.':''},
-    {n:'S7',t:'Падение после взрыва',f:'fall',a:'S1',p:'The same character as in the attached picture, the same style and lighting, full body, falling and tumbling through the air after an explosion: arms and legs flailing outward, body tilted, a scared face (mouth open, eyebrows raised), a little soot, the accessories slightly crooked. '+WHITE.replace('no shadow,','no shadow, no smoke,'),skip:keepC?'Не нужно: персонаж прежний.':''},
+    {n:'S1',t:'Летит, радуется',f:'ride-hype',a:'основа',p:s1,skip:keepC&&keepV?'Ничего не меняется: выберите другого персонажа или транспорт.':''},
+    {n:'S2',t:'Летит, спокоен',f:'ride-calm',a:'S1',p:'Edit the attached picture. '+same+' Change only the arms and the face: the raised arm comes down, '+V.calm+', a calm, confident closed-mouth smile.'},
+    {n:'S3',t:'Транспорт без персонажа',f:'ride-empty',a:'S1',p:'Edit the attached picture: remove '+who+' completely'+(V.empty?', '+V.empty:'')+'. Keep '+veh+' exactly the same: its shape, angle, size, position, colours and details. Where '+who+' covered it, paint it as it continues. No trace or shadow of '+who+' left. Keep the framing and the plain white background.',
+      opt:keepV?'Можно пропустить: ракета прежняя, подойдёт наша пустая.':''},
+    {n:'S4',t:'Летит, в испуге (по желанию)',f:'ride-scared',a:'S1',p:'Edit the attached picture. Keep '+veh+' and the framing exactly the same and '+who+' in the same place and size. Change only the pose and the face: '+V.scared+', leaning back in fear, mouth open in a scream, eyebrows raised high, a small sweat drop. Plain white background.',opt:'По желанию: испуг перед взрывом.'},
+    {n:'S5',t:'Катапульта',f:'cheer',a:'S1',p:'The same character as in the attached picture, the same style and lighting, full body, without '+veh+': a sitting pose with the knees bent (as when riding), 3/4 view facing right, the near arm raised high above the head with a clenched fist, the other hand forward as if it just let go, a big triumphant toothy grin. '+WHITE,skip:sameChar},
+    {n:'S6',t:'На парашюте',f:'hang',a:'S1',p:'The same character as in the attached picture, the same style and lighting, full body, hanging under a parachute, but do NOT draw the parachute: both arms raised up above the head, each hand holding the end of a strap (draw only short strap ends), legs dangling down slightly apart, body turned 3/4 to the right, a big happy grin. '+WHITE,skip:sameChar},
+    {n:'S7',t:'Падение после взрыва',f:'fall',a:'S1',p:'The same character as in the attached picture, the same style and lighting, full body, falling and tumbling through the air after an explosion: arms and legs flailing outward, body tilted, a scared face (mouth open, eyebrows raised), a little soot, the clothes slightly messed up. '+WHITE.replace('no shadow,','no shadow, no smoke,'),skip:sameChar},
     {n:'S8',t:'Четыре головы (по желанию)',f:'heads',a:'S1',p:'The same character as in the attached picture, the same style and lighting. A horizontal row of 4 heads only (the head and the top of the neck, no body, no collar), all exactly the same size and the same 3/4 angle facing right as in the picture, evenly spaced with clear gaps between them, the same accessories in all four.\n1) calm, confident smile\n2) excited: mouth wide open, laughing\n3) scared: mouth open in fear, eyebrows raised high, a small sweat drop\n4) triumphant: a big toothy grin\nPlain pure white background, no shadows, no text, no numbers. Wide landscape image.',
-      skip:keepC?'Не нужно: персонаж прежний.':'',opt:keepC?'':'По желанию: эмоции для других экранов игры.'}]}
+      skip:sameChar,opt:keepC?'':'По желанию: эмоции для других экранов игры.'}]}
 
 function render(){
   const box=$('steps');box.textContent='';
