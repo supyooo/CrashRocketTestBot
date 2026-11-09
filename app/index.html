@@ -383,7 +383,7 @@ html.tg .device>.app{border-radius:0}
       <template id="bpT">
         <div class="bp">
           <div class="pop l amtPop">
-            <div class="pgrid quick"><button data-v="0.5">0.5</button><button data-v="1">1</button><button data-v="5">5</button><button data-v="10">10</button><button data-v="25">25</button><button data-v="50">50</button><button data-q="half">½</button><button data-q="dbl">×2</button></div>
+            <div class="pgrid quick"><button data-v="0.5">0.5</button><button data-v="1">1</button><button data-v="2">2</button><button data-v="5">5</button><button data-v="10">10</button><button data-v="15">15</button><button data-q="half">½</button><button data-q="dbl">×2</button></div>
             <label class="pfield"><span data-i="yourAmt">Своя сумма</span><input class="amtIn" inputmode="decimal" value="1.00" aria-label="Bet"><b>TON</b></label>
           </div>
           <div class="pop r autoPop">
@@ -488,13 +488,16 @@ let K=0.10;const WAIT=5,HOLD=5,MILES=[2,3,5,10,20,50,100],HIST_MAX=50;   // HIST
 let LITE=false;{const q=new URLSearchParams(location.search).get('lite');
   try{if(q!==null)localStorage.setItem('cr.lite',q==='1'?'1':'0');LITE=localStorage.getItem('cr.lite')==='1'}catch(e){LITE=q==='1'}}
 const NAMES=['crypto_king','whale_99','ivan_kick','moon_boy','degen_anna','hodl_masha','pepe_lord','satoshi_fan','bear_market','long_x100','sol_sister','ton_tiger','dima_pump','rekt_again','alpha_lena','gm_frens'];
-function sampleCrash(){const u=Math.random();return Math.min(60,Math.max(1,Math.floor(97/(1-u))/100))}
+// Limits and RTP (the support model's rules): a bet of 0.10 to 15 per panel, at most 75 paid out per bet, RTP 95%.
+// The server sends its own limits in hello (net.js), and those win.
+const LIM={min:.1,max:15,win:75},EDGE=.05;
+function sampleCrash(){const u=Math.random();return Math.min(60,Math.max(1,Math.floor((1-EDGE)*100/(1-u))/100))}
 // bets[i] / nexts[i]: the bet of bet panel i in this round / queued for the next one (two panels, two bets)
 const S={phase:'wait',t0:performance.now(),t:0,m:1,crash:1,hist:[],bots:[],bets:[null,null],nexts:[null,null],bal:25,pend:0,online:1240,mi:0};
 const myBets=()=>S.bets.filter(Boolean);
 for(let i=0;i<40;i++)S.hist.push(sampleCrash());
-function makeBots(){const pool=[...NAMES].sort(()=>Math.random()-.5).slice(0,8+Math.floor(Math.random()*6)),bets=[.5,1,1,2,3,5,5,10,20,50];
-  return pool.map(n=>({n,bet:bets[Math.floor(Math.random()*bets.length)],target:Math.max(1.05,Math.min(15,.97/(1-Math.random()*.93))),out:0}))}
+function makeBots(){const pool=[...NAMES].sort(()=>Math.random()-.5).slice(0,8+Math.floor(Math.random()*6)),bets=[.5,1,1,2,3,5,5,10,15,15];
+  return pool.map(n=>({n,bet:bets[Math.floor(Math.random()*bets.length)],target:Math.max(1.05,Math.min(15,(1-EDGE)/(1-Math.random()*.93))),out:0}))}
 S.bots=makeBots();
 
 function startFlight(ts){S.phase='fly';S.t0=ts;S.t=0;S.m=1;S.mi=0;S.crash=sampleCrash();
@@ -764,8 +767,8 @@ const PN=[0,1].map(i=>{const el=$('bpT').content.firstElementChild.cloneNode(tru
     amtPop:q('.amtPop'),autoPop:q('.autoPop'),pbx:q('.pbx'),main:q('.main'),mainB:q('.mainB'),mainS:q('.mainS'),c:{}}});
 window.PN=PN;
 const autoOn=i=>PN[i].autoOn.checked,autoX=i=>parseFloat(PN[i].autoX.value)||2;
-function getAmt(i){let v=parseFloat(String(PN[i].amtIn.value).replace(',','.'));if(!isFinite(v))v=1;return clamp(v,.1,1000)}
-function setAmt(i,v){v=clamp(Math.round(v*100)/100,.1,1000);PN[i].amtIn.value=v.toFixed(2);PN[i].amtV.textContent=fmtTon(v)}
+function getAmt(i){let v=parseFloat(String(PN[i].amtIn.value).replace(',','.'));if(!isFinite(v))v=1;return clamp(v,LIM.min,LIM.max)}
+function setAmt(i,v){v=clamp(Math.round(v*100)/100,LIM.min,LIM.max);PN[i].amtIn.value=v.toFixed(2);PN[i].amtV.textContent=fmtTon(v)}
 function autoChip(i){const p=PN[i],on=p.autoOn.checked,ab=p.autoBet.checked;p.autoBtn.classList.toggle('on',on||ab);p.autoV.textContent=[on?x2(autoX(i))+'x':ab?'':T('off'),ab?'↻':''].filter(Boolean).join(' ')}
 /** Auto-bet: the same amount every round until it is switched off or the balance runs short. */
 function autoBetDue(i){if(!PN[i].autoBet.checked||S.bets[i]||S.nexts[i]||PN[i].el.hidden)return 0;const a=getAmt(i);
@@ -907,7 +910,7 @@ function tick(ts){
   else if(S.phase==='fly'){S.t=el;const m=Math.exp(K*el);
     if(m>=S.crash)doCrash(ts);
     else{S.m=m;let ch=false;
-      for(let i=0;i<2;i++){const b=S.bets[i];if(b&&!b.out&&autoOn(i)){const ax=autoX(i);if(m>=ax)cashOut(i,ax)}}
+      for(let i=0;i<2;i++){const b=S.bets[i];if(b&&!b.out){const cap=LIM.win/b.amt,ax=Math.min(autoOn(i)?autoX(i):Infinity,cap);if(m>=ax)cashOut(i,ax)}}   // auto cash-out or the max-win cap
       for(const b of S.bots)if(!b.out&&m>=b.target){b.out=b.target;ch=true;SC.onBotCash(b.n,b.target);feed(b.n,b.target,b.bet*(b.target-1))}
       if(ch)renderPlayers()}}
   else if(S.phase==='crash'&&el>=HOLD)newRound(ts);

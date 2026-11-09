@@ -51,7 +51,7 @@ async function open(i){
     const d=new Date(rd.startedAt),time=d.toLocaleTimeString(lang==='ru'?'ru-RU':'en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
     const info=row(r('time'),time)+row(r('players'),String(rd.players))+row(r('hash'),short(rd.hash),rd.hash)+row(r('salt'),short(fair.salt),fair.salt);
     const status=lines=>paint(meta.no,x,info+lines.map(([ok,t])=>`<div class="rchk ${ok?'ok':'bad'}">${ok?'✓':'✗'} ${t}</div>`).join('')+`<div class="tnote">${r('how')}</div>`);
-    const fx=await crashOf(rd.hash,fair.salt,fair.edgeBps);const lines=[[Math.abs(fx-rd.crash)<.001,r(Math.abs(fx-rd.crash)<.001?'formulaOk':'formulaBad')]];
+    const fx=await crashOf(rd.hash,fair.salt,rd.edgeBps??fair.edgeBps);   // the edge the round was played withconst lines=[[Math.abs(fx-rd.crash)<.001,r(Math.abs(fx-rd.crash)<.001?'formulaOk':'formulaBad')]];
     status([...lines,[true,r('checking')]]);
     if(rd.no<=50000){let h=rd.hash;for(let n=0;n<rd.no;n++){h=await sha(h);if(my!==token)return}
       lines.push([h===fair.commitment,h===fair.commitment?r('chainOk')(rd.no):r('chainBad')])}

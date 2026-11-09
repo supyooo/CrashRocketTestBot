@@ -35,9 +35,9 @@ Without `?server=` the game runs its offline demo rounds.
 | `SESSION_SECRET` | random | Signs session tokens. **Set it in production**, or sessions reset on every restart |
 | `DEV_AUTH` | on without a token | `1` allows `{dev: "name"}` logins |
 | `CORS_ORIGINS` | GitHub Pages + localhost | Comma-separated allowed origins |
-| `HOUSE_EDGE_BPS` | 300 | House edge, basis points (300 = 3%) |
+| `HOUSE_EDGE_BPS` | 500 | House edge, basis points (500 = 5%, RTP 95%). Saved with every round, so old rounds stay verifiable after a change |
 | `FAIR_SALT` | dev salt | Public salt; in production a future block hash announced in advance |
-| `MAX_BET` / `MAX_WIN` | 1000 / 10000 | Limits in play TON |
+| `MAX_BET` / `MAX_WIN` | 15 / 75 | Limits in play TON: the largest bet per bet panel (two panels a round) and the largest payout of one bet |
 | `DATABASE_URL` | — | Postgres connection. When set, data lives in Postgres; the schema is applied on start and an existing `DATA_FILE` is imported once into an empty database |
 | `DATA_FILE` | data/dev-db.json | Dev storage file used without `DATABASE_URL` |
 | `TON_MNEMONIC` | — | 24 words of the **testnet** house wallet. When set, balances are test TON only: play money is reset once, no free refills. Needs `DATABASE_URL` |
@@ -70,7 +70,7 @@ Railway URL), so the login button works there. In dev mode without `BOT_TOKEN`, 
 - `POST /api/auth` `{initData}` (Telegram) or `{dev}` (dev) → `{token, user, balance}`
 - `GET /api/me` (Bearer token) → balance and last ledger entries
 - `POST /api/refill` → free play-money top-up when the balance is empty, 3 per day
-- `GET /api/rounds?limit=20` → finished rounds with revealed hashes
+- `GET /api/rounds?limit=20` → finished rounds with revealed hashes and the edge each was played with (`edgeBps`)
 - `GET /api/fair` → commitment, salt, edge and the formula, for independent verification
 - `GET /api/ton/info` → house address, the player's deposit comment, wallets they deposited from, recent transfers (test TON mode)
 - `POST /api/ton/withdraw` `{amount, address}` → queues a payout; only to a wallet the player deposited from
@@ -99,7 +99,8 @@ h     = first 52 bits of HMAC-SHA256(key = salt, message = round hash)
 crash = max(1.00, floor((10000 - edgeBps) * 2^52 / (100 * (2^52 - h))) / 100)
 ```
 
-`P(crash ≥ x) = (1 - edge) / x`, so every cash-out target returns `1 - edge` on average.
+`P(crash ≥ x) = (1 - edge) / x`, so every cash-out target returns `1 - edge` on average (95% at the default 5% edge).
+Rounds saved before the edge was stored per round were played at 3%.
 
 ## What is not here yet
 

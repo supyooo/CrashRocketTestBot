@@ -67,10 +67,10 @@ function on(m){const now=performance.now();
   if(m.t==='batch'){for(const x of m.m)on(x);return}   // other players' bets and cash-outs, sent together
   if(m.t==='ok'||m.t==='err'){const w=NET.wait.get(m.id);if(w){NET.wait.delete(m.id);m.t==='ok'?w.res(m):w.rej(new Error(m.error))}return}
   if(m.t==='hello'&&m.phase==='waiting'){ // a fresh server waits for the previous one to finish its round
-    rough(m.serverNow);if(m.k)K=m.k;window.NET_ON=true;setReal(m.balance);S.pend=0;S.bots=[];S.bets=demoBets();S.phase='crash';S.crash=1;S.m=1;S.t0=now;renderPlayers();
+    rough(m.serverNow);if(m.k)K=m.k;if(m.limits){LIM.min=m.limits.minBet;LIM.max=m.limits.maxBet;LIM.win=m.limits.maxWin;for(const i of [0,1])setAmt(i,getAmt(i))}window.NET_ON=true;setReal(m.balance);S.pend=0;S.bots=[];S.bets=demoBets();S.phase='crash';S.crash=1;S.m=1;S.t0=now;renderPlayers();
     toast(lang==='ru'?'Сервер обновляется, следующий раунд через пару секунд':'Server is updating, next round in a few seconds');return}
   if(m.t==='hello'){NET.retry=0;
-    rough(m.serverNow);if(m.k)K=m.k;NET.phaseAt=m.phaseAt;window.NET_ON=true;setReal(m.balance);S.pend=0;
+    rough(m.serverNow);if(m.k)K=m.k;if(m.limits){LIM.min=m.limits.minBet;LIM.max=m.limits.maxBet;LIM.win=m.limits.maxWin;for(const i of [0,1])setAmt(i,getAmt(i))}NET.phaseAt=m.phaseAt;window.NET_ON=true;setReal(m.balance);S.pend=0;
     S.hist=m.history.map(h=>h.crash);NET.hist=m.history.map(h=>({no:h.no}));NET.histFull=false;renderHist();moreHist();
     S.bots=m.bets.filter(b=>b.uid!==NET.uid).map(botFrom);
     if(!myBets().some(b=>b.demo)){S.bets=[null,null];for(const b of m.bets)if(b.uid===NET.uid)S.bets[b.slot||0]={amt:b.amount,out:b.cashX100?b.cashX100/100:0}}
@@ -80,7 +80,7 @@ function on(m){const now=performance.now();
     renderPlayers();toast(lang==='ru'?'Онлайн: общие раунды с другими игроками':'Online: shared rounds with other players');return}
   if(m.t==='betting'){const queued=S.nexts;S.nexts=[null,null];newRound(now);S.bets=[null,null];NET.phaseAt=m.phaseAt;S.t0=local(m.phaseAt);S.bots=[];
     for(let i=0;i<2;i++){if(queued[i])sendBet(i,queued[i].amt,true);else{const a=autoBetDue(i);if(a)sendBet(i,a,true)}}renderPlayers();return}
-  if(m.t==='run'){rough(m.serverNow);if(m.k)K=m.k;NET.phaseAt=m.startedAt;startFlight(now);S.crash=Infinity;S.t0=local(m.startedAt);return}
+  if(m.t==='run'){rough(m.serverNow);if(m.k)K=m.k;if(m.limits){LIM.min=m.limits.minBet;LIM.max=m.limits.maxBet;LIM.win=m.limits.maxWin;for(const i of [0,1])setAmt(i,getAmt(i))}NET.phaseAt=m.startedAt;startFlight(now);S.crash=Infinity;S.t0=local(m.startedAt);return}
   if(m.t==='crash'){S.bets.forEach((b,i)=>{if(b&&b.demo&&b.lock&&!b.out)demoSettle(i,b.lock<m.crash)});   // before the loss is shown
     S.crash=m.crash;S.m=m.crash;if(window.BOOT&&BOOT.on)BOOT.ended(m.crash);if(S.phase!=='crash'){NET.hist.unshift({no:m.no,hash:m.hash});NET.hist.length=Math.min(NET.hist.length,HIST_MAX);doCrash(now)}return}  // doCrash adds to S.hist: keep both in step
   if(m.t==='bet'){if(m.uid===NET.uid)return;const i=S.bots.findIndex(b=>same(b,m));const b=botFrom(m);if(i<0)S.bots.push(b);else S.bots[i]=b;renderPlayers();return}

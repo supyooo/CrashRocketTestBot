@@ -41,6 +41,8 @@ export class Engine extends EventEmitter {
   history: { no: number; x100: number }[] = [];
   commitment = '';
   private crashX100 = 0;
+  /** The edge this round's crash point was computed with (the config can change between restarts). */
+  private edgeBps = 0;
   private hash = '';
   private chain: string[] = [];
   private betSeq = 0;
@@ -164,7 +166,8 @@ export class Engine extends EventEmitter {
       bettingMs: this.cfg.bettingMs, crashedMs: this.cfg.crashedMs, x100: this.x100(now),
       crashX100: this.phase === 'crashed' ? this.crashX100 : undefined,
       bets: [...this.bets.values()].map((b) => ({ uid: b.uid, slot: b.slot, name: b.name, amount: b.amount, cashX100: b.cashX100, payout: b.payout })),
-      history: this.history.slice(0, 20), commitment: this.commitment, edgeBps: this.cfg.edgeBps
+      history: this.history.slice(0, 20), commitment: this.commitment, edgeBps: this.cfg.edgeBps,
+      limits: { minBet: this.cfg.minBet, maxBet: this.cfg.maxBet, maxWin: this.cfg.maxWin }
     };
   }
 
@@ -221,7 +224,8 @@ export class Engine extends EventEmitter {
       await this.store.setFair({ ...f, nextNo: f.nextNo + 1 });
       this.no = f.nextNo;
       this.hash = this.chain[f.length - this.no]!;
-      this.crashX100 = crashPoint(this.hash, this.cfg.fairSalt, this.cfg.edgeBps);
+      this.edgeBps = this.cfg.edgeBps;
+      this.crashX100 = crashPoint(this.hash, this.cfg.fairSalt, this.edgeBps);
       this.bets.clear();
       this.phase = 'betting'; this.phaseAt = now;
       this.emit('betting', { no: this.no, phaseAt: now, endsAt: now + this.cfg.bettingMs });
@@ -237,7 +241,7 @@ export class Engine extends EventEmitter {
     const startedAt = this.phaseAt;
     this.phase = 'crashed'; this.phaseAt = now;
     this.history.unshift({ no: this.no, x100: this.crashX100 }); this.history.length = Math.min(this.history.length, 50);
-    const round = { no: this.no, crashX100: this.crashX100, hash: this.hash, startedAt,
+    const round = { no: this.no, crashX100: this.crashX100, hash: this.hash, startedAt, edgeBps: this.edgeBps,
       bets: [...this.bets.values()].map((b) => ({ uid: b.uid, slot: b.slot, name: b.name, amount: b.amount, cashX100: b.cashX100, payout: b.payout })) };
     this.write(async () => { await this.store.addRound(round); await this.store.setOpenRound(undefined); });
     this.emit('crash', { no: this.no, crashX100: this.crashX100, hash: this.hash });
