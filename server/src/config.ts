@@ -58,6 +58,21 @@ export const config = {
     partnerShare: num(env.PARTNER_SHARE, 0.4)
   },
 
+  /** Support bot (src/support): the game bot answers the FAQ and passes tickets to the operators. */
+  support: {
+    /** SUPPORT_BOT=0 turns it off (it needs BOT_TOKEN and Postgres anyway). */
+    enabled: env.SUPPORT_BOT !== '0',
+    /** The operators' Telegram group (a negative id). Without it tickets go to the ADMIN_IDS in private messages. */
+    chatId: env.SUPPORT_CHAT_ID ?? '',
+    partnerEmail: env.PARTNER_EMAIL ?? 'partner@boomy.pro',
+    /** The official Telegram channel (vouchers, news): a button in the FAQ menu when set. */
+    channelUrl: env.CHANNEL_URL ?? '',
+    /** The Mini App, for the bot's "Play" button. */
+    appUrl: env.APP_URL ?? 'https://supyooo.github.io/CrashRocketTestBot/',
+    /** This server's public address, for links to the admin panel in tickets. */
+    publicUrl: (env.PUBLIC_URL ?? '').replace(/\/$/, '')
+  },
+
   startBalance: toUnits(num(env.START_BALANCE, 25)),
   minBet: toUnits(0.1),
   /** Per bet panel: a player may have two bets in a round, each up to this. */

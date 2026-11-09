@@ -19,6 +19,7 @@ import { attachWs } from './ws.js';
 import { ToncenterChain, friendly } from './ton/chain.js';
 import { TonGateway } from './ton/gateway.js';
 import { Admin } from './admin/admin.js';
+import { SupportBot } from './support/bot.js';
 import { fromUnits, NANO_PER_UNIT } from './config.js';
 
 const DRAIN_MAX_MS = Number(process.env.DRAIN_MAX_MS ?? 150_000);
@@ -81,6 +82,9 @@ ws.setEngine(engine);
 await engine.start(Date.now());
 loop = setInterval(() => engine.step(Date.now()), 20);
 ton?.start(); // only the leader watches deposits and sends payouts
+// support bot (the game bot answers the FAQ and passes tickets to operators): only the leader polls Telegram
+const support = config.botToken && config.support.enabled && store instanceof PgStore ? new SupportBot({ cfg: config, db: store.db, wallet }) : undefined;
+if (support) { await support.start(); console.log(`support bot polling · tickets to ${config.support.chatId ? 'the support chat' : 'admins in private'}`); }
 console.log(`running rounds · fairness commitment: ${engine.commitment}`);
 
 let stopping = false;
@@ -92,6 +96,7 @@ async function shutdown(signal: string) {
   await Promise.race([engine.drain(), new Promise((r) => setTimeout(r, DRAIN_MAX_MS))]);
   if (loop) clearInterval(loop);
   ton?.stop();
+  await support?.stop();
   admin?.stop();
   console.log(`round finished in ${Math.round((Date.now() - t0) / 1000)} s, handing over`);
   ws.closeAll(1012, 'server update');

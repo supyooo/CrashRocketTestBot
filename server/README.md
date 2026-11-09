@@ -49,6 +49,12 @@ Without `?server=` the game runs its offline demo rounds.
 | `BOT_USERNAME` | — | The bot's username without `@`, for the "Log in with Telegram" button of the admin panel |
 | `ADMIN_REVIEW_OVER` | 50 | Withdrawals above this (TON) wait for an admin's approval |
 | `PARTNER_SHARE` | 0.4 | Partner's share of NGR in the RevShare summary |
+| `SUPPORT_BOT` | on | `0` turns the support bot off. It runs with `BOT_TOKEN` and Postgres, on the leader server only |
+| `SUPPORT_CHAT_ID` | — | The operators' Telegram group (e.g. `-100…`), the bot must be in it. Without it tickets go to `ADMIN_IDS` in private |
+| `PARTNER_EMAIL` | partner@boomy.pro | Quoted by the partners' answers |
+| `CHANNEL_URL` | — | The official Telegram channel: a button in the support menu |
+| `APP_URL` | GitHub Pages | The Mini App, for the bot's Play buttons |
+| `PUBLIC_URL` | — | This server's address (the Railway URL), for links to the admin panel in tickets |
 
 ## Admin panel `/admin`
 
@@ -64,6 +70,16 @@ Railway URL), so the login button works there. In dev mode without `BOT_TOKEN`, 
   deposits / withdrawals / bets / bonuses; block, freeze the balance, credit or debit with a reason, refund a
   lost bet, notes. Every action is written to `admin_log` and listed in the card.
 - Admins get a Telegram message from the bot when a withdrawal waits for review (they must have started the bot once).
+
+## Support bot
+
+The game bot answers players by the support model (`docs/support-model.md`): `/start` greets with Play and Support,
+`/support` (or `t.me/<bot>?start=support`, the game's Menu → Support) opens the FAQ menu in Russian or English. Answers
+that need a human ask for details; the player's next message becomes a ticket in the operators' chat (header with the
+player, Telegram id, balance and an admin link, plus a copy of the message), and the player is told to expect an answer
+within 24 hours. Operators reply to any message of the ticket and the bot copies the reply to the player; a reply
+`/close` closes it. Tickets are kept in `support_tickets`. Updates come by long polling; the bot must have no webhook set
+(`getUpdates` fails with 409 otherwise, the log says so).
 
 ## API
 
@@ -104,5 +120,5 @@ Rounds saved before the edge was stored per round were played at 3%.
 
 ## What is not here yet
 
-Telegram bot process, moving coins/skins/quests from the device to the server,
+Moving coins/skins/quests from the device to the server,
 real online counter, mainnet TON (only after the legal review).
