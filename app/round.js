@@ -4,11 +4,11 @@
    Also: Space bets / cashes out on a computer. Loaded after net.js; uses the game's globals. */
 (()=>{
 const R={
-  ru:{title:'Раунд',demo:'Демо-раунд: проверка честности доступна в онлайн-режиме.',time:'Время',players:'Игроков',hash:'Хэш раунда',salt:'Соль',
+  ru:{title:'Раунд',demo:'Демо-раунд: проверка честности доступна в онлайн-режиме.',time:'Время',players:'Игроков',hash:'Хэш раунда (Server Seed)',salt:'Соль (Client Seed)',
     checking:'Проверяем…',formulaOk:'Коэффициент совпадает с формулой',formulaBad:'Коэффициент НЕ совпадает с формулой',
     chainOk:n=>`Хэш ведёт к опубликованному коммитменту (${n} шагов)`,chainBad:'Хэш НЕ ведёт к коммитменту',chainLong:'Цепочка длинная: проверена связь с предыдущим раундом',
     old:'Раунд слишком старый, подробностей нет',how:'Результат каждого раунда заранее зашифрован в цепочке хэшей. Конец цепочки опубликован до начала игры, поэтому подменить раунд задним числом нельзя.',copied:'Скопировано'},
-  en:{title:'Round',demo:'Demo round: fairness checks work in online mode.',time:'Time',players:'Players',hash:'Round hash',salt:'Salt',
+  en:{title:'Round',demo:'Demo round: fairness checks work in online mode.',time:'Time',players:'Players',hash:'Round hash (Server Seed)',salt:'Salt (Client Seed)',
     checking:'Checking…',formulaOk:'Multiplier matches the formula',formulaBad:'Multiplier does NOT match the formula',
     chainOk:n=>`Hash leads to the published commitment (${n} steps)`,chainBad:'Hash does NOT lead to the commitment',chainLong:'Long chain: link to the previous round checked',
     old:'Round is too old, no details',how:'Every round result is fixed in advance in a hash chain. Its end was published before play started, so no round can be changed afterwards.',copied:'Copied'}};

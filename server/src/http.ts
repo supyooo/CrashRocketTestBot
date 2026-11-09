@@ -72,7 +72,8 @@ export function createApi({ cfg, store, wallet, ref, ton, admin }: Ctx) {
           await wallet.grant(uid, cfg.startBalance, 'grant:start:' + uid);
         } else if (user.name !== name) await store.putUser({ ...user, name });
         await admin?.recordLogin(uid, req).catch((err) => console.error('login record failed:', err.message));
-        return send(res, 200, { token: signSession({ uid, name }, cfg.sessionSecret), user: { id: uid, name }, balance: fromUnits(await wallet.balance(uid)), mode });
+        return send(res, 200, { token: signSession({ uid, name }, cfg.sessionSecret), user: { id: uid, name }, balance: fromUnits(await wallet.balance(uid)), mode,
+          bot: cfg.admin.botUsername || undefined });   // the support button opens this bot's chat
       }
 
       if (url.pathname === '/api/fair') {

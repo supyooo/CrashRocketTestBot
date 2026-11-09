@@ -67,7 +67,7 @@ Railway URL), so the login button works there. In dev mode without `BOT_TOKEN`, 
 
 ## API
 
-- `POST /api/auth` `{initData}` (Telegram) or `{dev}` (dev) → `{token, user, balance}`
+- `POST /api/auth` `{initData}` (Telegram) or `{dev}` (dev) → `{token, user, balance, mode, bot}` (`bot`: the bot username the support button opens)
 - `GET /api/me` (Bearer token) → balance and last ledger entries
 - `POST /api/refill` → free play-money top-up when the balance is empty, 3 per day
 - `GET /api/rounds?limit=20` → finished rounds with revealed hashes and the edge each was played with (`edgeBps`)

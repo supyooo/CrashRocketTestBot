@@ -33,7 +33,7 @@ async function login(){
   const body=TG&&TG.initData?{initData:TG.initData}:{dev:q.get('dev')||(()=>{let n='';try{n=localStorage.getItem('cr.dev')||''}catch(e){}if(!n){n='guest-'+Math.random().toString(36).slice(2,7);try{localStorage.setItem('cr.dev',n)}catch(e){}}return n})()};
   const r=await fetch(base+'/api/auth',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
   if(!r.ok)throw new Error((await r.json().catch(()=>({}))).error||'login failed');
-  const d=await r.json();NET.token=d.token;NET.uid=d.user.id;setReal(d.balance);
+  const d=await r.json();NET.token=d.token;NET.uid=d.user.id;if(d.bot)NET.bot=d.bot;setReal(d.balance);
   NET.ton=!!(d.mode&&d.mode.currency==='tton');if(NET.ton)tonMode();paintMode();
   if(!NET.asked&&asking()&&window.BOOT){NET.asked=true;BOOT.then(()=>showPick(true))}   // ask once per launch, as the game opens
 }
