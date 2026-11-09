@@ -155,13 +155,13 @@ export class PgStore implements Store {
   }
 
   async addRound(r: Round) {
-    await this.pool.query('INSERT INTO rounds (commitment, no, crash_x100, hash, started_at, bets) VALUES ($1,$2,$3,$4,to_timestamp($5/1000.0),$6) ON CONFLICT DO NOTHING',
-      [this.commitment, r.no, r.crashX100, r.hash, r.startedAt, JSON.stringify(r.bets)]);
+    await this.pool.query('INSERT INTO rounds (commitment, no, crash_x100, hash, started_at, edge_bps, bets) VALUES ($1,$2,$3,$4,to_timestamp($5/1000.0),$6,$7) ON CONFLICT DO NOTHING',
+      [this.commitment, r.no, r.crashX100, r.hash, r.startedAt, r.edgeBps ?? null, JSON.stringify(r.bets)]);
   }
 
   async rounds(limit: number): Promise<Round[]> {
-    const { rows } = await this.pool.query('SELECT no, crash_x100, hash, started_at, bets FROM rounds WHERE commitment = $1 ORDER BY no DESC LIMIT $2', [this.commitment, limit]);
-    return rows.map((r) => ({ no: r.no, crashX100: r.crash_x100, hash: r.hash, startedAt: r.started_at.getTime(), bets: r.bets }));
+    const { rows } = await this.pool.query('SELECT no, crash_x100, hash, started_at, edge_bps, bets FROM rounds WHERE commitment = $1 ORDER BY no DESC LIMIT $2', [this.commitment, limit]);
+    return rows.map((r) => ({ no: r.no, crashX100: r.crash_x100, hash: r.hash, startedAt: r.started_at.getTime(), edgeBps: r.edge_bps ?? undefined, bets: r.bets }));
   }
 
   async fair(): Promise<FairState | undefined> {

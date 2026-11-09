@@ -1,7 +1,7 @@
 /** REST API: login, profile, play-money refill, round history and the data players need to verify fairness. */
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import type { Config } from './config.js';
-import { fromUnits, toUnits } from './config.js';
+import { fromUnits, toUnits, LEGACY_EDGE_BPS } from './config.js';
 import { InsufficientFunds } from './store/store.js';
 import { TonError, type TonGateway } from './ton/gateway.js';
 import type { Store } from './store/store.js';
@@ -72,7 +72,8 @@ export function createApi({ cfg, store, wallet, ref, ton, admin }: Ctx) {
           await wallet.grant(uid, cfg.startBalance, 'grant:start:' + uid);
         } else if (user.name !== name) await store.putUser({ ...user, name });
         await admin?.recordLogin(uid, req).catch((err) => console.error('login record failed:', err.message));
-        return send(res, 200, { token: signSession({ uid, name }, cfg.sessionSecret), user: { id: uid, name }, balance: fromUnits(await wallet.balance(uid)), mode });
+        return send(res, 200, { token: signSession({ uid, name }, cfg.sessionSecret), user: { id: uid, name }, balance: fromUnits(await wallet.balance(uid)), mode,
+          bot: cfg.admin.botUsername || undefined });   // the support button opens this bot's chat
       }
 
       if (url.pathname === '/api/fair') {
@@ -83,7 +84,7 @@ export function createApi({ cfg, store, wallet, ref, ton, admin }: Ctx) {
 
       if (url.pathname === '/api/rounds') {
         const limit = Math.min(100, Number(url.searchParams.get('limit') ?? 20) || 20);
-        return send(res, 200, (await store.rounds(limit)).map((r) => ({ no: r.no, crash: r.crashX100 / 100, hash: r.hash, startedAt: r.startedAt, players: r.bets.length })));
+        return send(res, 200, (await store.rounds(limit)).map((r) => ({ no: r.no, crash: r.crashX100 / 100, hash: r.hash, startedAt: r.startedAt, edgeBps: r.edgeBps ?? LEGACY_EDGE_BPS, players: r.bets.length })));
       }
 
       const s = sessionFrom(req, cfg);

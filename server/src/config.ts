@@ -20,8 +20,8 @@ export const config = {
   corsOrigins: (env.CORS_ORIGINS ?? 'https://supyooo.github.io,http://localhost:5173,http://127.0.0.1:5173').split(','),
   dataFile: env.DATA_FILE ?? 'data/dev-db.json',
 
-  /** House edge in basis points: 300 = 3%. Chosen from the simulator (see docs/sim-*.txt). */
-  edgeBps: num(env.HOUSE_EDGE_BPS, 300),
+  /** House edge in basis points: 500 = 5%, RTP 95% (the support model's rules; see docs/sim-*.txt for the maths). */
+  edgeBps: num(env.HOUSE_EDGE_BPS, 500),
   /** Public salt mixed into every crash point. In production: a future blockchain block hash announced in advance. */
   fairSalt: env.FAIR_SALT ?? 'crash-rocket-dev-salt',
   chainLength: num(env.CHAIN_LENGTH, 100_000),
@@ -58,14 +58,33 @@ export const config = {
     partnerShare: num(env.PARTNER_SHARE, 0.4)
   },
 
+  /** Support bot (src/support): the game bot answers the FAQ and passes tickets to the operators. */
+  support: {
+    /** SUPPORT_BOT=0 turns it off (it needs BOT_TOKEN and Postgres anyway). */
+    enabled: env.SUPPORT_BOT !== '0',
+    /** The operators' Telegram group (a negative id). Without it tickets go to the ADMIN_IDS in private messages. */
+    chatId: env.SUPPORT_CHAT_ID ?? '',
+    partnerEmail: env.PARTNER_EMAIL ?? 'partner@boomy.pro',
+    /** The official Telegram channel (vouchers, news): a button in the FAQ menu when set. */
+    channelUrl: env.CHANNEL_URL ?? '',
+    /** The Mini App, for the bot's "Play" button. */
+    appUrl: env.APP_URL ?? 'https://supyooo.github.io/CrashRocketTestBot/',
+    /** This server's public address, for links to the admin panel in tickets. */
+    publicUrl: (env.PUBLIC_URL ?? '').replace(/\/$/, '')
+  },
+
   startBalance: toUnits(num(env.START_BALANCE, 25)),
   minBet: toUnits(0.1),
-  maxBet: toUnits(num(env.MAX_BET, 1000)),
+  /** Per bet panel: a player may have two bets in a round, each up to this. */
+  maxBet: toUnits(num(env.MAX_BET, 15)),
   /** Largest payout of a single bet; the bet is cashed out automatically when it gets there. */
-  maxWin: toUnits(num(env.MAX_WIN, 10_000)),
+  maxWin: toUnits(num(env.MAX_WIN, 75)),
   maxAutoX100: 100_000
 };
 export type Config = typeof config;
+
+/** Rounds saved before the edge was stored with each round were played at the old default of 3%. */
+export const LEGACY_EDGE_BPS = 300;
 
 // Test TON only: never touch mainnet from this build, whatever the variables say.
 if (config.ton.enabled) {

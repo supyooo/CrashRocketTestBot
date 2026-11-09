@@ -14,6 +14,7 @@ import { PgStore } from '../src/store/pg.js';
 import { Wallet } from '../src/wallet/wallet.js';
 import { Engine, GameError, MAX_TAP_LAG_MS } from '../src/game/engine.js';
 import { msTo, x100At } from '../src/game/curve.js';
+import { crashPoint } from '../src/game/fair.js';
 import { startPg } from './pg-helper.js';
 
 let pgUrl = '', stopPg: () => Promise<void> = async () => {};
@@ -76,6 +77,28 @@ for (const kind of ['file', 'postgres'] as const) {
     }
     await fly(engine, t);
     assert.equal(engine.phase, 'crashed');
+  });
+
+  test(`[${kind}] each round is saved with the edge its crash point was computed with`, async () => {
+    const { engine, cfg, store } = await setup({ edgeBps: 500 });
+    let t = 0; await engine.start(t);
+    t += cfg.bettingMs; engine.step(t);
+    const c = crashOf(engine);
+    await fly(engine, t);
+    const [r] = await store.rounds(1);
+    assert.equal(r?.edgeBps, 500);
+    assert.equal(r?.crashX100, c);
+    assert.equal(crashPoint(r!.hash, cfg.fairSalt, 500), c);
+  });
+
+  test(`[${kind}] bets above the per-panel limit are refused`, async () => {
+    const { engine, wallet, store } = await setup({ maxBet: toUnits(15) });
+    await grantU(store, wallet, 'u1', toUnits(100), 'g');
+    await engine.start(0);
+    await assert.rejects(engine.placeBet('u1', 'Ann', toUnits(15.01)), /out of limits/);
+    await engine.placeBet('u1', 'Ann', toUnits(15), undefined, 0);
+    await engine.placeBet('u1', 'Ann', toUnits(15), undefined, 1);   // the second panel has its own limit
+    assert.equal(await wallet.balance('u1'), toUnits(70));
   });
 
   test(`[${kind}] two bets in one round are settled separately`, async () => {

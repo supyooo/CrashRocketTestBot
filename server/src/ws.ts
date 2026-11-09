@@ -45,6 +45,7 @@ export function attachWs(server: Server, cfg: Config, wallet: Wallet, isBlocked:
     const snap = engine.snapshot(Date.now());
     send(c, { t: 'hello', you: { uid: c.uid, name: c.name }, balance, k: K_PER_SEC, ...snap,
       bets: snap.bets.map((b) => ({ ...b, amount: fromUnits(b.amount), payout: b.payout === undefined ? undefined : fromUnits(b.payout) })),
+      limits: { minBet: fromUnits(snap.limits.minBet), maxBet: fromUnits(snap.limits.maxBet), maxWin: fromUnits(snap.limits.maxWin) },
       history: snap.history.map((h) => ({ no: h.no, crash: h.x100 / 100 })) });
   }
 
