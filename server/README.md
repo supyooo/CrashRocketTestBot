@@ -50,7 +50,7 @@ Without `?server=` the game runs its offline demo rounds.
 | `ADMIN_REVIEW_OVER` | 50 | Withdrawals above this (TON) wait for an admin's approval |
 | `PARTNER_SHARE` | 0.4 | Partner's share of NGR in the RevShare summary |
 | `SUPPORT_BOT` | on | `0` turns the support bot off. It runs with `BOT_TOKEN` and Postgres, on the leader server only |
-| `SUPPORT_CHAT_ID` | — | The operators' Telegram group (e.g. `-100…`), the bot must be in it. Without it tickets go to `ADMIN_IDS` in private |
+| `SUPPORT_CHAT_ID` | — | The operators' Telegram group (e.g. `-100…`), the bot must be in it; `/chatid@<bot>` in the group tells its id. Without it tickets go to `ADMIN_IDS` in private |
 | `PARTNER_EMAIL` | partner@boomy.pro | Quoted by the partners' answers |
 | `CHANNEL_URL` | — | The official Telegram channel: a button in the support menu |
 | `APP_URL` | GitHub Pages | The Mini App, for the bot's Play buttons |
