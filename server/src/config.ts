@@ -64,6 +64,8 @@ export const config = {
     enabled: env.SUPPORT_BOT !== '0',
     /** The operators' Telegram group (a negative id). Without it tickets go to the ADMIN_IDS in private messages. */
     chatId: env.SUPPORT_CHAT_ID ?? '',
+    /** A topic of that group (a forum) to post tickets in; empty for the group's General topic. */
+    topicId: env.SUPPORT_TOPIC_ID ?? '',
     partnerEmail: env.PARTNER_EMAIL ?? 'partner@boomy.pro',
     /** The official Telegram channel (vouchers, news): a button in the FAQ menu when set. */
     channelUrl: env.CHANNEL_URL ?? '',

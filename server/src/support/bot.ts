@@ -33,7 +33,7 @@ export function botApi(token: string): TgApi {
 }
 
 type TgUserLite = { id: number; first_name?: string; last_name?: string; username?: string; language_code?: string };
-type Msg = { message_id: number; chat: { id: number; type: string }; from?: TgUserLite; text?: string; caption?: string; reply_to_message?: { message_id: number }; migrate_to_chat_id?: number };
+type Msg = { message_id: number; chat: { id: number; type: string }; from?: TgUserLite; text?: string; caption?: string; reply_to_message?: { message_id: number }; migrate_to_chat_id?: number; message_thread_id?: number; is_topic_message?: boolean };
 type Update = { update_id: number; message?: Msg; callback_query?: { id: string; from: TgUserLite; data?: string; message?: Msg } };
 
 const UI = {
@@ -55,6 +55,8 @@ const UI = {
   }
 } satisfies Record<Lang, Record<string, string | ((n: number) => string)>>;
 
+/** Keeps a bot reply in the topic the message came from (forum groups). */
+const thread = (m: Msg) => (m.is_topic_message && m.message_thread_id ? { message_thread_id: m.message_thread_id } : {});
 const esc = (s: string) => s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]!));
 const langOf = (code?: string): Lang => (/^(ru|uk|be|kk|uz|ky|tg|az|hy|ka)/.test(code ?? 'ru') ? 'ru' : 'en');
 
@@ -67,6 +69,8 @@ export class SupportBot {
   private api: TgApi;
   /** Where tickets go: the support group, or the admins' private chats. */
   readonly opChats: number[];
+  /** message_thread_id of the support group's topic for tickets (forum groups), if set. */
+  private topic?: number;
   private abort?: AbortController;
   private running?: Promise<void>;
 
@@ -76,6 +80,9 @@ export class SupportBot {
     this.api = x.api ?? botApi(x.cfg.botToken);
     const s = x.cfg.support;
     this.opChats = (s.chatId ? [s.chatId] : x.cfg.admin.ids).map(Number).filter((n) => Number.isSafeInteger(n) && n !== 0);
+    // the General topic (id 1) takes no thread id: messages without one land there
+    const t = Number(s.topicId);
+    if (s.chatId && Number.isSafeInteger(t) && t > 1) this.topic = t;
   }
 
   /** Starts long polling (leader only). */
@@ -109,6 +116,9 @@ export class SupportBot {
     }
   }
 
+  /** Where in an operators' chat tickets go: the configured topic of the support group. */
+  private where(chat: number) { return this.topic && chat === Number(this.x.cfg.support.chatId) ? { message_thread_id: this.topic } : {}; }
+
   /** One Telegram update. Public for tests. */
   async handle(u: Update) {
     if (u.callback_query) return this.onCallback(u.callback_query);
@@ -132,10 +142,14 @@ export class SupportBot {
       return true;
     }
     if (!/^\/chatid(@\w+)?$/.test((m.text ?? '').trim())) return false;
-    const on = this.opChats.includes(m.chat.id);
-    await this.api('sendMessage', { chat_id: m.chat.id, parse_mode: 'HTML', reply_parameters: { message_id: m.message_id, allow_sending_without_reply: true },
-      text: `id этого чата: <code>${m.chat.id}</code>\n` + (on ? '✅ Это чат операторов: обращения приходят сюда.'
-        : 'Чтобы обращения игроков приходили сюда, впишите это число в переменную SUPPORT_CHAT_ID на сервере и перезапустите его.') }).catch(() => {});
+    const on = this.opChats.includes(m.chat.id), topic = m.is_topic_message ? m.message_thread_id : undefined;
+    const lines = [`id этого чата: <code>${m.chat.id}</code> (копируйте вместе с минусом)`];
+    if (topic) lines.push(`id этой темы: <code>${topic}</code>`);
+    if (!on) lines.push(`Чтобы обращения игроков приходили сюда, впишите id чата в переменную SUPPORT_CHAT_ID на сервере${topic ? ', id темы — в SUPPORT_TOPIC_ID,' : ''} и перезапустите его.`);
+    else if (topic && topic !== this.topic) lines.push(`✅ Это чат операторов. Обращения сейчас приходят ${this.topic ? `в тему ${this.topic}` : 'в General'}; чтобы получать их в этой теме, впишите ${topic} в SUPPORT_TOPIC_ID.`);
+    else lines.push(`✅ Это чат операторов: обращения приходят ${topic ? 'в эту тему' : this.topic ? `в тему ${this.topic}` : 'сюда'}.`);
+    await this.api('sendMessage', { chat_id: m.chat.id, ...thread(m), parse_mode: 'HTML', reply_parameters: { message_id: m.message_id, allow_sending_without_reply: true },
+      text: lines.join('\n') }).catch(() => {});
     return true;
   }
 
@@ -228,7 +242,7 @@ export class SupportBot {
     const head = await this.header(id, from, topic);
     for (const chat of this.opChats) {
       try {
-        const h = await this.api('sendMessage', { chat_id: chat, text: head, parse_mode: 'HTML', link_preview_options: { is_disabled: true } });
+        const h = await this.api('sendMessage', { chat_id: chat, ...this.where(chat), text: head, parse_mode: 'HTML', link_preview_options: { is_disabled: true } });
         await this.remember(id, 'head', chat, h.message_id);
       } catch (err) { console.error(`support bot: ticket #${id} header to ${chat} failed:`, (err as Error).message); }
     }
@@ -259,7 +273,7 @@ export class SupportBot {
     for (const chat of this.opChats) {
       try {
         const h = headOf.get(chat);
-        const c = await this.api('copyMessage', { chat_id: chat, from_chat_id: m.chat.id, message_id: m.message_id,
+        const c = await this.api('copyMessage', { chat_id: chat, ...this.where(chat), from_chat_id: m.chat.id, message_id: m.message_id,
           ...(h ? { reply_parameters: { message_id: h, allow_sending_without_reply: true } } : {}) });
         await this.remember(id, 'in', chat, c.message_id);
       } catch (err) { console.error(`support bot: ticket #${id} copy to ${chat} failed:`, (err as Error).message); }
@@ -286,7 +300,7 @@ export class SupportBot {
       await this.x.db.query("UPDATE support_tickets SET status = 'closed', updated_at = now() WHERE id = $1", [id]);
       await this.x.db.query('UPDATE support_users SET ticket_id = NULL WHERE tg_id = $1 AND ticket_id = $2', [player, id]);
       await this.api('sendMessage', { chat_id: player, text: UI[lang].closed(id) }).catch(() => {});
-      await this.api('sendMessage', { chat_id: m.chat.id, text: `Обращение №${id} закрыто.`, reply_parameters: { message_id: m.message_id } }).catch(() => {});
+      await this.api('sendMessage', { chat_id: m.chat.id, ...thread(m), text: `Обращение №${id} закрыто.`, reply_parameters: { message_id: m.message_id } }).catch(() => {});
       return true;
     }
     try {
@@ -294,7 +308,7 @@ export class SupportBot {
       await this.api('copyMessage', { chat_id: player, from_chat_id: m.chat.id, message_id: m.message_id });
     } catch (err) {
       const why = err instanceof TgError && err.code === 403 ? 'игрок заблокировал бота' : (err as Error).message;
-      await this.api('sendMessage', { chat_id: m.chat.id, text: `⚠️ Ответ не доставлен: ${why}`, reply_parameters: { message_id: m.message_id } }).catch(() => {});
+      await this.api('sendMessage', { chat_id: m.chat.id, ...thread(m), text: `⚠️ Ответ не доставлен: ${why}`, reply_parameters: { message_id: m.message_id } }).catch(() => {});
       return true;
     }
     await this.remember(id, 'out', m.chat.id, m.message_id);
