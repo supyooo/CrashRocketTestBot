@@ -33,7 +33,7 @@ export function botApi(token: string): TgApi {
 }
 
 type TgUserLite = { id: number; first_name?: string; last_name?: string; username?: string; language_code?: string };
-type Msg = { message_id: number; chat: { id: number; type: string }; from?: TgUserLite; text?: string; caption?: string; reply_to_message?: { message_id: number } };
+type Msg = { message_id: number; chat: { id: number; type: string }; from?: TgUserLite; text?: string; caption?: string; reply_to_message?: { message_id: number }; migrate_to_chat_id?: number };
 type Update = { update_id: number; message?: Msg; callback_query?: { id: string; from: TgUserLite; data?: string; message?: Msg } };
 
 const UI = {
@@ -114,8 +114,29 @@ export class SupportBot {
     if (u.callback_query) return this.onCallback(u.callback_query);
     const m = u.message;
     if (!m?.from) return;
+    if (m.chat.type !== 'private' && (await this.onGroupSetup(m))) return;
     if (await this.onOperator(m)) return;
     if (m.chat.type === 'private') return this.onPlayer(m);
+  }
+
+  /**
+   * Setting up the operators' chat: /chatid in a group answers with its id for SUPPORT_CHAT_ID. When a group
+   * becomes a supergroup Telegram gives it a new id: the bot says so in the new chat, since tickets would stop.
+   * (With privacy mode on, a group bot gets /chatid@<bot>; a plain /chatid only in some cases.)
+   */
+  private async onGroupSetup(m: Msg): Promise<boolean> {
+    if (m.migrate_to_chat_id) {
+      const known = this.opChats.includes(m.chat.id);
+      await this.api('sendMessage', { chat_id: m.migrate_to_chat_id, parse_mode: 'HTML',
+        text: `Группа стала супергруппой, её новый id: <code>${m.migrate_to_chat_id}</code>.${known ? ' Обновите SUPPORT_CHAT_ID на сервере, иначе обращения сюда не придут.' : ''}` }).catch(() => {});
+      return true;
+    }
+    if (!/^\/chatid(@\w+)?$/.test((m.text ?? '').trim())) return false;
+    const on = this.opChats.includes(m.chat.id);
+    await this.api('sendMessage', { chat_id: m.chat.id, parse_mode: 'HTML', reply_parameters: { message_id: m.message_id, allow_sending_without_reply: true },
+      text: `id этого чата: <code>${m.chat.id}</code>\n` + (on ? '✅ Это чат операторов: обращения приходят сюда.'
+        : 'Чтобы обращения игроков приходили сюда, впишите это число в переменную SUPPORT_CHAT_ID на сервере и перезапустите его.') }).catch(() => {});
+    return true;
   }
 
   // ---------------- players ----------------

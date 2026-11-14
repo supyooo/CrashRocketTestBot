@@ -200,3 +200,21 @@ test('polling: handles updates in order and saves the offset, so a restart does 
   assert.equal(offsets[2], saved);   // continues where the first one stopped
   assert.equal(replies.length, 2);
 });
+
+test('/chatid in a group tells its id; a group that becomes a supergroup announces the new id', async () => {
+  const { bot, sent } = await setup({ chatId: '' }, ['777']);
+  const G = -4001;
+  await bot.handle({ update_id: upd++, message: { message_id: mid++, chat: { id: G, type: 'group' }, from: { id: 9 }, text: '/chatid@BoomyBot' } });
+  assert.match(sent(G)[0]!.p.text, /id этого чата: <code>-4001<\/code>/);
+  assert.match(sent(G)[0]!.p.text, /SUPPORT_CHAT_ID/);
+  // other group chatter is ignored
+  await bot.handle({ update_id: upd++, message: { message_id: mid++, chat: { id: G, type: 'group' }, from: { id: 9 }, text: 'привет' } });
+  assert.equal(sent(G).length, 1);
+  // the operators' chat itself says it is set up
+  const { bot: b2, sent: s2 } = await setup();
+  await b2.handle({ update_id: upd++, message: { message_id: mid++, chat: { id: OPS, type: 'supergroup' }, from: { id: 9 }, text: '/chatid' } });
+  assert.match(s2(OPS)[0]!.p.text, /Это чат операторов/);
+  // migration to a supergroup
+  await b2.handle({ update_id: upd++, message: { message_id: mid++, chat: { id: OPS, type: 'group' }, from: { id: 9 }, migrate_to_chat_id: -1009999 } });
+  assert.match(s2(-1009999)[0]!.p.text, /новый id: <code>-1009999<\/code>.*Обновите SUPPORT_CHAT_ID/);
+});
