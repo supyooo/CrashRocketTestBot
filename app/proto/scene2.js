@@ -168,7 +168,7 @@ const ANG={pad:-1,fly:-.76},JOY_X=2;   // JOY_X: the multiplier where the bear r
    // rocket units per pixel of the painted bear pictures (its head about as wide as the rocket)
 function create(cv,opts){
   const ctx=cv.getContext('2d');
-  let W=1,H=1,DPR=1,k=1,kh=1,yH=1;      // kh: the rocket and the bear, 1.3x the scene scale so their details read on a phone                    // stage size, its scale (1 = a 390 px wide phone), the horizon at rest
+  let W=1,H=1,DPR=1,k=1,kh=1,kh0=1,yH=1;      // kh: the rocket and the bear, 1.3x the scene scale so their details read on a phone                    // stage size, its scale (1 = a 390 px wide phone), the horizon at rest
   const L={};                                    // painted layers
   const glow={},puff={};let spark=null;
   const st={phase:'wait',t:0,m:1,alt:0,camX:0,dAlt:0,dCamX:0,sp:0,shake:0,stall:0,launchT:0,crashT:0,drop:0,rider:true,ridePose:'grip',
@@ -178,7 +178,13 @@ function create(cv,opts){
     sq:{x:0,v:0},                              // stretch along the axis (0 = none): squat before launch, stretch on thrust
     hd:{x:0,v:0},br:0,                         // the rider's head sway (picture px at the top of the head) and breathing
     flyD:0,flyV:0,                             // distance flown, for the stars streaming past
-    lines:[],punch:0,kick:0,hit:0,ax:0};
+    lines:[],punch:0,kick:0,hit:0,ax:0,
+    I:0,zs:1,                                  // tension 0..1.3 (log of the multiplier), and the pull-back of the camera
+    mi:0,zf:0,warp:0,                          // milestones passed, the zone tint, the star streak after a milestone
+    pass:[],passT:0,                           // things flying past: cloud wisps, rocks, moons
+    minis:[],coins:[],slow:0,beat:-1,padPulse:0};
+  const MILES=[2,5,10,20,50];
+  const ZONE=[[70,120,255],[40,225,190],[255,130,70]];   // the sky's tint after 2x, 5x and 10x
   /** A damped spring: o.x follows `to`; w = stiffness (rad/s), z = damping (1 = no overshoot). */
   function spring(o,to,w,z,dt){for(let n=dt>.02?2:1,h=dt/n,i=0;i<n;i++){o.v+=(-2*z*w*o.v-w*w*(o.x-to))*h;o.x+=o.v*h}}
   const bear=makeBear(),jbear=makeBear();
@@ -201,7 +207,7 @@ function create(cv,opts){
     const nh=Math.round(H*1.6);L.neb=canvas(W*DPR,nh*DPR);{const g=L.neb.getContext('2d');g.scale(DPR,DPR);g.globalCompositeOperation='lighter';
       const cols=['rgba(140,60,220,','rgba(220,60,170,','rgba(70,80,220,','rgba(255,90,150,'];
       for(let i=0;i<16;i++){const x=R()*W,y=R()*nh,r=(.25+R()*.45)*W,c=cols[i%4],gr=g.createRadialGradient(x,y,0,x,y,r);
-        gr.addColorStop(0,c+(.13+R()*.1)+')');gr.addColorStop(1,c+'0)');g.fillStyle=gr;for(const dy of [-nh,0,nh]){g.beginPath();g.arc(x,y+dy,r,0,TAU);g.fill()}}}
+        gr.addColorStop(0,c+(.13+R()*.1)+')');gr.addColorStop(1,c+'0)');g.fillStyle=gr;for(const dy of [-nh,0,nh])for(const dx of [-W,0,W]){g.save();g.translate(dx,dy);g.beginPath();g.arc(x,y,r,0,TAU);g.fill();g.restore()}}}   // wraps both ways: it scrolls sideways too
     // stars, three depths
     L.stars=[];for(let l=0;l<3;l++){const n=[120,60,22][l];for(let i=0;i<n;i++)L.stars.push({l,x:R()*W,y:R()*nh,s:[.7,1.1,1.6][l]*(.7+R()*.6),ph:R()*TAU,f:.6+R()*2.2})}
     L.sparkles=[];for(let i=0;i<11;i++)L.sparkles.push({x:R()*W,y:R()*nh,s:(7+R()*9)*k,ph:R()*TAU});
@@ -222,6 +228,9 @@ function create(cv,opts){
         const gr=g.createLinearGradient(0,mh-base-amp,0,mh);gr.addColorStop(0,fill[0]);gr.addColorStop(1,fill[1]);g.fillStyle=gr;g.fill();
         g.save();g.shadowColor=rim;g.shadowBlur=8;g.strokeStyle=rim;g.lineWidth=1.4;g.beginPath();pts.forEach(([x,y],i)=>{if(!i)g.moveTo(x,y);else{const [px,py]=pts[i-1];g.quadraticCurveTo(px,py,(px+x)/2,(py+y)/2)}});g.globalAlpha=.55;g.stroke();g.restore()};
       ridge(mh*.18,mh*.75,1.3,['#4a1f6e','#2a0f45'],'#ff6fc8');ridge(0,mh*.5,4.1,['#2a0f40','#140726'],'#ff4fa8')}
+    // rocks and moons that fly past higher up
+    L.rocks=[rock(26*k,3),rock(18*k,11),rock(34*k,19)];
+    L.moons=[planet(W*.085,['#2f6a7a','#123844','#06161c'],'rgba(120,255,235,',.8,-.9,5),planet(W*.06,['#8a4a2c','#40200f','#160a05'],'rgba(255,190,120,',.9,2.2,14),planet(W*.11,['#6a2c7a','#2c1038','#100516'],'rgba(255,120,220,',.7,-.4,22)];
     // clouds: big billows at the horizon, lit from the sun
     L.clouds=[cloud(W*.66,H*.34,11,.85),cloud(W*.66,H*.36,23,.15),cloud(W*.9,H*.13,31,.5)];
     // rocket sprite at the scale it is drawn
@@ -252,6 +261,12 @@ function create(cv,opts){
     g.save();g.clip();const R=rng(seed);g.globalAlpha=.18;for(let i=0;i<7;i++){g.fillStyle=i%2?'#7c4bd0':'#120626';g.beginPath();g.ellipse(0,(R()-.5)*r*1.8,r*1.3,r*(.05+R()*.08),.25,0,TAU);g.fill()}g.restore();
     g.save();g.shadowColor=rim+'1)';g.shadowBlur=10;g.strokeStyle=rim+'.9)';g.lineWidth=Math.max(1.2,r*.04);g.beginPath();g.arc(0,0,r,ly-1.1,ly+1.1);g.stroke();g.restore();
     return c}
+  function rock(r,seed){const n=r*2.6,c=canvas(n*DPR,n*DPR),g=c.getContext('2d'),R=rng(seed);g.scale(DPR,DPR);g.translate(n/2,n/2);
+    const pts=[];for(let i=0;i<10;i++){const a=i/10*TAU,q=r*(.72+R()*.3);pts.push([Math.cos(a)*q,Math.sin(a)*q*.86])}
+    const path=()=>{g.beginPath();pts.forEach(([x,y],i)=>{const [nx,ny]=pts[(i+1)%pts.length];if(!i)g.moveTo((x+nx)/2,(y+ny)/2);const [ax,ay]=pts[(i+1)%pts.length],[bx,by]=pts[(i+2)%pts.length];g.quadraticCurveTo(ax,ay,(ax+bx)/2,(ay+by)/2)});g.closePath()};
+    const gr=g.createRadialGradient(r*.35,-r*.4,r*.1,0,0,r*1.1);gr.addColorStop(0,'#8a66b0');gr.addColorStop(.55,'#3c2460');gr.addColorStop(1,'#150a28');path();g.fillStyle=gr;g.fill();
+    g.save();g.clip();g.globalAlpha=.3;for(let i=0;i<5;i++){g.fillStyle='#0d0618';g.beginPath();g.ellipse((R()-.5)*r*1.3,(R()-.5)*r*1.1,r*(.1+R()*.14),r*(.07+R()*.1),R()*3,0,TAU);g.fill()}g.restore();
+    g.save();g.shadowColor='#ff7fd0';g.shadowBlur=6;g.strokeStyle='rgba(255,140,215,.75)';g.lineWidth=Math.max(1,r*.05);g.beginPath();g.arc(0,0,r*.9,-1.5,.2);g.stroke();g.restore();return c}
   function cloud(w,h,seed,lightX){const c=canvas(w*DPR,h*DPR),g=c.getContext('2d'),R=rng(seed);g.scale(DPR,DPR);lightX=lightX===undefined?.5:lightX;
     const balls=[];for(let i=0;i<34;i++){const x=w*(.1+R()*.8),top=h*(.18+Math.pow(Math.abs(x/w-.5)*2,1.6)*.55),r=h*(.16+R()*.2);balls.push([x,top+r*.8+R()*h*.2,r])}
     balls.sort((a,b)=>a[1]-b[1]);
@@ -272,24 +287,30 @@ function create(cv,opts){
 
   /* ---------- API ---------- */
   const api={
-    resize(w,h,dpr){W=w;H=h;DPR=Math.min(2,dpr||1);k=Math.min(W/390,H/520)*1.0;kh=k*1.3;yH=H*.78;cv.width=Math.round(W*DPR);cv.height=Math.round(H*DPR);
-      glow.pink=glowSprite('rgba(255,90,190,1)');glow.orange=glowSprite('rgba(255,170,60,1)');glow.white=glowSprite('rgba(255,250,235,1)');glow.green=glowSprite('rgba(80,255,170,1)');
+    resize(w,h,dpr){W=w;H=h;DPR=Math.min(2,dpr||1);k=Math.min(W/390,H/520)*1.0;kh0=kh=k*1.3;yH=H*.78;cv.width=Math.round(W*DPR);cv.height=Math.round(H*DPR);
+      glow.pink=glowSprite('rgba(255,90,190,1)');glow.orange=glowSprite('rgba(255,170,60,1)');glow.white=glowSprite('rgba(255,250,235,1)');glow.green=glowSprite('rgba(80,255,170,1)');glow.blue=glowSprite('rgba(110,170,255,1)');
       puff.pink=[puffSprite(['#ffc4f2','#c060e0','#4a1a72'],3),puffSprite(['#f4b4ff','#a74fd6','#3d1666'],8)];
       puff.dark=[puffSprite(['#8a7396','#43305a','#1c1228'],5),puffSprite(['#7a6688','#3a2a4e','#170f22'],12)];
       puff.dust=[puffSprite(['#ffe0f6','#d79be8','#6d3a8c'],15)];puff.fire=[puffSprite(['#fffbe0','#ffb23a','#ff2e6a'],21),puffSprite(['#fff4c4','#ff9a2e','#e8235f'],27)];
       spark=sparkSprite();paintStatic();if(st.phase==='wait')api.placeOnPad()},
     placeOnPad(){const h=home();st.rk.x=h.x;st.rk.y=h.y;st.rk.ang=ANG.pad},
-    wait(){st.phase='wait';st.t=0;st.rider=true;st.rk.vis=true;st.stall=0;st.drop=1;st.jumper=null;st.tumble=null;st.ridePose='grip';st.sq.x=st.sq.v=0;st.hd.v=0},
-    launch(){st.phase='fly';st.t=0;st.launchT=0;st.sq.v+=2.2;st.kick=1;st.shake=Math.max(st.shake,.42);   // the squat lets go: a stretch, a kick of the camera
+    wait(){st.phase='wait';st.t=0;st.rider=true;st.rk.vis=true;st.stall=0;st.drop=1;st.jumper=null;st.tumble=null;st.ridePose='grip';st.sq.x=st.sq.v=0;st.hd.v=0;st.pass=[];st.minis=[];st.coins=[];st.beat=-1;st.mi=0},
+    launch(){st.phase='fly';st.t=0;st.launchT=0;st.mi=0;st.passT=1.6;st.sq.v+=2.2;st.kick=1;st.shake=Math.max(st.shake,.42);   // the squat lets go: a stretch, a kick of the camera
       for(let i=0;i<26;i++)addPuff('dust',padPos().x+rnd(-30,30)*k,padPos().y-4*k,rnd(-140,140),rnd(-50,0),rnd(10,20)*k,rnd(1.2,2),22)},
-    cashout(){if(!st.rider||st.phase!=='fly')return;st.rider=false;const p=seat();st.jumper={x:p.x,y:p.y,vx:-80*k,vy:-330*k,rot:st.rk.ang*.4,vr:-6,t:0,open:0,sw:0,vsw:0,caught:false};
+    cashout(){if(!st.rider||st.phase!=='fly')return;st.rider=false;const p=seat();st.jumper={x:p.x,y:p.y,vx:-125*k,vy:-215*k,rot:st.rk.ang*.4,vr:-6,t:0,open:0,sw:0,vsw:0,caught:false};
+      st.slow=.45;   // the bail-out plays in slow motion for a moment
+      for(let i=0;i<12;i++)st.coins.push({x:p.x,y:p.y,vx:rnd(-190,150)*k,vy:rnd(-390,-170)*k,ph:rnd(0,TAU),sp:rnd(9,16),life:rnd(.9,1.3),r:rnd(4.5,6.5)*k});
       st.py.v-=70*k;st.sq.v+=1.1;st.pa.v-=.5;   // the rocket, lighter now, hops up
       for(let i=0;i<26;i++){const a=rnd(0,TAU),v=rnd(80,260)*k;st.sparks.push({x:p.x,y:p.y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,life:rnd(.5,.9),max:.9,col:['#ffd23f','#2bff88','#29e6ff','#ff3ea5'][i%4],w:2})}
       st.rings.push({x:p.x,y:p.y,t:0,d:.55,r0:6,r1:70,col:'255,210,63'})},
     crash(){if(st.phase!=='fly')return;st.phase='stall';st.stall=.38},
+    /** Another player bails out: a small parachute with a name tag leaves the rocket's side. */
+    botOut(name,label){const r=st.rk;if(st.phase!=='fly'||!r.vis||st.minis.length>=7)return;
+      st.minis.push({x:r.x-rnd(18,50)*k,y:r.y+rnd(0,26)*k,vx:rnd(-170,-80)*k,vy:rnd(-150,-60)*k,t:0,open:0,sw:0,vsw:rnd(-.8,.8),name,label,hue:Math.floor(rnd(0,360))})},
     state:st,
     frame(dt,t,m){dt=Math.min(dt,.05);st.m=m;
       if(st.hit>0){st.hit-=dt;draw(t);return}   // hit-stop: the explosion's first frame holds for a moment
+      if(st.slow>0){st.slow-=dt;dt*=lerp(1,.26,sm(clamp(st.slow/.45,0,1)))}
       update(dt,t);draw(t)}};
 
   function addPuff(kind,x,y,vx,vy,r,life,gr){st.smoke.push({kind,x,y,vx,vy,r,r0:r,gr:gr*k,life,max:life,rot:rnd(0,TAU),spin:rnd(-.5,.5),i:Math.floor(Math.random()*puff[kind].length)})}
@@ -299,7 +320,8 @@ function create(cv,opts){
     for(let i=0;i<18;i++){const a=rnd(0,TAU),v=rnd(30,110)*k;const p={kind:'dark',x:x+Math.cos(a)*12*k,y:y+Math.sin(a)*12*k,vx:Math.cos(a)*v,vy:Math.sin(a)*v-50*k,r:rnd(10,18)*k,gr:34*k,life:rnd(1.6,2.6),max:2.6,rot:rnd(0,TAU),spin:rnd(-.4,.4),i:i%2,delay:rnd(.12,.3)};st.smoke.push(p)}
     for(let i=0;i<46;i++){const a=rnd(0,TAU),v=rnd(120,480)*k;st.sparks.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,life:rnd(.4,1),max:1,col:['#fff3b0','#ffd23f','#ff7a1a','#ff3ea5'][i%4],w:rnd(1.4,2.6),g:380*k})}
     for(let i=0;i<12;i++){const a=rnd(0,TAU),v=rnd(120,340)*k;st.debris.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v-140*k,rot:rnd(0,TAU),vr:rnd(-12,12),s:rnd(4,8)*k,life:rnd(1.2,2),col:i%3?'#19a866':'#0b5236'})}
-    st.rings.push({x,y,t:0,d:.55,r0:12,r1:150*k,col:'255,225,150',w:3},{x,y,t:-.06,d:.75,r0:12,r1:210*k,col:'255,62,165',w:2});
+    st.rings.push({x,y,t:0,d:.55,r0:12,r1:150*k,col:'255,225,150',w:3},{x,y,t:-.06,d:.75,r0:12,r1:210*k,col:'255,62,165',w:2},{x,y,t:-.02,d:1.05,r0:20,r1:Math.max(W,H)*.85,col:'255,255,255',w:5});
+    for(let i=0;i<10;i++){const a=rnd(0,TAU),v=rnd(200,520)*k;st.debris.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v-160*k,rot:rnd(0,TAU),vr:rnd(-16,16),s:rnd(3,6)*k,life:rnd(1.4,2.2),col:i%2?'#8d97a8':'#3a4152'})}
     if(st.rider){st.rider=false;const s=seat();st.tumble={x:s.x,y:s.y,vx:rnd(-170,-70)*k,vy:-300*k,rot:0,vr:rnd(-9,-5)}}}
 
   /* ---------- simulation ---------- */
@@ -310,12 +332,20 @@ function create(cv,opts){
     const prev=st.alt;st.alt+=(altT-st.alt)*ka;st.dAlt=st.alt-prev;const pcx=st.camX;st.camX=st.alt*.45;st.dCamX=st.camX-pcx;
     st.sp=st.phase==='fly'?1+Math.log(st.m)*.9:st.phase==='stall'?.4:0;
     // the stars stream past even when the multiplier climbs slowly: speed eases in after launch and out after the crash
-    const fvT=st.phase==='fly'?(70+150*Math.log(st.m))*clamp(st.t/1.5,0,1)*k:st.phase==='stall'?40*k:0;st.flyV+=(fvT-st.flyV)*(1-Math.exp(-dt*(fvT>st.flyV?2:1.2)));st.flyD+=st.flyV*dt;
+    const fvT=st.phase==='fly'?(70+150*Math.log(st.m))*clamp(st.t/1.5,0,1)*k*(1+st.warp*2.2):st.phase==='stall'?40*k:0;st.flyV+=(fvT-st.flyV)*(1-Math.exp(-dt*(fvT>st.flyV?2:1.2)));st.flyD+=st.flyV*dt;
+    const flying=st.phase==='fly'||st.phase==='stall';
+    st.I=flying?clamp(Math.log(st.m)/Math.log(10),0,1.3):st.I*Math.exp(-dt*3);
+    st.zs+=((flying?1-.2*sm(clamp(Math.log(st.m)/Math.log(12),0,1)):1)-st.zs)*(1-Math.exp(-dt*2.5));kh=kh0*st.zs;
+    st.zf+=((st.phase==='wait'?0:Math.min(3,st.mi))-st.zf)*(1-Math.exp(-dt*(st.phase==='wait'?3:1.6)));st.warp=Math.max(0,st.warp-dt*1.5);
     const pad=padPos(),hm=home();
     if(st.phase==='wait'){
       if(st.drop>0){st.drop=Math.max(0,st.drop-dt*1.3);if(st.drop===0)for(let i=0;i<12;i++)addPuff('dust',pad.x+rnd(-26,26)*k,pad.y-2*k,rnd(-90,90),rnd(-30,0),rnd(8,14)*k,rnd(.8,1.3),16)}
       const e=1-easeBack(1-st.drop);r.x=hm.x;r.y=hm.y-e*H*.9;r.ang=ANG.pad+Math.sin(st.drop*3)*.05*st.drop;
       // the last two seconds of the countdown: the engine warms up, a smooth rumble
+      // every second of the countdown: a small bounce and a ring on the pad; steam leaks at the pad's edge
+      if(st.drop===0){const sec=Math.floor(st.t);if(sec!==st.beat){st.beat=sec;if(st.t>.5){st.sq.v-=.5;st.padPulse=1}}
+        if(Math.random()<dt*7){const sd=Math.random()<.5?-1:1;addPuff('dust',pad.x+sd*rnd(34,52)*k,pad.y-1*k,sd*rnd(4,22),rnd(-58,-26),rnd(4,7)*k,rnd(.8,1.3),11)}}
+      st.padPulse=Math.max(0,st.padPulse-dt*1.7);
       // the last half second: the rocket squats on the pad before it springs off
       spring(st.sq,st.t>4.5?-.075:0,st.t>4.5?16:9,.55,dt);
       const warm=clamp((st.t-2)/2,0,1);
@@ -325,7 +355,7 @@ function create(cv,opts){
     }else if(st.phase==='fly'){
       // the path: slow off the pad, then fast (ease in and out); springs add the lag and the overshoot of a heavy thing
       const p=sm(clamp(st.t/2,0,1)),I=clamp(Math.log(st.m)/Math.log(10),0,1.3);
-      const tx=lerp(hm.x,W*.56,p)+wob(t*.55,3)*13*k*p,ty=lerp(hm.y,H*.46,p)+wob(t*.7,5)*10*k*p;
+      const tx=lerp(hm.x,W*.56,p)+wob(t*.55,3)*13*k*p,ty=lerp(hm.y,H*.52,p)+wob(t*.7,5)*10*k*p;
       const pvx=st.px.v;spring(st.px,tx,7.5,.62,dt);spring(st.py,ty,7.5,.62,dt);st.ax=(st.px.v-pvx)/Math.max(dt,.001);
       // the nose follows where the rocket is going: down when it sinks, up when it climbs
       spring(st.pa,lerp(ANG.pad,ANG.fly,p)+wob(t*.8,7)*.035+clamp(st.py.v/k*.0016,-.13,.13)*p,9,.5,dt);
@@ -339,6 +369,19 @@ function create(cv,opts){
       // speed lines sweep past, against the flight
       if(st.flyV>60*k){const rate=(st.flyV/k-40)*.03*dt;for(let i=0;i<Math.floor(rate)+(Math.random()<rate%1?1:0);i++){const a=r.ang,e=Math.random();
         st.lines.push({x:e<.6?rnd(W*.1,W*1.3):W*1.05,y:e<.6?-H*.05:rnd(-H*.1,H*.7),vx:-Math.cos(a),vy:-Math.sin(a),v:rnd(700,1300)*k*(.7+I*.5),l:rnd(26,80)*k,a:rnd(.08,.22),t:0})}}
+      // milestones (2x, 5x, 10x...): a shock ring, a flash, the stars streak, the sky changes its tint
+      while(st.mi<MILES.length&&st.m>=MILES[st.mi]){const x=MILES[st.mi++];st.warp=1;st.flash=Math.max(st.flash,.4);st.shake=Math.max(st.shake,.55);st.sq.v+=1.7;
+        st.rings.push({x:r.x,y:r.y,t:0,d:.7,r0:20,r1:210*k,col:'255,255,255',w:4},{x:r.x,y:r.y,t:-.08,d:.95,r0:20,r1:330*k,col:(ZONE[Math.min(2,st.mi-1)]).join(','),w:3});
+        if(opts&&opts.onMile)opts.onMile(x)}
+      // the engine at its limit: sparks tear off the nozzle
+      if(I>.4){const n0=nozzle(),rate=(I-.4)*46*dt;for(let i=0;i<Math.floor(rate)+(Math.random()<rate%1?1:0);i++){const v=rnd(160,420)*k,sp=rnd(-.5,.5);
+        st.sparks.push({x:n0.x,y:n0.y,vx:-Math.cos(r.ang+sp)*v,vy:-Math.sin(r.ang+sp)*v,life:rnd(.25,.55),max:.55,col:['#fff3b0','#ffd23f','#ff9a3a','#ffffff'][i%4],w:rnd(1.2,2.2),g:260*k})}}
+      // things fly past: cloud wisps low down, rocks higher, moons in deep space
+      st.passT-=dt;if(st.passT<=0&&st.t>1.2){st.passT=rnd(.9,2.1)/(1+I*.6);const q=Math.random(),side=Math.random()<.55;let o;
+        if(st.m<2)o={spr:puff.pink[Math.random()<.5?0:1],size:rnd(130,230)*k,a:.2,par:1.5,front:Math.random()<.4,vr:0};
+        else if(st.m>=4&&q<.28){const sp=L.moons[Math.floor(rnd(0,3))];o={spr:sp,size:sp.width/DPR,a:1,par:.4,front:false,vr:0}}
+        else{const sp=L.rocks[Math.floor(rnd(0,3))];o={spr:sp,size:sp.width/DPR*rnd(.6,1.25),a:1,par:rnd(.8,1.35),front:false,vr:rnd(-1.2,1.2)}}
+        o.x=side?rnd(W*.25,W*1.35):W+o.size*.6;o.y=side?-o.size*.6:rnd(-H*.1,H*.5);o.rot=rnd(0,TAU);st.pass.push(o)}
       // exhaust: pink billows trailing back
       const n=nozzle(),dir={x:Math.cos(r.ang),y:Math.sin(r.ang)},rate=(34+I*30)*dt;
       for(let i=0;i<Math.floor(rate)+(Math.random()<rate%1?1:0);i++){const v=rnd(90,170)*k;addPuff('pink',n.x-dir.x*10*k+rnd(-3,3)*k,n.y-dir.y*10*k+rnd(-3,3)*k,-dir.x*v+rnd(-24,24)*k,-dir.y*v+rnd(-24,24)*k,rnd(9,14)*k,rnd(1.4,2.2),26+I*14)}
@@ -355,6 +398,11 @@ function create(cv,opts){
     for(let i=st.fire.length-1;i>=0;i--){const f=st.fire[i];f.t+=dt;if(f.t>f.d)st.fire.splice(i,1)}
     for(let i=st.rings.length-1;i>=0;i--){const q=st.rings[i];q.t+=dt;if(q.t>q.d)st.rings.splice(i,1)}
     st.shake=Math.max(0,st.shake-dt*1.2);st.flash=Math.max(0,st.flash-dt*3.5);st.punch=Math.max(0,st.punch-dt*3.2);st.kick=Math.max(0,st.kick-dt*2.4);
+    for(let i=st.pass.length-1;i>=0;i--){const o=st.pass[i],v=st.flyV*o.par*1.25;o.x+=-.85*v*dt+cdx*o.par*.5;o.y+=.5*v*dt+cdy*o.par*.5;o.rot+=o.vr*dt;
+      if(o.x<-o.size||o.y>H+o.size||o.y<-o.size*2)st.pass.splice(i,1)}
+    for(let i=st.coins.length-1;i>=0;i--){const c=st.coins[i];c.life-=dt;if(c.life<=0){st.coins.splice(i,1);continue}c.vy+=760*k*dt;c.vx*=1-dt*.8;c.x+=c.vx*dt+cdx;c.y+=c.vy*dt+cdy;c.ph+=c.sp*dt}
+    for(let i=st.minis.length-1;i>=0;i--){const q=st.minis[i];q.t+=dt;if(q.t<.3)q.vy+=700*k*dt;else{q.open=Math.min(1,q.open+dt/.35);q.vy+=(52*k-q.vy)*dt*2.4;q.vx+=(-24*k-q.vx)*dt*1.3;q.vsw+=(-10*q.sw-.5*q.vsw)*dt;q.sw+=q.vsw*dt}
+      q.x+=q.vx*dt+cdx*.4;q.y+=q.vy*dt+cdy*.4;if(q.t>8||q.x<-60*k||q.y>H+60*k)st.minis.splice(i,1)}
     for(let i=st.lines.length-1;i>=0;i--){const q=st.lines[i];q.t+=dt;q.x+=q.vx*q.v*dt;q.y+=q.vy*q.v*dt;if(q.t>1.4||q.x<-q.l*2||q.y>H+q.l*2)st.lines.splice(i,1)}
     // the bear: pose and mood follow the round
     const mood=st.phase==='stall'?'scared':st.phase==='wait'?'calm':st.m>1.3?'hype':'calm';
@@ -371,9 +419,9 @@ function create(cv,opts){
     else st.faceT=Math.min(1,(st.faceT||0)+dt/.2);
     const j=st.jumper;if(j){j.t+=dt;if(j.t<.45){j.vy+=900*k*dt;j.rot+=j.vr*dt}else{
         if(!j.caught){j.caught=true;j.vsw=clamp(-j.vx/k*.012,-1.6,1.6)+1.1;j.vy*=.35}   // the canopy catches: a tug, and the swing starts
-        j.open=Math.min(1,j.open+dt/.4);j.rot*=1-Math.min(1,dt*6);j.vy+=(46*k-j.vy)*dt*2.2;j.vx+=(-16*k-j.vx)*dt*1.2;
+        j.open=Math.min(1,j.open+dt/.4);j.rot*=1-Math.min(1,dt*6);j.vy+=(46*k-j.vy)*dt*2.2;j.vx+=(-5*k-j.vx)*dt*1.6;
         j.vsw+=(-10.5*j.sw-.55*j.vsw)*dt;j.sw+=j.vsw*dt}
-      j.x+=j.vx*dt+cdx*.4;j.y+=j.vy*dt+cdy*.4;jbear.update(dt,t,j.open>0?'hang':'cheer','win');if(j.y>H+160*k)st.jumper=null}
+      j.x+=j.vx*dt+cdx*.2;j.y+=j.vy*dt+cdy*.3;jbear.update(dt,t,j.open>0?'hang':'cheer','win');if(j.y>H+160*k)st.jumper=null}
     const tb=st.tumble;if(tb){tb.vy+=700*k*dt;tb.x+=tb.vx*dt;tb.y+=tb.vy*dt;tb.rot+=tb.vr*dt;jbear.update(dt,t,'fall','scared');if(tb.y>H+120*k)st.tumble=null}
   }
 
@@ -383,7 +431,8 @@ function create(cv,opts){
     // camera: a punch in on the explosion, a kick down on launch, a shake that dies away
     const zoom=1+st.punch*st.punch*.07,kick=Math.sin(st.kick*Math.PI)*st.kick*7*k;
     if(zoom>1){g.translate(W/2,H*.46);g.scale(zoom,zoom);g.translate(-W/2,-H*.46)}
-    if(sh>0||kick)g.translate(wob(t*31,1)*13*sh*k,wob(t*37,5)*11*sh*k+kick);
+    const tr=st.I*st.I;   // the whole frame trembles more the higher the multiplier
+    if(sh>0||kick||tr>0)g.translate(wob(t*31,1)*13*sh*k+wob(t*29,2)*1.7*tr*k,wob(t*37,5)*11*sh*k+kick+wob(t*33,6)*1.7*tr*k);
     const f=clamp(st.alt/(H*2.2),0,1);
     // sky: dusk at the ground, deep space higher up
     const sky=g.createLinearGradient(0,0,0,H);sky.addColorStop(0,mix('#0b0522','#04020c',f));sky.addColorStop(.5,mix('#1a0b3e','#0a0520',f));sky.addColorStop(.78,mix('#3e1258','#120830',f));sky.addColorStop(1,mix('#5a1762','#160a36',f));
@@ -393,8 +442,10 @@ function create(cv,opts){
     // stars
     for(const s of L.stars){const par=[.05,.11,.2][s.l],y=((s.y+st.alt*par+st.flyD*par*.5)%nh+nh)%nh-nh*.2,x=((s.x-st.camX*par-st.flyD*par*.85)%W+W)%W;if(y<-4||y>H)continue;
       const a=.45+.55*(.5+.5*Math.sin(t*s.f+s.ph));g.globalAlpha=a;g.fillStyle=s.l===2?'#fff':s.l?'#e9ddff':'#b9a8e6';
-      g.fillRect(x,y,s.s,s.s)}
+      if(st.warp>.02&&s.l>0){const len=st.warp*(14+s.l*16)*k;g.lineWidth=s.s;g.strokeStyle=g.fillStyle;g.beginPath();g.moveTo(x,y);g.lineTo(x+.85*len,y-.5*len);g.stroke()}else g.fillRect(x,y,s.s,s.s)}
     g.globalAlpha=1;
+    // the zone's tint over the sky
+    if(st.zf>.01){g.globalCompositeOperation='lighter';for(let i=0;i<3;i++){const a=clamp(1-Math.abs(st.zf-(i+1)),0,1);if(a>0){g.fillStyle=`rgba(${ZONE[i].join(',')},${a*.15})`;g.fillRect(-30,-30,W+60,H+60)}}g.globalCompositeOperation='source-over'}
     for(const s of L.sparkles){const y=((s.y+st.alt*.16+st.flyD*.08)%nh+nh)%nh-nh*.2,x=((s.x-st.camX*.16-st.flyD*.136)%W+W)%W;if(y<-20||y>H)continue;const q=.5+.5*Math.sin(t*1.6+s.ph),sz=s.s*(.5+q*.7);
       g.globalAlpha=.4+q*.6;g.drawImage(spark,x-sz/2,y-sz/2,sz,sz)}g.globalAlpha=1;
     for(const s of st.shoot){const a=1-s.t/s.d,lg=g.createLinearGradient(s.x,s.y,s.x+60*k,s.y-38*k);lg.addColorStop(0,`rgba(255,240,255,${a})`);lg.addColorStop(1,'rgba(255,240,255,0)');
@@ -422,6 +473,8 @@ function create(cv,opts){
     if(hz<H)floor(g,hz,t);
     // launch pad
     const pd=padPos();if(pd.y-40*k<H)padDraw(g,pd,t);
+    // things flying past, behind the rocket
+    for(const o of st.pass){if(o.front)continue;g.globalAlpha=o.a;g.save();g.translate(o.x,o.y);g.rotate(o.rot);g.drawImage(o.spr,-o.size/2,-o.size/2,o.size,o.size);g.restore()}g.globalAlpha=1;
     // speed lines
     if(st.lines.length){g.lineCap='round';g.lineWidth=1.3*k;for(const q of st.lines){const a=q.a*Math.min(1,q.t*6);
       const lg=g.createLinearGradient(q.x,q.y,q.x-q.vx*q.l,q.y-q.vy*q.l);lg.addColorStop(0,`rgba(255,225,250,${a})`);lg.addColorStop(1,'rgba(255,225,250,0)');
@@ -448,6 +501,19 @@ function create(cv,opts){
       else{g.scale(k*BS,k*BS);drawCanopy(g,j.open,t);jbear.back(g);jbear.front(g,t)}g.restore()}
     const tb=st.tumble;if(tb){g.save();g.translate(tb.x,tb.y);g.rotate(tb.rot);
       if(KIT.ready){const B=KIT.j.bear.fall;g.scale(kh,kh);g.drawImage(KIT.img.fall,-B.mid[0]*BU,-B.mid[1]*BU,B.w*BU,B.h*BU)}else{g.scale(k*BS,k*BS);jbear.back(g);jbear.front(g,t)}g.restore()}
+    // other players' parachutes with their names
+    for(const q of st.minis){const a=Math.min(1,q.t*5)*clamp((8-q.t)/1.5,0,1),sc=kh*.46;g.globalAlpha=a;g.save();g.translate(q.x,q.y);g.save();g.rotate(q.sw*.4);g.scale(sc,sc);
+      drawCanopy(g,q.open,t,{B:[-7,2],F:[7,2]},[0,-44],.6);
+      g.fillStyle=`hsl(${q.hue} 55% 45%)`;g.strokeStyle='#140a26';g.lineWidth=2.2;g.beginPath();g.ellipse(0,15,8.5,11,0,0,TAU);g.fill();g.stroke();g.beginPath();g.arc(0,1,8,0,TAU);g.fill();g.stroke();
+      g.fillStyle=`hsl(${q.hue} 55% 62%)`;g.beginPath();g.arc(-6,-6,3,0,TAU);g.arc(6,-6,3,0,TAU);g.fill();g.restore();
+      if(q.t>.25){const fs=10*k,tx=q.name+' ',lb=q.label+'x';g.font=`600 ${fs}px "Golos Text",system-ui,sans-serif`;const w1=g.measureText(tx).width,w2=g.measureText(lb).width,w=w1+w2+12*k,h=fs+7*k,y=26*sc+6*k;
+        g.fillStyle='rgba(10,6,28,.62)';g.beginPath();g.roundRect(-w/2,y,w,h,h/2);g.fill();g.textBaseline='middle';g.fillStyle='#e9e4ff';g.fillText(tx,-w/2+6*k,y+h/2+.5);g.fillStyle='#2bff88';g.fillText(lb,-w/2+6*k+w1,y+h/2+.5)}
+      g.restore()}g.globalAlpha=1;
+    // coins of a cash-out
+    for(const c of st.coins){const a=clamp(c.life/.4,0,1),w=Math.abs(Math.cos(c.ph));g.globalAlpha=a;g.save();g.translate(c.x,c.y);g.fillStyle='#b8801a';g.beginPath();g.ellipse(0,1.2*k,c.r*Math.max(.18,w),c.r,0,0,TAU);g.fill();
+      g.fillStyle='#ffd23f';g.beginPath();g.ellipse(0,0,c.r*Math.max(.18,w),c.r,0,0,TAU);g.fill();g.fillStyle='rgba(255,255,255,.75)';g.beginPath();g.ellipse(-c.r*.25*w,-c.r*.3,c.r*.22*w,c.r*.3,0,0,TAU);g.fill();g.restore()}g.globalAlpha=1;
+    // a few cloud wisps pass in front
+    for(const o of st.pass){if(!o.front)continue;g.globalAlpha=o.a*.8;g.drawImage(o.spr,o.x-o.size/2,o.y-o.size/2,o.size,o.size)}g.globalAlpha=1;
     // explosion: fire, debris, sparks, rings
     g.globalCompositeOperation='lighter';
     for(const fb of st.fire){if(fb.t<0)continue;const q=fb.t/fb.d,R=fb.r*(.35+easeOut(q)*.9),a=(1-q)*(1-q);g.globalAlpha=a;g.drawImage(glow[fb.col],fb.x-R,fb.y-R,R*2,R*2);
@@ -515,13 +581,16 @@ function create(cv,opts){
   function padDraw(g,p,t){const s=k;g.drawImage(L.pad,p.x-L.pad.w/2,p.y-L.pad.h/2,L.pad.w,L.pad.h);g.save();g.translate(p.x,p.y);
     const warm=st.phase==='wait'?clamp((st.t-2)/2,0,1):0;g.globalCompositeOperation='lighter';
     if(warm>0){g.globalAlpha=warm*.9;g.drawImage(glow.pink,-26*s,-12*s,52*s,18*s)}g.globalAlpha=1;
+    if(st.padPulse>0){const q=1-st.padPulse,e=1+easeOut(q)*.75;g.strokeStyle=`rgba(41,230,255,${st.padPulse*st.padPulse*.8})`;g.lineWidth=2*s;g.beginPath();g.ellipse(0,0,54*s*e,11*s*e,0,0,TAU);g.stroke()}
     for(let i=0;i<10;i++){const a=i/10*TAU+t*1.6,x=Math.cos(a)*48*s,y=Math.sin(a)*9.6*s;if(Math.sin(a)<-.2)continue;const on=(i+Math.floor(t*6))%3===0;
       g.globalCompositeOperation=on?'lighter':'source-over';g.fillStyle=on?'#29e6ff':'#4b2a6e';g.beginPath();g.arc(x,y,(on?2.1:1.5)*s,0,TAU);g.fill();if(on)g.drawImage(glow.green,x-7*s,y-7*s,14*s,14*s)}
     g.globalCompositeOperation='source-over';g.restore()}
-  function flame(g,t,power){const s=kh,len=(40+wob(t*9,1)*7+wob(t*23,2)*4)*power*s,w=(9.5+wob(t*17,3)*1.2)*s,x0=RK.tail*s;
+  function flame(g,t,power){const s=kh,len=(40+wob(t*9,1)*7+wob(t*23,2)*4)*power*(1+st.I*.35)*s,w=(9.5+wob(t*17,3)*1.2)*s,x0=RK.tail*s;
     g.globalCompositeOperation='lighter';
+    const ht=st.phase==='fly'?clamp((st.I-.3)/.75,0,1):0,c3=(a,b)=>Math.round(lerp(a,b,ht));   // heat: the flame turns white-blue
     g.globalAlpha=.75*Math.min(1,power);g.drawImage(glow.pink,x0-len*.9,-w*3,len*1.8,w*6);g.drawImage(glow.orange,x0-w*2.2,-w*2.2,w*4.4,w*4.4);
-    const fg=g.createLinearGradient(x0,0,x0-len,0);fg.addColorStop(0,'rgba(255,255,245,1)');fg.addColorStop(.18,'rgba(255,240,170,.95)');fg.addColorStop(.5,'rgba(255,110,200,.75)');fg.addColorStop(1,'rgba(255,62,165,0)');
+    if(ht>0){g.globalAlpha=.8*Math.min(1,power)*ht;g.drawImage(glow.blue,x0-len*1.05,-w*3.6,len*2.1,w*7.2)}
+    const fg=g.createLinearGradient(x0,0,x0-len,0);fg.addColorStop(0,'rgba(255,255,245,1)');fg.addColorStop(.18,`rgba(255,${c3(240,250)},${c3(170,245)},.95)`);fg.addColorStop(.5,`rgba(${c3(255,130)},${c3(110,190)},${c3(200,255)},.75)`);fg.addColorStop(1,`rgba(${c3(255,90)},${c3(62,140)},${c3(165,255)},0)`);
     g.globalAlpha=Math.min(1,power*1.2);g.fillStyle=fg;g.beginPath();g.moveTo(x0+2*s,-w);g.bezierCurveTo(x0-len*.35,-w*1.15,x0-len*.75,-w*.4,x0-len,0);g.bezierCurveTo(x0-len*.75,w*.4,x0-len*.35,w*1.15,x0+2*s,w);g.closePath();g.fill();
     // a second, shorter tongue flickers out of step with the first
     {const l2=len*(.62+wob(t*31,5)*.12),w2=w*.72,o=wob(t*27,8)*w*.18;g.globalAlpha=Math.min(1,power)*.55;g.beginPath();g.moveTo(x0+2*s,-w2+o);g.bezierCurveTo(x0-l2*.4,-w2*1.1+o,x0-l2*.8,-w2*.3,x0-l2,o);g.bezierCurveTo(x0-l2*.8,w2*.3,x0-l2*.4,w2*1.1+o,x0+2*s,w2+o);g.closePath();g.fill()}
