@@ -218,3 +218,25 @@ test('/chatid in a group tells its id; a group that becomes a supergroup announc
   await b2.handle({ update_id: upd++, message: { message_id: mid++, chat: { id: OPS, type: 'group' }, from: { id: 9 }, migrate_to_chat_id: -1009999 } });
   assert.match(s2(-1009999)[0]!.p.text, /новый id: <code>-1009999<\/code>.*Обновите SUPPORT_CHAT_ID/);
 });
+
+test('a forum group: tickets go to the configured topic, /chatid in a topic tells its id, closing stays in the topic', async () => {
+  const { bot, sent, store } = await setup({ topicId: '42' });
+  await bot.handle({ update_id: upd++, message: { message_id: mid++, chat: { id: OPS, type: 'supergroup' }, from: { id: 9 }, text: '/chatid', message_thread_id: 7, is_topic_message: true } });
+  const r = sent(OPS)[0]!.p;
+  assert.equal(r.message_thread_id, 7);
+  assert.match(r.text, /id этой темы: <code>7<\/code>/);
+  assert.match(r.text, /приходят в тему 42.*впишите 7 в SUPPORT_TOPIC_ID/);
+  await bot.handle(tap('f:dep_miss'));
+  await bot.handle(say('TXID xyz'));
+  assert.equal(sent(OPS)[1]!.p.message_thread_id, 42);                // the header
+  assert.equal(sent(OPS, 'copyMessage')[0]!.p.message_thread_id, 42); // the player's message
+  const headId = Number((await store.db.query("SELECT msg_id FROM support_messages WHERE kind = 'head'")).rows[0].msg_id);
+  await bot.handle({ update_id: upd++, message: { message_id: mid++, chat: { id: OPS, type: 'supergroup' }, from: { id: 9 }, text: '/close', reply_to_message: { message_id: headId }, message_thread_id: 42, is_topic_message: true } });
+  assert.match(sent(OPS).at(-1)!.p.text, /закрыто/);
+  assert.equal(sent(OPS).at(-1)!.p.message_thread_id, 42);
+  // the General topic (1) or no topic: no thread id at all
+  const g = await setup({ topicId: '1' });
+  await g.bot.handle(tap('f:dep_miss'));
+  await g.bot.handle(say('again'));
+  assert.equal(g.sent(OPS).at(-1)!.p.message_thread_id, undefined);
+});

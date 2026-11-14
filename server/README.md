@@ -51,6 +51,7 @@ Without `?server=` the game runs its offline demo rounds.
 | `PARTNER_SHARE` | 0.4 | Partner's share of NGR in the RevShare summary |
 | `SUPPORT_BOT` | on | `0` turns the support bot off. It runs with `BOT_TOKEN` and Postgres, on the leader server only |
 | `SUPPORT_CHAT_ID` | — | The operators' Telegram group (e.g. `-100…`), the bot must be in it; `/chatid@<bot>` in the group tells its id. Without it tickets go to `ADMIN_IDS` in private |
+| `SUPPORT_TOPIC_ID` | — | When the operators' group has topics: the topic for tickets (`/chatid@<bot>` sent inside a topic tells its id). Empty: the General topic |
 | `PARTNER_EMAIL` | partner@boomy.pro | Quoted by the partners' answers |
 | `CHANNEL_URL` | — | The official Telegram channel: a button in the support menu |
 | `APP_URL` | GitHub Pages | The Mini App, for the bot's Play buttons |
