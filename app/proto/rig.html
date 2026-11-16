@@ -1,0 +1,100 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Boomy · модель медведя</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=Unbounded:wght@700;800&display=swap">
+<style>
+:root{color-scheme:dark;--bg:#0c0723;--panel:#161a2f;--panel2:#1f2440;--line:#2b3155;--text:#f3f1ff;--muted:#9a9ec2;--green:#2bff88;--gold:#ffd23f}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 'Golos Text',system-ui,sans-serif}
+main{max-width:1040px;margin:0 auto;padding:16px max(14px,env(safe-area-inset-right,0px)) 40px max(14px,env(safe-area-inset-left,0px))}
+h1{font:800 20px/1.25 'Unbounded',sans-serif;margin:4px 0 6px}
+p{margin:6px 0;color:#d6d3ee}.muted{color:var(--muted);font-size:13px}
+.bar{position:sticky;top:0;z-index:2;background:rgba(12,7,35,.94);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);padding:10px 0;margin:8px 0;display:flex;flex-direction:column;gap:8px;border-bottom:1px solid var(--line)}
+.row{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.chip{height:34px;padding:0 13px;border-radius:99px;border:1px solid var(--line);background:var(--panel2);color:var(--text);font:600 13px 'Golos Text',sans-serif;cursor:pointer}
+.chip[aria-pressed="true"]{background:rgba(43,255,136,.14);border-color:var(--green);color:var(--green)}
+label{display:flex;align-items:center;gap:8px;font-weight:600;font-size:13px;color:var(--muted)}
+input[type=range]{width:150px;accent-color:var(--green)}
+#mx{font:700 13px 'Unbounded',sans-serif;color:var(--text);min-width:52px;font-variant-numeric:tabular-nums}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;overflow:hidden;min-width:0}
+.card h2{font:800 14px/1.3 'Unbounded',sans-serif;margin:0;padding:12px 14px 2px}
+.card p{margin:0;padding:0 14px 10px;font-size:12.5px;color:var(--muted);min-height:54px}
+.stage{position:relative;aspect-ratio:3/4;background:linear-gradient(180deg,#0b0522,#1a0b3e 50%,#3e1258 80%,#5a1762)}
+.stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.err{padding:12px 14px;color:#ff8fa8}
+</style>
+<main>
+<h1>Модель медведя: варианты</h1>
+<p>Нарисованный медведь разложен по частям на скелет. Позы и движения — из рабочей версии игры: рука, ноги, покачивание, наклон, голова. Три варианта отличаются только тем, <b>как</b> картинка следует за скелетом.</p>
+<div class="bar">
+  <div class="row" id="states"></div>
+  <div class="row">
+    <label>Множитель <input type="range" id="m" min="1" max="12" step="0.01" value="1.6"><span id="mx">1.60x</span></label>
+    <button class="chip" id="auto" aria-pressed="true">Авто-показ</button>
+    <button class="chip" id="slow" aria-pressed="false">Замедлить ×4</button>
+    <button class="chip" id="bones" aria-pressed="false">Кости</button>
+  </div>
+</div>
+<div class="grid" id="grid"></div>
+<p class="muted" style="margin-top:14px">Это стенд для сравнения, не игра. Картинка разрезана вручную из одного рисунка: рука за телом, тело без головы, четыре головы, отдельно рисунки на парашюте и в падении.</p>
+</main>
+<script src="scene2.js?v=11"></script>
+<script src="rig.js?v=1"></script>
+<script>
+(()=>{
+const $=id=>document.getElementById(id),clamp=(v,a,b)=>v<a?a:v>b?b:v;
+const VARS=[['parts','A · Жёсткие части','Каждый кусок картинки привязан к одной кости и поворачивается целиком. Так устроены персонажи в рабочей игре.'],
+  ['mesh','B · Мягкая сетка','Картинка — сетка, каждая точка слушается соседних костей: рука и ноги гнутся, а не ломаются на стыке.'],
+  ['spring','C · Сетка + инерция','То же, но каждая кость доходит до позы через пружину: рука и голова запаздывают и доводятся, уши и кулак дрожат, грудь дышит.']];
+const STATES=[['pad','На старте'],['fly','Полёт'],['glad','Забрал, летит'],['scared','Испуг'],['chute','Парашют'],['fall','Падение']];
+let state='fly',auto=true,slow=false,showBones=false,rocket=null,rk=null;
+$('states').innerHTML=STATES.map(([id,n])=>`<button class="chip" data-s="${id}" aria-pressed="${id===state}">${n}</button>`).join('');
+const paintStates=()=>document.querySelectorAll('#states .chip').forEach(b=>b.setAttribute('aria-pressed',b.dataset.s===state));
+$('states').onclick=e=>{const b=e.target.closest('[data-s]');if(!b)return;state=b.dataset.s;auto=false;$('auto').setAttribute('aria-pressed','false');paintStates()};
+const tog=(id,fn)=>$(id).onclick=()=>{const v=fn();$(id).setAttribute('aria-pressed',v)};
+tog('auto',()=>auto=!auto);tog('slow',()=>slow=!slow);tog('bones',()=>showBones=!showBones);
+$('m').oninput=()=>{auto=false;$('auto').setAttribute('aria-pressed','false')};
+$('grid').innerHTML=VARS.map(([id,t,d])=>`<div class="card"><h2>${t}</h2><p>${d}</p><div class="stage"><canvas id="cv-${id}"></canvas></div></div>`).join('');
+
+const kitBase='../art/bear/';
+Promise.all([BearRig.load(kitBase+'rig/'),fetch(kitBase+'kit.json').then(r=>r.json()),new Promise((res,rej)=>{const im=new Image();im.onload=()=>res(im);im.onerror=rej;im.src=kitBase+'rocket.webp'})]).then(([kit,kj,rim])=>{
+  rocket=rim;rk=kj.rocket;
+  const rigs=VARS.map(([id])=>({id,rig:BearRig.create(kit,id),cv:$('cv-'+id)}));
+  if(rigs.some(r=>!r.rig)){$('grid').insertAdjacentHTML('beforebegin','<div class="err">Этому браузеру не хватает WebGL: модель не нарисовать.</div>');return}
+  let last=performance.now(),T=0,autoT=0;
+  // the show: the pad, a flight with the multiplier climbing, a cash-out, a scare, a fall, the parachute
+  const SHOW=[['pad',3],['fly',9],['glad',2.5],['scared',1.2],['fall',2.4],['chute',4.5]];
+  function frame(now){const real=Math.min(.05,(now-last)/1000);last=now;const dt=real*(slow?.25:1);T+=dt;
+    if(auto){autoT+=dt;let acc=0,cur=SHOW[0],at=0;const total=SHOW.reduce((s,x)=>s+x[1],0),tt=autoT%total;
+      for(const s of SHOW){if(tt<acc+s[1]){cur=s;at=tt-acc;break}acc+=s[1]}
+      if(state!==cur[0]){state=cur[0];paintStates()}
+      if(state==='fly')$('m').value=Math.exp(.26*at);else if(state==='pad')$('m').value=1}
+    const m=+$('m').value;$('mx').textContent=m.toFixed(2)+'x';const mood=clamp(Math.log(m)/Math.log(6),0,1);
+    for(const R of rigs){const cv=R.cv,dpr=Math.min(2,window.devicePixelRatio||1),w=cv.clientWidth,h=cv.clientHeight;
+      if(cv.width!==Math.round(w*dpr)||cv.height!==Math.round(h*dpr)){cv.width=Math.round(w*dpr);cv.height=Math.round(h*dpr)}
+      const g=cv.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,w,h);
+      const st=state==='glad'?'fly':state;R.rig.update(dt,T,{state:st,mood,glad:state==='glad'});const o=R.rig.render();
+      const k=w/300,s=.46*k;                         // picture px to screen px
+      g.save();
+      if(o.skin==='sit'){
+        // the rocket under him, at the flight angle, shaking a little more as the multiplier grows
+        const cx=w*.5,cy=h*.74,a=-.5,vib=(.3+mood*1.4)*k*(st==='pad'?0:1),rs=300*k/rk.w;
+        g.translate(cx+Math.sin(T*38)*vib,cy+Math.sin(T*43)*vib+(st==='pad'?0:Math.sin(T*1.3)*4*k));g.rotate(a);
+        g.drawImage(rocket,-rk.w/2*rs,-rk.h/2*rs,rk.w*rs,rk.h*rs);
+        g.translate((rk.seat[0]-rk.w/2)*rs,(rk.seat[1]-rk.h/2)*rs+6*k);g.rotate(-a*.8);
+      }else if(o.skin==='hang'){
+        g.translate(w*.5,h*.26);const S=s/.22;g.save();g.scale(S,S);Scene2._debug.drawCanopy(g,1,T,{B:[-165*.22,0],F:[165*.22,0]},[0,-62],1.5);g.restore();
+      }else{g.translate(w*.5,h*.52);g.rotate(Math.sin(T*1.1)*.5-T*.9)}
+      const q=s/o.s;g.drawImage(o.canvas,-o.ax*q,-o.ay*q,o.canvas.width*q,o.canvas.height*q);
+      if(showBones){g.lineWidth=2;g.lineCap='round';for(const [a,b] of R.rig.bones()){g.strokeStyle='rgba(43,255,136,.9)';g.beginPath();g.moveTo((a[0]-o.ax)*q,(a[1]-o.ay)*q);g.lineTo((b[0]-o.ax)*q,(b[1]-o.ay)*q);g.stroke();
+        g.fillStyle='#ffd23f';g.beginPath();g.arc((a[0]-o.ax)*q,(a[1]-o.ay)*q,3,0,7);g.fill()}}
+      g.restore()}
+    requestAnimationFrame(frame)}
+  requestAnimationFrame(frame);
+}).catch(e=>{$('grid').insertAdjacentHTML('beforebegin','<div class="err">Не загрузились картинки модели: '+(e&&e.message||e)+'</div>')});
+})();
+</script>
