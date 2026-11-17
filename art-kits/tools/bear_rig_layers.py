@@ -44,6 +44,7 @@ sa=stub*(Bd[...,3]<40)*(B[...,3]>40)
 col=np.array([86,40,16],np.float32)+((yy-150)/100)[...,None]*np.array([40,20,8],np.float32)
 for c in range(3):Bd[...,c]=np.where(sa>0,col[...,c],Bd[...,c])
 Bd[...,3]=np.maximum(Bd[...,3],sa*255)
+Bd[...,3]=np.where((xx<138)&(yy<232),0,Bd[...,3])   # a stroke of the arm cut left of the head
 Image.fromarray(np.clip(Bd,0,255).astype(np.uint8),'RGBA').save(S+'/L_body.png')
 # exploded preview
 sh=Image.new('RGB',(W*3+40,H),'#5a4a7a')

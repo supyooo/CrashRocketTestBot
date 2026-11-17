@@ -35,12 +35,15 @@ const SIT={w:407,h:600,anchor:[222,424],
     {n:'armL',par:'chest',p:[140,258],tip:[92,182],s:30},
     {n:'foreL',par:'armL',p:[92,182],tip:[60,122],s:26},
     {n:'fistL',par:'foreL',p:[60,122],tip:[52,55],s:30},
+    {n:'lowS',par:'chest',p:[140,282],tip:[104,350],s:30},  // the lowered left arm (his right one, mirrored): shoulder
+    {n:'lowE',par:'lowS',p:[104,350],tip:[148,392],s:28},   // and forearm with the fist on the knee
     {n:'head',par:'chest',p:[238,228],tip:[215,120],s:90},
     {n:'earL',par:'head',p:[152,98],tip:[140,52],s:20},
     {n:'earR',par:'head',p:[262,48],tip:[270,24],s:15}],
   layers:[
+    {img:'arm',bones:['armL','foreL','fistL']},        // raised: behind the body, as painted
     {img:'body',bones:['root','hips','chest','armR','foreR','thighL','shinL','thighR','shinR']},
-    {img:'arm',bones:['armL','foreL','fistL']},        // over the body: lowered, the fist rests on the knee
+    {img:'arm-low',at:[91,265],bones:['lowS','lowE']},  // lowered: over the body, the fist on the knee
     {img:'head',bones:['head','earL','earR'],faces:{calm:[113,23],hype:[110,26],scared:[112,20],win:[113,20]}}]};
 const HANG={w:473,h:749,anchor:[211,88],
   bones:[
@@ -63,7 +66,7 @@ const FALL={w:569,h:678,anchor:[283,400],
     {n:'legL',par:'root',p:[300,505],tip:[352,630],s:54}],
   layers:[{img:'fall',bones:['root','torso','head','armL','armR','legR','legL']}]};
 const SKINS={sit:SIT,hang:HANG,fall:FALL};
-const FILES=['body','arm','head-calm','head-hype','head-scared','head-win','hang','fall'];
+const FILES=['body','arm','arm-low','head-calm','head-hype','head-scared','head-win','hang','fall'];
 
 /* ---------------- the working game's poses (app/chars2.js), kept number for number ---------------- */
 function poseOf(st,m,t){
@@ -81,8 +84,7 @@ function mixPose(list){const o={};for(const [p,w] of list)for(const k in p){cons
 const SH=[-6,-19],REF={be:[-17,-29],bh:[-20,-47]};      // the back arm's shoulder; the pose the picture was painted in
 const ang=(a,b)=>Math.atan2(b[1]-a[1],b[0]-a[0]),wrap=a=>{a%=TAU;return a>Math.PI?a-TAU:a<-Math.PI?a+TAU:a};
 const RU=ang(SH,REF.be),RF=ang(REF.be,REF.bh);
-// the left arm's poses as turns from the painted (raised) one, in radians: [shoulder, elbow]
-const ARM={knee:[-2.05,-1.42],lap:[-2.62,-1.05]};
+
 
 /* ---------------- 2x3 matrices ---------------- */
 const mul=(a,b)=>[a[0]*b[0]+a[2]*b[1],a[1]*b[0]+a[3]*b[1],a[0]*b[2]+a[2]*b[3],a[1]*b[2]+a[3]*b[3],a[0]*b[4]+a[2]*b[5]+a[4],a[1]*b[4]+a[3]*b[5]+a[5]];
@@ -139,9 +141,11 @@ function create(kit,variant,opt){
       const one=(im,ox,oy,face)=>{const m=buildMesh(im,ox,oy,hard?26:18);m.W=weigh(m,bones,hard);m.bidx=bidx;m.out=new Float32Array(m.xy.length);m.face=face;
         m.tex=texture(gl,im);m.bp=gl.createBuffer();m.bu=gl.createBuffer();m.bi=gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER,m.bu);gl.bufferData(gl.ARRAY_BUFFER,m.uv,gl.STATIC_DRAW);gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,m.bi);gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,m.idx,gl.STATIC_DRAW);return m};
-      if(Ly.faces)for(const f in Ly.faces)parts.push(one(kit.img['head-'+f],Ly.faces[f][0],Ly.faces[f][1],f));else parts.push(one(kit.img[Ly.img],0,0,null))}
+      if(Ly.faces)for(const f in Ly.faces)parts.push(one(kit.img['head-'+f],Ly.faces[f][0],Ly.faces[f][1],f));
+      else{const at=Ly.at||[0,0],m=one(kit.img[Ly.img],at[0],at[1],null);m.key=Ly.img;parts.push(m)}}
     skins[id]={S,bi,parts,q:S.bones.map(()=>({r:0,sx:1,sy:1,tx:0,ty:0,v:0,vx:0,vy:0})),M:S.bones.map(()=>[1,0,0,1,0,0])}}
   const STATES=['pad','fly','scared'],w={pad:1,fly:0,scared:0};
+  const layerA={arm:0,'arm-low':1};let lift=0;   // lift: 0 = the left arm down, 1 = raised (and how much each picture shows)
   let skin='sit',face='calm',facePrev='calm',faceT=1,jig={earL:{x:0,v:0},earR:{x:0,v:0},fist:{x:0,v:0}},lastHead=0,lastHeadV=0;
   // a bone's angle goes to its target at once, or through its spring
   function to(q,r,k,z,dt){if(!springy||!k){q.r=r;return}for(let i=0,n=dt>.02?2:1,h=dt/n;i<n;i++){q.v+=(-2*z*k*q.v-k*k*(q.r-r))*h;q.r+=q.v*h}}
@@ -161,11 +165,14 @@ function create(kit,variant,opt){
       // breathing: the chest swells slowly on the pad, faster in flight
       const br=springy?Math.sin(t*(st==='pad'?2.1:5))*(st==='pad'?.014:.008):0;C.sx=1+br*.6;C.sy=1+br;
       // the raised arm: shoulder and elbow turn by as much as the game's arm turns away from the painted pose
-      // the left arm, in full view: the fist on the knee when calm, raised as the multiplier grows (the painted pose,
-      // pumping), pressed to the lap when scared. How far it is raised and the pump are the game's.
-      const up=w.fly/sum*clamp((m-.45)/.4,0,1),pump=Math.sin(t*14)*up,idle=Math.sin(t*1.6)*.02*(1-up);
-      const du=lerp(lerp(ARM.knee[0],0,sm(up)),ARM.lap[0],sc)+pump*.07+idle,df=lerp(lerp(ARM.knee[1],0,sm(up)),ARM.lap[1],sc)+pump*.12-idle;
-      to(Q('armL'),du,13,.5,dt);to(Q('foreL'),df,10,.42,dt);
+      // the left arm. Two pictures, never bent far: the lowered one (fist on the knee) and the painted raised one.
+      // It goes up as the game's arm does (with the multiplier), the lowered arm swinging out and fading while the
+      // raised one comes in from below; then the fist pumps. Scared, it presses to the lap.
+      const up=w.fly/sum*clamp((m-.45)/.4,0,1),pump=Math.sin(t*14)*sm(up);
+      lift=hard?(up>.5?1:0):lift+(sm(clamp((up-.2)/.6,0,1))-lift)*(1-Math.exp(-dt*9));
+      const show=sm(clamp((lift-.3)/.4,0,1));layerA.arm=show;layerA['arm-low']=1-show;
+      to(Q('lowS'),lift*1.15-sc*.1+Math.sin(t*1.6)*.025*(1-lift),12,.55,dt);to(Q('lowE'),lift*-.5-sc*.22+Math.sin(t*1.6+1)*.03*(1-lift),11,.5,dt);
+      to(Q('armL'),(1-lift)*-.85+pump*.07,13,.5,dt);to(Q('foreL'),(1-lift)*-.35+pump*.12,10,.42,dt);
       // the legs swing from the knee with the wind
       to(Q('shinL'),(p.bf[1]-14)*.045+(p.bk[1]-4)*.03,11,.4,dt);to(Q('shinR'),(p.ff[1]-13)*.045+(p.fk[1]-3)*.03,11,.4,dt);
       to(Q('armR'),Math.sin(t*4.5)*.03*p.heat-sc*.05,10,.5,dt);to(Q('foreR'),Math.sin(t*4.5+1)*.04*p.heat,9,.45,dt);
@@ -204,7 +211,7 @@ function create(kit,variant,opt){
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,m.bi);gl.drawElements(gl.TRIANGLES,m.idx.length,gl.UNSIGNED_SHORT,0)}
   function render(){const K=skins[skin];gl.viewport(0,0,G.cv.width,G.cv.height);gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT);
     for(const m of K.parts){if(m.face){if(m.face===face){skinMesh(K,m);if(faceT<1){const o=K.parts.find(x=>x.face===facePrev);skinMesh(K,o);drawMesh(o,1)}drawMesh(m,faceT<1?faceT:1)}continue}
-      skinMesh(K,m);drawMesh(m,1)}
+      const a=m.key&&layerA[m.key]!==undefined?layerA[m.key]:1;if(a<.01)continue;skinMesh(K,m);drawMesh(m,a)}
     const q=G.cv.width/CW,a=K.S.anchor;return{canvas:G.cv,ax:(a[0]+MX)*q,ay:(a[1]+MY)*q,s:q,skin}}
   /** The bones as lines, in canvas px (for the lab's overlay). */
   function bones(){const K=skins[skin],q=G.cv.width/CW,out=[];K.S.bones.forEach((b,i)=>{if(!b.tip)return;const A=K.M[i],P=(x,y)=>[(A[0]*x+A[2]*y+A[4]+MX)*q,(A[1]*x+A[3]*y+A[5]+MY)*q];out.push([P(b.p[0],b.p[1]),P(b.tip[0],b.tip[1])])});return out}
