@@ -39,12 +39,12 @@ Bd=B.copy();Bd[...,3]*=(1-arm_cut)*(1-erase)
 HM=np.ones((H,W),np.float32)
 for n in heads:
     hi=np.asarray(Image.open(f'{S}/head-{n}.png').getchannel('A')).astype(np.float32)/255;t=np.zeros((H,W),np.float32);t[heads[n]['y']:heads[n]['y']+hi.shape[0],heads[n]['x']:heads[n]['x']+hi.shape[1]]=hi;HM=np.minimum(HM,t)
-stub=np.asarray(Image.fromarray((HM*255).astype(np.uint8)).filter(ImageFilter.MinFilter(13)).filter(ImageFilter.GaussianBlur(2))).astype(np.float32)/255*(yy>150)
+stub=np.asarray(Image.fromarray((HM*255).astype(np.uint8)).filter(ImageFilter.MinFilter(25)).filter(ImageFilter.GaussianBlur(2))).astype(np.float32)/255*(yy>150)
 sa=stub*(Bd[...,3]<40)*(B[...,3]>40)
 col=np.array([86,40,16],np.float32)+((yy-150)/100)[...,None]*np.array([40,20,8],np.float32)
 for c in range(3):Bd[...,c]=np.where(sa>0,col[...,c],Bd[...,c])
 Bd[...,3]=np.maximum(Bd[...,3],sa*255)
-Bd[...,3]=np.where((xx<152)&(yy<224),0,Bd[...,3])   # a stroke of the arm cut left of the head
+Bd[...,3]=np.where((xx<138)&(yy<232),0,Bd[...,3])   # a stroke of the arm cut left of the head
 Image.fromarray(np.clip(Bd,0,255).astype(np.uint8),'RGBA').save(S+'/L_body.png')
 # exploded preview
 sh=Image.new('RGB',(W*3+40,H),'#5a4a7a')

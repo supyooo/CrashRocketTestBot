@@ -30,12 +30,28 @@ img = Image.fromarray(np.clip(a, 0, 255).astype(np.uint8), 'RGBA').transpose(Ima
 dx = 2 * AXIS - (W - 1)
 box = img.getchannel('A').point(lambda v: 255 if v > 8 else 0).getbbox()
 crop = img.crop(box)
+at = [box[0] + dx, box[1]]
 # no collar fur on the shoulder: the right collar's edge came along with the cut
 c = np.asarray(crop).copy(); ci = c.astype(np.int32)
 fur = (ci[..., 0] > 150) & (ci[..., 1] > 120) & (ci[..., 2] > 80) & (np.abs(ci[..., 0] - ci[..., 1]) < 70)
 fur = np.asarray(Image.fromarray((fur * 255).astype(np.uint8)).filter(ImageFilter.MaxFilter(3))) > 0
 c[..., 3] = np.where(fur, 0, c[..., 3]); crop = Image.fromarray(c, 'RGBA')
-at = [box[0] + dx, box[1]]
+# this body's left side is painted higher than its right (the shoulder carried the raised arm), so the mirrored
+# shoulder is lifted to meet the cheek: the sleeve stretches upward, most at the top, not at all from the elbow down
+LIFT, ELBOW = 18, 104                        # px; the elbow's row in the crop
+import cv2
+src = np.asarray(crop).astype(np.float32); h0, w0 = src.shape[:2]
+out_h = h0 + LIFT
+yo = np.arange(out_h, dtype=np.float32)
+ys = yo - LIFT
+for _ in range(8):                           # invert y_out = y_src + LIFT - LIFT * (1 - sm(y_src / ELBOW))
+    u = np.clip(ys / ELBOW, 0, 1); ys = yo - LIFT + LIFT * (1 - u * u * (3 - 2 * u))
+mx = np.tile(np.arange(w0, dtype=np.float32), (out_h, 1)); my = np.tile(ys[:, None], (1, w0))
+pre = src.copy(); pre[..., :3] *= pre[..., 3:] / 255
+warped = cv2.remap(pre, mx, my, cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT, borderValue=0)
+al = np.maximum(warped[..., 3:], 1e-3); warped[..., :3] = np.where(warped[..., 3:] > 0, warped[..., :3] * 255 / al, 0)
+crop = Image.fromarray(np.clip(warped, 0, 255).astype(np.uint8), 'RGBA')
+at[1] -= LIFT
 crop.save('app/art/bear/rig/arm-low.webp', quality=90, method=6)
 json.dump({'at': at, 'size': crop.size}, open(S + '/armlow.json', 'w'))
 # the body's own left shoulder is painted raised (it carries the raised arm): wherever it pokes above the mirrored
@@ -51,9 +67,13 @@ for x in range(W):
 yy, xx = np.mgrid[0:H, 0:W]
 bb = body.astype(np.int32); r, g, b = bb[..., 0], bb[..., 1], bb[..., 2]
 cream = (r > 150) & (g > 120) & (b > 80) & (np.abs(r - g) < 70)
-gone = (xx < 172) & (yy > 200) & (yy < top[xx] + 3) & (top[xx] < H) & ~cream
-gone |= (xx < 100) & (yy > 200) & (yy < 300)          # left of the mirrored shoulder: nothing of the body
+# only the jacket goes (teal cloth and the magenta rim light on it); the neck's fur under the head stays
+cloth = ((g > r + 8) & (r < 110)) | ((r > 90) & (b > 70) & (r > g + 40) & (b > g + 20))
+gone = (xx < 172) & (yy > 200) & (yy < top[xx] + 3) & (top[xx] < H) & cloth
+gone |= (xx < 116) & (yy > 200) & (yy < 300) & cloth   # left of the mirrored shoulder
+gone |= (xx < 145) & (yy > 230) & (yy < 300) & (r + g + b < 200)   # dark crumbs of the old cut
 body[..., 3] = np.where(gone, 0, body[..., 3])
+
 Image.fromarray(body, 'RGBA').save(S + '/L_body_low.png')
 Image.fromarray(body, 'RGBA').save('app/art/bear/rig/body.webp', quality=90, method=6)
 print('arm-low', crop.size, 'at', at)
