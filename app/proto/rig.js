@@ -58,12 +58,12 @@ const HANG={w:473,h:749,anchor:[211,88],
 const FALL={w:569,h:678,anchor:[283,400],
   bones:[
     {n:'root',p:[283,400]},
-    {n:'torso',par:'root',p:[205,335],tip:[335,470],s:74},
-    {n:'head',par:'root',p:[250,275],tip:[213,170],s:70},
-    {n:'armL',par:'root',p:[158,332],tip:[66,290],s:44},
-    {n:'armR',par:'root',p:[380,205],tip:[428,62],s:44},
-    {n:'legR',par:'root',p:[420,442],tip:[512,410],s:50},
-    {n:'legL',par:'root',p:[300,505],tip:[352,630],s:54}],
+    {n:'torso',par:'root',p:[205,335],tip:[335,470],s:90},
+    {n:'head',par:'root',p:[250,275],tip:[213,170],s:52},
+    {n:'armL',par:'root',p:[150,330],tip:[50,285],s:32},
+    {n:'armR',par:'root',p:[372,215],tip:[436,40],s:32},
+    {n:'legR',par:'root',p:[410,445],tip:[530,400],s:36},
+    {n:'legL',par:'root',p:[300,510],tip:[360,650],s:38}],
   layers:[{img:'fall',bones:['root','torso','head','armL','armR','legR','legL']}]};
 const SKINS={sit:SIT,hang:HANG,fall:FALL};
 const FILES=['body','arm','arm-low','head-calm','head-hype','head-scared','head-win','hang','fall'];
@@ -194,10 +194,11 @@ function create(kit,variant,opt){
       to(Q('chest'),s(.55)*A*.5,7,.35,dt);to(Q('hips'),s(1)*A*.7,6,.3,dt);to(Q('head'),s(.4)*A*.6+.04,9,.4,dt);
       to(Q('legL'),s(1.5)*A*1.3+Math.sin(t*3.1)*.04,5.5,.25,dt);to(Q('legR'),s(1.8)*A*1.1-Math.sin(t*3.1+1)*.04,5.5,.25,dt)
     }else{
-      // falling: arms and legs flail, each at its own rate (the game's fall pose)
+      // falling: the whole bear tumbles (the scene turns him); arms and legs only flop a little, slowly and out of
+      // step, like a rag doll's. Fast or wide turns bend the picture between the bones and stretch it.
       const f=(a,b)=>Math.sin(t*a+b);
-      to(Q('head'),f(7,0)*.2,14,.4,dt);to(Q('armL'),f(17,0)*.34,20,.4,dt);to(Q('armR'),f(16,3)*.3,20,.4,dt);
-      to(Q('legR'),f(18,0)*.26,18,.4,dt);to(Q('legL'),f(19,1)*.28,18,.4,dt);Q('torso').sy=1+f(15,1)*.012}
+      to(Q('head'),f(3.1,0)*.06,9,.45,dt);to(Q('armL'),f(4.3,0)*.11,8,.4,dt);to(Q('armR'),f(3.7,2)*.1,8,.4,dt);
+      to(Q('legR'),f(3.4,1)*.08,7,.4,dt);to(Q('legL'),f(3.9,3)*.08,7,.4,dt)}
     // world matrices, parents first
     const S=K.S;for(let i=0;i<S.bones.length;i++){const b=S.bones[i],L=local(b,K.q[i]);K.M[i]=b.par?mul(K.M[K.bi[b.par]],L):L}}
 
