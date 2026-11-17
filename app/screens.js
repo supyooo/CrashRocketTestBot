@@ -303,8 +303,27 @@ function renderProfile(){const u=user(),name=u?(u.username?'@'+u.username:[u.fir
   paintThumbs(scr.profile)}
 
 /* ---------------- navigation ---------------- */
-function render(){if(tab==='hangar')renderHangar();else if(tab==='tour')renderTour();else if(tab==='profile')renderProfile();renderItem()}
-function refresh(){renderCoins();if(tab!=='game')render()}
+/* Frozen for now: the hangar (skins) and the tournaments say they are on the way instead of showing the demo economy. */
+const FROZEN={hangar:1,tour:1};
+const SOON={
+  ru:{badge:'скоро',back:'Вернуться в игру',
+    hangar:['Ангар в разработке','Здесь появятся скины: персонажи, ракеты, следы, парашюты и фоны. Уже совсем скоро.'],
+    tour:['Турниры в разработке','Скоро здесь будут турниры с призами и задания, за которые дают монеты.']},
+  en:{badge:'soon',back:'Back to the game',
+    hangar:['The hangar is on the way','Skins are coming here: riders, rockets, trails, parachutes and backdrops. Very soon.'],
+    tour:['Tournaments are on the way','Tournaments with prizes and quests that pay coins are coming here soon.']}};
+const sn=k=>(SOON[lang]||SOON.en)[k];
+const SOON_ICON={hangar:'<path d="M3 20V10l9-6 9 6v10"/><path d="M7 20v-6h10v6M3 20h18"/>',
+  tour:'<path d="M7 4h10v5a5 5 0 0 1-10 0V4zM7 6H4v1a3 3 0 0 0 3 3M17 6h3v1a3 3 0 0 1-3 3M12 14v3M8 21h8l-1-4H9l-1 4z"/>'};
+function renderSoon(id){const [h,p]=sn(id);
+  scr[id].innerHTML=`<div class="sc-h"><h1>${tx(id)}</h1></div>
+  <div class="soonbox"><div class="soonic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true">${SOON_ICON[id]}</svg></div>
+    <span class="soontag">${sn('badge')}</span><h2>${h}</h2><p>${p}</p><button class="btn green" data-act="gogame">${sn('back')}</button></div>`}
+function soonBadges(){document.querySelectorAll('.tabs button').forEach(b=>{const t=b.dataset.tab;let e=b.querySelector('.tsoon');
+  if(!FROZEN[t]){if(e)e.remove();return}if(!e){e=document.createElement('i');e.className='tsoon';b.appendChild(e)}e.textContent=sn('badge')})}
+soonBadges();
+function render(){if(FROZEN[tab])renderSoon(tab);else if(tab==='hangar')renderHangar();else if(tab==='tour')renderTour();else if(tab==='profile')renderProfile();renderItem()}
+function refresh(){renderCoins();soonBadges();if(tab!=='game')render()}   // also on a language switch
 function go(t){tab=t;window.SCREEN_OPEN=t!=='game';for(const k in scr)scr[k].hidden=k!==t;
   document.querySelectorAll('.tabs button').forEach(b=>b.setAttribute('aria-current',b.dataset.tab===t?'page':'false'));
   if(t!=='game'){render();scr[t].scrollTop=0}closePops&&closePops();syncBack();haptic('select')}
@@ -324,6 +343,7 @@ function act(e){const b=e.target.closest('[data-act]');if(!b)return;const a=b.da
   else if(a==='buy')buy();
   else if(a==='gotour'||a==='gotourq'){closeItem();seg='quests';go('tour')}
   else if(a==='gohangar')go('hangar');
+  else if(a==='gogame')go('game');
   else if(a==='seg'){seg=b.dataset.k;renderTour();haptic('select')}
   else if(a==='claimday'){const di=(D.login.streak-1)%7;D.login.claimed=today();addCoins(DAYR[di],true);haptic('success');renderTour()}
   else if(a==='claimq'){const q=QUESTS().find(q=>q[0]===b.dataset.id);if(q&&q[1]>=q[2]&&!D.day.claimed.includes(q[0])){D.day.claimed.push(q[0]);addCoins(q[3],true);haptic('success');renderTour()}}
