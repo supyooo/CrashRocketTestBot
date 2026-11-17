@@ -259,7 +259,7 @@ export class SupportBot {
       `🆘 <b>Обращение №${id}</b> · ${esc(pathOf(this.faq, this.par, topic, 'ru'))}`,
       `Игрок: ${from.username ? '@' + esc(from.username) : '—'}${name ? ' (' + esc(name) + ')' : ''}`,
       `Telegram ID: <code>${from.id}</code> · язык ${esc(from.language_code ?? '—')}`,
-      `Баланс: ${balance} TON`,
+      `Баланс: ${balance} USDT`,
       pub ? `<a href="${esc(pub)}/admin#p=${encodeURIComponent(uid)}">Карточка игрока в админке</a>` : '',
       '',
       '<i>Ответьте реплаем на любое сообщение обращения: бот перешлёт ответ игроку. Реплай /close закрывает обращение.</i>'

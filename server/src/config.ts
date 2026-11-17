@@ -1,9 +1,8 @@
 import { randomBytes } from 'node:crypto';
 
-/** Money is stored as integer micro-units: 1 TON = 1_000_000 units (1 unit = 1000 nanotons). */
+/** Money is stored as integer micro-units: 1 USDT = 1_000_000 units (USDT has 6 decimals). */
 export const UNIT = 1_000_000;
-export const NANO_PER_UNIT = 1000n;
-export const toUnits = (ton: number) => Math.round(ton * UNIT);
+export const toUnits = (usdt: number) => Math.round(usdt * UNIT);
 export const fromUnits = (u: number) => u / UNIT;
 
 const env = process.env;
@@ -31,20 +30,22 @@ export const config = {
   tickMs: 100,
 
   /**
-   * TON gateway. When TON_MNEMONIC is set the game runs on test TON only: no free play money, the balance
-   * comes from deposits to the house wallet. This build refuses anything but the TON testnet.
+   * USDT through Crypto Pay (@CryptoBot), src/pay. On when CRYPTO_PAY_TOKEN is set: then balances are USDT only, no
+   * free play money. Limits are the support model's. This build refuses anything but Crypto Pay's testnet.
    */
-  ton: {
-    enabled: !!env.TON_MNEMONIC,
-    network: env.TON_NETWORK ?? 'testnet',
-    endpoint: env.TONCENTER_URL ?? 'https://testnet.toncenter.com/api/v2/jsonRPC',
-    apiKey: env.TONCENTER_API_KEY ?? '',
-    mnemonic: env.TON_MNEMONIC ?? '',
-    minDeposit: toUnits(num(env.TON_MIN_DEPOSIT, 0.1)),
-    minWithdraw: toUnits(num(env.TON_MIN_WITHDRAW, 0.5)),
-    /** Per player per UTC day. */
-    maxWithdrawDay: toUnits(num(env.TON_MAX_WITHDRAW_DAY, 100)),
-    pollMs: num(env.TON_POLL_MS, 5000)
+  pay: {
+    enabled: !!env.CRYPTO_PAY_TOKEN,
+    token: env.CRYPTO_PAY_TOKEN ?? '',
+    network: (env.CRYPTO_PAY_NETWORK ?? 'testnet') as 'testnet' | 'mainnet',
+    /** Only for local runs against a stand-in of the API; empty = Crypto Pay's own address for the network. */
+    url: env.CRYPTO_PAY_URL ?? '',
+    minDeposit: toUnits(num(env.PAY_MIN_DEPOSIT, 10)),
+    minWithdraw: toUnits(num(env.PAY_MIN_WITHDRAW, 10)),
+    /** Per player per UTC day; 0 = no limit. */
+    maxWithdrawDay: toUnits(num(env.PAY_MAX_WITHDRAW_DAY, 1000)),
+    /** Withdrawals open once the turnover reaches this many times the deposits. */
+    wager: num(env.PAY_WAGER, 2),
+    pollMs: num(env.PAY_POLL_MS, 5000)
   },
 
   /** Admin panel (/admin). Who may sign in: Telegram ids, comma separated. */
@@ -88,12 +89,11 @@ export type Config = typeof config;
 /** Rounds saved before the edge was stored with each round were played at the old default of 3%. */
 export const LEGACY_EDGE_BPS = 300;
 
-// Test TON only: never touch mainnet from this build, whatever the variables say.
-if (config.ton.enabled) {
-  if (config.ton.network !== 'testnet' || !/testnet/.test(config.ton.endpoint)) throw new Error('TON gateway: only the TON testnet is allowed (TON_NETWORK=testnet, a testnet TONCENTER_URL)');
-  if (!process.env.DATABASE_URL) throw new Error('TON gateway needs Postgres: set DATABASE_URL');
-  if (config.ton.mnemonic.trim().split(/\s+/).length !== 24) throw new Error('TON_MNEMONIC must be the 24 words of the house wallet');
-  config.startBalance = 0; // no free play money in TON mode
+// Testnet only: real money waits for the legal review, whatever the variables say.
+if (config.pay.enabled) {
+  if (config.pay.network !== 'testnet') throw new Error('Crypto Pay: only the testnet is allowed in this build (CRYPTO_PAY_NETWORK=testnet)');
+  if (!process.env.DATABASE_URL) throw new Error('payments need Postgres: set DATABASE_URL');
+  config.startBalance = 0; // no free play money with real deposits
 }
 
 // With real Telegram logins a weak or missing secret would let anyone forge sessions: refuse to start.

@@ -3,7 +3,7 @@
 const $ = (s, r = document) => r.querySelector(s);
 const root = $('#root');
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const money = (n) => (n === null || n === undefined ? '—' : Number(n).toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' TON');
+const money = (n) => (n === null || n === undefined ? '—' : Number(n).toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' USDT');
 const dt = (t) => (t ? new Date(t).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—');
 const short = (h) => (h && h.length > 16 ? h.slice(0, 8) + '…' + h.slice(-6) : h || '—');
 let token = ''; try { token = sessionStorage.getItem('adm.t') || ''; } catch {}
@@ -98,8 +98,7 @@ async function dashboard() {
     : '<div class="empty">Заявок на проверке нет.</div>';
   const fr = alerts.fraud.map((a) => `<div class="alert"><span class="chip warn">${a.kind === 'ip' ? 'IP' : 'Кошелёк'}</span><span class="t">${a.users.map((u) => `<a href="#p=${encodeURIComponent(u)}">${esc(u)}</a>`).join(', ')}<div class="muted mono">${esc(short(a.key))}</div></span></div>`).join('');
   const un = alerts.unmatched.map((d) => `<div class="alert"><span class="t"><b>${money(d.amount)}</b> от <span class="mono">${esc(short(d.from))}</span><div class="muted">${dt(d.at)} · ${d.status === 'too_small' ? 'меньше минимума' : 'без кода'}${d.comment ? ' · «' + esc(d.comment) + '»' : ''}</div></span><button class="btn sm y" data-at="${esc(d.tx)}">Привязать к ID</button></div>`).join('');
-  $('#alerts').outerHTML = `<div><b class="muted" style="font-size:12px">АНТИФРОД: ОБЩИЕ IP И КОШЕЛЬКИ</b><div style="display:flex;flex-direction:column;gap:6px;margin-top:6px">${fr || '<div class="empty">Совпадений нет.</div>'}</div></div>
-    <div><b class="muted" style="font-size:12px">ЗАВИСШИЕ ДЕПОЗИТЫ (БЕЗ КОДА)</b><div style="display:flex;flex-direction:column;gap:6px;margin-top:6px">${un || '<div class="empty">Нет.</div>'}</div></div>`;
+  $('#alerts').outerHTML = `<div><b class="muted" style="font-size:12px">АНТИФРОД: ОБЩИЕ IP</b><div style="display:flex;flex-direction:column;gap:6px;margin-top:6px">${fr || '<div class="empty">Совпадений нет.</div>'}</div></div>`;
   $('#rev').outerHTML = `<div class="kpis">${kv('NGR за период', money(s.ngr))}${kv('Партнёрская доля (' + Math.round(s.revshare.share * 100) + '%)', money(s.revshare.partner))}${kv('Net income проекта', money(s.revshare.net))}</div>`;
   root.querySelector('main').onclick = async (e) => {
     const ap = e.target.closest('[data-ap]'), rj = e.target.closest('[data-rj]'), at = e.target.closest('[data-at]');
@@ -125,7 +124,7 @@ function drawChart(points) {
 }
 
 /* ---------------- player card ---------------- */
-const ST = { credited: ['зачислен', 'ok'], attached: ['привязан вручную', 'ok'], unmatched: ['без кода', 'warn'], too_small: ['меньше минимума', 'warn'],
+const ST = { paid: ['зачислен', 'ok'], active: ['ждёт оплаты', 'info'], expired: ['истёк', ''], cancelled: ['отменён игроком', ''], credited: ['зачислен', 'ok'], attached: ['привязан вручную', 'ok'], unmatched: ['без кода', 'warn'], too_small: ['меньше минимума', 'warn'],
   review: ['на проверке', 'warn'], pending: ['в очереди', 'info'], sending: ['отправляется', 'info'], sent: ['успешен', 'ok'], failed: ['не прошёл, возврат', 'bad'], rejected: ['отклонён', 'bad'],
   win: ['выигрыш', 'ok'], lose: ['проигрыш', 'bad'], refunded: ['возврат', 'info'] };
 const chip = (s) => { const [l, k] = ST[s] || [s, '']; return `<span class="chip ${k}">${esc(l)}</span>`; };
@@ -149,9 +148,9 @@ async function showPlayer(q) {
       <div class="stats">
         ${st('Баланс', money(p.balance))}${st('Сумма депозитов', money(p.deposits))}${st('Сумма выводов', money(p.withdrawals))}${st('Отыгрыш x2', p.wager.need ? `${money(p.wager.done)} / ${money(p.wager.need)} ${p.wager.met ? '<span class="chip ok">выполнен</span>' : '<span class="chip warn">нет</span>'}` : '—')}
         ${st('Сумма выигрыша', money(p.wins))}${st('Сумма проигрыша', money(p.losses))}${st('Доход казино', money(p.income))}${st('Оборот', money(p.turnover) + ` <span class="muted" style="font-size:12px">${p.betsCount} ставок</span>`)}
-        ${st('Сумма бонусов', money(p.bonuses))}${st('Доля партнёра', money(p.partner))}${st('Статус вывода', p.blocked || p.frozen ? '<span class="chip bad">запрещён</span>' : '<span class="chip ok">разрешён</span>')}${st('Код пополнения', `<span class="mono">${esc(p.depositCode ?? '—')}</span>`)}
+        ${st('Сумма бонусов', money(p.bonuses))}${st('Доля партнёра', money(p.partner))}${st('Статус вывода', p.blocked || p.frozen ? '<span class="chip bad">запрещён</span>' : '<span class="chip ok">разрешён</span>')}
       </div>
-      <div class="muted" style="font-size:12.5px">IP: ${p.ips.length ? p.ips.map((i) => `<span class="mono">${esc(i.ip)}</span>`).join(', ') : '—'} · Кошельки: ${p.wallets.length ? p.wallets.map((a) => `<span class="mono">${esc(short(a))}</span>`).join(', ') : '—'}</div>
+      <div class="muted" style="font-size:12.5px">IP: ${p.ips.length ? p.ips.map((i) => `<span class="mono">${esc(i.ip)}</span>`).join(', ') : '—'}</div>
       <div class="tabs" id="tabs">${[['deposits', 'История депозитов'], ['withdrawals', 'История выводов'], ['bets', 'История ставок'], ['bonuses', 'История бонусов']].map(([k, l]) => `<button data-t="${k}" aria-pressed="${tab === k}">${l}</button>`).join('')}</div>
       <div class="tbl" id="list"></div></section>
     <section class="card c4"><h2>Взаимодействия с игроком</h2>
@@ -165,7 +164,7 @@ async function showPlayer(q) {
       if (rb) { const reason = prompt('Причина возврата ставки:'); if (!reason) return; await api('/player/action', { uid: p.uid, action: 'refund_bet', ref: rb.dataset.rb, reason }); toast('Ставка возвращена'); return showPlayer(p.uid); }
       if (!a) return;
       const act = a.dataset.a, body = { uid: p.uid, action: act };
-      if (act === 'adjust') { const v = prompt('Сумма в TON: положительная начисляет, отрицательная списывает'); if (!v) return; body.amount = Number(v.replace(',', '.')); body.reason = prompt('Причина (обязательно):') || ''; if (!body.reason) return; }
+      if (act === 'adjust') { const v = prompt('Сумма в USDT: положительная начисляет, отрицательная списывает'); if (!v) return; body.amount = Number(v.replace(',', '.')); body.reason = prompt('Причина (обязательно):') || ''; if (!body.reason) return; }
       else if (act === 'note') { body.text = prompt('Текст заметки:') || ''; if (!body.text) return; }
       else { const r = prompt('Причина (для журнала):'); if (r === null) return; body.reason = r; }
       await api('/player/action', body); toast('Готово'); showPlayer(p.uid);
@@ -187,7 +186,7 @@ function renderList() {
   if (!L.length) { el.innerHTML = '<div class="empty">Записей нет.</div>'; return; }
   const H = {
     deposits: ['Время', 'Сумма', 'Статус', 'Мерчант / провайдер', 'Хэш транзакции'],
-    withdrawals: ['Время', 'Сумма', 'Статус', 'Мерчант / провайдер', 'Куда / seqno', ''],
+    withdrawals: ['Время', 'Сумма', 'Статус', 'Провайдер', 'Куда / перевод', ''],
     bets: ['Время', 'Ставка', 'Выигрыш / проигрыш', 'Раунд', 'Хэш раунда / ставки', ''],
     bonuses: ['Время', 'Сумма', 'Тип', 'Код']
   }[tab];

@@ -12,11 +12,11 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import type pg from 'pg';
 import type { Config } from '../config.js';
-import { fromUnits, toUnits, NANO_PER_UNIT } from '../config.js';
+import { fromUnits, toUnits } from '../config.js';
 import { AuthError, validateLoginWidget } from '../auth/telegram.js';
 import { signSession, verifySession } from '../auth/session.js';
 import { InsufficientFunds } from '../store/store.js';
-import { TonError, type TonGateway } from '../ton/gateway.js';
+import { PayError, wagerOf, type PayGateway } from '../pay/gateway.js';
 import type { EngineRef } from '../http.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -25,11 +25,10 @@ const PERIODS: Record<string, string> = { today: "date_trunc('day', now())", wee
 const BUCKET: Record<string, string> = { today: 'hour', week: 'day', month: 'day', year: 'month' };
 const BET_REFUND = "ref ~ '^(cancel|late|restart):'";           // stakes given back (not a loss and not a win)
 const u = (n: unknown) => fromUnits(Number(n ?? 0));
-const nanoToUnits = (n: unknown) => Number(BigInt(String(n ?? 0)) / NANO_PER_UNIT);
 
 export class AdminError extends Error {}
 type Who = { uid: string; name: string };
-type Ctx = { cfg: Config; db: pg.Pool; ref: EngineRef; ton?: TonGateway; online: () => number };
+type Ctx = { cfg: Config; db: pg.Pool; ref: EngineRef; pay?: PayGateway; online: () => number };
 
 export class Admin {
   private blocked = new Set<string>();
@@ -81,7 +80,7 @@ export class Admin {
       return send(res, 200, out), true;
     } catch (err) {
       if (err instanceof AuthError) return send(res, 401, { error: err.message }), true;
-      if (err instanceof AdminError || err instanceof TonError || err instanceof InsufficientFunds) return send(res, 400, { error: err.message }), true;
+      if (err instanceof AdminError || err instanceof PayError || err instanceof InsufficientFunds) return send(res, 400, { error: err.message }), true;
       console.error('admin:', err);
       return send(res, 500, { error: 'server error' }), true;
     }
@@ -116,7 +115,6 @@ export class Admin {
     }
     if (p === '/withdrawals/approve') return this.approve(who, num(b.id));
     if (p === '/withdrawals/reject') return this.reject(who, num(b.id), str(b.reason));
-    if (p === '/deposits/attach') return this.attach(who, str(b.tx), str(b.uid));
     if (p === '/player/action') return this.action(who, str(b.uid), str(b.action), b);
     return undefined;
   }
@@ -138,7 +136,7 @@ export class Admin {
           coalesce(sum(delta) FILTER (WHERE kind = 'grant' OR (kind = 'adjust' AND ref LIKE 'adm:%' AND delta > 0)), 0) AS bonuses
         FROM ledger WHERE at >= ${since}`),
       db.query(`SELECT count(DISTINCT user_id)::int AS n FROM ledger WHERE kind = 'bet' AND at >= ${since}`),
-      db.query(`SELECT coalesce(sum(amount), 0) AS s FROM ton_withdrawals WHERE status = 'sent' AND updated_at >= ${since}`),
+      db.query(`SELECT coalesce(sum(amount), 0) AS s FROM pay_withdrawals WHERE status = 'sent' AND updated_at >= ${since}`),
       db.query(`SELECT date_trunc('${bucket}', at) AS t,
           sum(CASE WHEN kind IN ('bet', 'win') OR (kind = 'refund' AND ${BET_REFUND}) THEN -delta ELSE 0 END) AS ggr
         FROM ledger WHERE at >= ${since} GROUP BY 1 ORDER BY 1`)
@@ -155,48 +153,33 @@ export class Admin {
     };
   }
 
-  /** Bets since the player's last deposit against twice that deposit (the x2 wager rule). */
+  /** Turnover against the wager times all deposits (the support model's x2 rule), as the withdrawal check counts it. */
   private async wager(uid: string) {
-    const db = this.x.db;
-    const dep = await db.query("SELECT id, delta FROM ledger WHERE user_id = $1 AND kind = 'deposit' ORDER BY id DESC LIMIT 1", [uid]);
-    if (!dep.rows.length) return { deposit: 0, need: 0, done: 0, met: false };
-    const { rows } = await db.query(`SELECT coalesce(sum(-delta) FILTER (WHERE kind = 'bet'), 0) - coalesce(sum(delta) FILTER (WHERE kind = 'refund' AND ${BET_REFUND}), 0) AS s
-      FROM ledger WHERE user_id = $1 AND id > $2`, [uid, dep.rows[0].id]);
-    const need = 2 * Number(dep.rows[0].delta), done = Number(rows[0].s);
-    return { deposit: u(dep.rows[0].delta), need: u(need), done: u(done), met: done >= need };
+    const w = await wagerOf(this.x.db, uid, this.x.cfg.pay.wager);
+    return { deposit: u(w.deposits), need: u(w.need), done: u(w.done), met: w.met };
   }
 
   async queue() {
-    const { rows } = await this.x.db.query("SELECT w.id, w.user_id, u.name, u.tg_id, w.amount, w.created_at FROM ton_withdrawals w JOIN users u ON u.id = w.user_id WHERE w.status = 'review' ORDER BY w.id");
+    const { rows } = await this.x.db.query("SELECT w.id, w.user_id, u.name, u.tg_id, w.amount, w.created_at FROM pay_withdrawals w JOIN users u ON u.id = w.user_id WHERE w.status = 'review' ORDER BY w.id");
     return Promise.all(rows.map(async (r) => ({ id: Number(r.id), uid: r.user_id, name: r.name, tgId: r.tg_id === null ? null : Number(r.tg_id), amount: u(r.amount), at: r.created_at.getTime(), wager: await this.wager(r.user_id) })));
   }
 
   async cash() {
-    const db = this.x.db, { cfg, ton } = this.x;
+    const db = this.x.db, { cfg, pay } = this.x;
     const [owed, payouts] = await Promise.all([
       db.query('SELECT coalesce(sum(balance), 0) AS s FROM accounts'),
-      db.query("SELECT coalesce(sum(amount), 0) AS s, count(*)::int AS n FROM ton_withdrawals WHERE status IN ('review', 'pending', 'sending')")
+      db.query("SELECT coalesce(sum(amount), 0) AS s, count(*)::int AS n FROM pay_withdrawals WHERE status IN ('review', 'pending', 'sending')")
     ]);
     let hot: number | null = null;
-    if (ton) hot = await ton.houseBalance().then((n) => u(Number(n / NANO_PER_UNIT))).catch(() => null);
-    return { currency: ton ? 'TON (testnet)' : 'play', hot, cold: null, owed: u(owed.rows[0].s), payouts: u(payouts.rows[0].s), payoutsCount: payouts.rows[0].n,
-      limits: { minBet: u(cfg.minBet), maxBet: u(cfg.maxBet), maxWin: u(cfg.maxWin), reviewOver: u(cfg.admin.reviewOver), minDeposit: u(cfg.ton.minDeposit), minWithdraw: u(cfg.ton.minWithdraw), maxWithdrawDay: u(cfg.ton.maxWithdrawDay) } };
+    if (pay) hot = await pay.houseBalance().then(u).catch(() => null);
+    return { currency: pay ? `USDT (Crypto Pay ${cfg.pay.network})` : 'play', hot, cold: null, owed: u(owed.rows[0].s), payouts: u(payouts.rows[0].s), payoutsCount: payouts.rows[0].n,
+      limits: { minBet: u(cfg.minBet), maxBet: u(cfg.maxBet), maxWin: u(cfg.maxWin), reviewOver: u(cfg.admin.reviewOver), minDeposit: u(cfg.pay.minDeposit), minWithdraw: u(cfg.pay.minWithdraw), maxWithdrawDay: u(cfg.pay.maxWithdrawDay) } };
   }
 
   async alerts() {
-    const db = this.x.db;
-    const [deps, ips, wallets] = await Promise.all([
-      db.query("SELECT tx_hash, nano, source, comment, status, at FROM ton_deposits WHERE status IN ('unmatched', 'too_small') ORDER BY at DESC LIMIT 50"),
-      db.query("SELECT ip, array_agg(user_id ORDER BY user_id) AS users FROM logins WHERE at > now() - interval '30 days' GROUP BY ip HAVING count(*) > 1 ORDER BY max(at) DESC LIMIT 30"),
-      db.query('SELECT a AS address, array_agg(user_id ORDER BY user_id) AS users FROM ton_accounts, unnest(addresses) a GROUP BY a HAVING count(*) > 1 LIMIT 30')
-    ]);
-    return {
-      unmatched: deps.rows.map((d) => ({ tx: d.tx_hash, amount: u(nanoToUnits(d.nano)), from: d.source, comment: d.comment, status: d.status, at: d.at.getTime() })),
-      fraud: [
-        ...ips.rows.map((r) => ({ kind: 'ip', key: r.ip, users: r.users })),
-        ...wallets.rows.map((r) => ({ kind: 'wallet', key: r.address, users: r.users }))
-      ]
-    };
+    const ips = await this.x.db.query("SELECT ip, array_agg(user_id ORDER BY user_id) AS users FROM logins WHERE at > now() - interval '30 days' GROUP BY ip HAVING count(*) > 1 ORDER BY max(at) DESC LIMIT 30");
+    // deposits come as invoices of a known player, so none is left unmatched
+    return { unmatched: [], fraud: ips.rows.map((r) => ({ kind: 'ip', key: r.ip, users: r.users })) };
   }
 
   /* ---------------- player card ---------------- */
@@ -228,11 +211,11 @@ export class Admin {
           count(*) FILTER (WHERE kind = 'bet')::int AS bets
         FROM ledger WHERE user_id = $1`, [uid]),
       db.query("SELECT coalesce(sum(-b.delta), 0) AS s FROM ledger b JOIN ledger w ON w.ref = 'win:' || b.ref WHERE b.user_id = $1 AND b.kind = 'bet'", [uid]),
-      db.query("SELECT coalesce(sum(amount), 0) AS s FROM ton_withdrawals WHERE user_id = $1 AND status = 'sent'", [uid]),
+      db.query("SELECT coalesce(sum(amount), 0) AS s FROM pay_withdrawals WHERE user_id = $1 AND status = 'sent'", [uid]),
       db.query('SELECT ip, at FROM logins WHERE user_id = $1 ORDER BY at DESC LIMIT 10', [uid]),
-      db.query('SELECT addresses, deposit_code FROM ton_accounts WHERE user_id = $1', [uid]),
-      db.query('SELECT tx_hash, nano, status, source, at FROM ton_deposits WHERE user_id = $1 ORDER BY at DESC LIMIT 100', [uid]),
-      db.query('SELECT id, amount, address, status, seqno, error, created_at FROM ton_withdrawals WHERE user_id = $1 ORDER BY created_at DESC LIMIT 100', [uid]),
+      db.query('SELECT 1'),
+      db.query("SELECT invoice_id, amount, status, fee, created_at, paid_at FROM pay_invoices WHERE user_id = $1 AND status IN ('active', 'paid', 'expired') ORDER BY id DESC LIMIT 100", [uid]),
+      db.query('SELECT id, amount, status, transfer_id, error, created_at FROM pay_withdrawals WHERE user_id = $1 ORDER BY id DESC LIMIT 100', [uid]),
       // the round is matched by number and time: a new hash chain starts numbering again
       db.query(`SELECT b.ref, -b.delta AS stake, b.at, w.delta AS win, r.ref AS refunded, rd.no, rd.crash_x100, rd.hash
         FROM ledger b LEFT JOIN ledger w ON w.ref = 'win:' || b.ref
@@ -253,10 +236,10 @@ export class Admin {
       losses: u(turnover - Number(wonStakes.rows[0].s)), income: u(income), bonuses: u(s.bonuses), betsCount: s.bets,
       partner: us.ref_by ? u(Math.max(0, income) * this.x.cfg.admin.partnerShare) : 0,
       wager: await this.wager(uid),
-      ips: ips.rows.map((r) => ({ ip: r.ip, at: r.at.getTime() })), wallets: wallets.rows[0]?.addresses ?? [], depositCode: wallets.rows[0]?.deposit_code ?? null,
+      ips: ips.rows.map((r) => ({ ip: r.ip, at: r.at.getTime() })), wallets: [], depositCode: null,
       lists: {
-        deposits: deposits.rows.map((d) => ({ at: d.at.getTime(), amount: u(nanoToUnits(d.nano)), status: d.status, provider: 'TON testnet', from: d.source, tx: d.tx_hash })),
-        withdrawals: withdrawals.rows.map((w) => ({ id: Number(w.id), at: w.created_at.getTime(), amount: u(w.amount), status: w.status, provider: 'TON testnet', to: w.address, seqno: w.seqno, error: w.error })),
+        deposits: deposits.rows.map((d) => ({ at: (d.paid_at ?? d.created_at).getTime(), amount: u(d.amount), status: d.status, provider: 'Crypto Pay', from: 'CryptoBot', tx: String(d.invoice_id ?? ''), fee: d.fee === null ? null : u(d.fee) })),
+        withdrawals: withdrawals.rows.map((w) => ({ id: Number(w.id), at: w.created_at.getTime(), amount: u(w.amount), status: w.status, provider: 'Crypto Pay', to: 'CryptoBot', seqno: w.transfer_id === null ? null : Number(w.transfer_id), error: w.error })),
         bets: bets.rows.map((b) => ({ ref: b.ref, round: Number(String(b.ref).split(':')[1]), at: b.at.getTime(), stake: u(b.stake), payout: b.win === null ? 0 : u(b.win),
           crash: b.crash_x100 === null ? null : b.crash_x100 / 100, roundHash: b.hash ?? null, result: b.refunded ? 'refunded' : b.win !== null ? 'win' : 'lose' })),
         bonuses: bonuses.rows.map((g) => ({ at: g.at.getTime(), amount: u(g.delta), type: g.kind === 'grant' ? 'grant' : 'manual', code: g.ref }))
@@ -267,27 +250,18 @@ export class Admin {
 
   /* ---------------- actions ---------------- */
   private async approve(who: Who, id: number) {
-    if (!this.x.ton) throw new AdminError('TON is not enabled');
-    const r = await this.x.ton.approve(id);
+    if (!this.x.pay) throw new AdminError('payments are not enabled');
+    const r = await this.x.pay.approve(id);
     await this.log(who, 'approve', r.uid, { withdrawal: id, amount: u(r.amount) });
     return { ok: true };
   }
   private async reject(who: Who, id: number, reason: string) {
-    if (!this.x.ton) throw new AdminError('TON is not enabled');
+    if (!this.x.pay) throw new AdminError('payments are not enabled');
     if (!reason) throw new AdminError('a reason is required');
-    const r = await this.x.ton.reject(id, reason);
+    const r = await this.x.pay.reject(id, reason);
     await this.log(who, 'reject', r.uid, { withdrawal: id, amount: u(r.amount), reason });
     return { ok: true };
   }
-  private async attach(who: Who, tx: string, q: string) {
-    if (!this.x.ton) throw new AdminError('TON is not enabled');
-    const uid = await this.findUser(q);
-    if (!uid) throw new AdminError('no player found');
-    const r = await this.x.ton.attach(tx, uid);
-    await this.log(who, 'attach', uid, { tx, amount: u(r.amount) });
-    return { ok: true, uid };
-  }
-
   private async action(who: Who, uid: string, action: string, b: Record<string, unknown>) {
     const db = this.x.db;
     if (!(await db.query('SELECT 1 FROM users WHERE id = $1', [uid])).rows.length) throw new AdminError('no such player');
