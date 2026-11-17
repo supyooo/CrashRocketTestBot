@@ -1,0 +1,136 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Boomy · медведь по частям</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=Unbounded:wght@700;800&display=swap">
+<style>
+:root{color-scheme:dark;--bg:#0c0723;--panel:#161a2f;--panel2:#1f2440;--line:#2b3155;--text:#f3f1ff;--muted:#9a9ec2;--green:#2bff88;--gold:#ffd23f;--pink:#ff3ea5}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.55 'Golos Text',system-ui,sans-serif}
+main{max-width:720px;margin:0 auto;padding:20px max(16px,env(safe-area-inset-right,0px)) 60px max(16px,env(safe-area-inset-left,0px))}
+h1{font:800 21px/1.25 'Unbounded',sans-serif;margin:6px 0 10px;overflow-wrap:break-word}
+h2{font:800 16px/1.3 'Unbounded',sans-serif;margin:0}
+p{margin:8px 0;color:#d6d3ee}
+.muted{color:var(--muted);font-size:13.5px}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px;margin:14px 0}
+.step{display:flex;gap:12px;align-items:flex-start}
+.step>div{min-width:0;flex:1}
+.num{flex:none;width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:rgba(43,255,136,.12);color:var(--green);font:800 14px 'Unbounded',sans-serif}
+.tag{display:inline-block;margin:4px 6px 0 0;font:600 12.5px ui-monospace,Consolas,monospace;color:var(--gold);background:rgba(255,210,63,.08);border-radius:6px;padding:1px 7px}
+.att{display:inline-block;margin:4px 0 0;font-size:12.5px;color:#cfe;background:rgba(41,230,255,.1);border-radius:6px;padding:1px 7px}
+.prompt{position:relative;margin-top:10px;background:#0f1124;border:1px solid var(--line);border-radius:12px;padding:12px 12px 46px;font:13px/1.5 ui-monospace,Consolas,monospace;color:#e4e6ff;white-space:pre-wrap;word-break:break-word}
+.copy{position:absolute;right:8px;bottom:8px;height:32px;padding:0 14px;border-radius:9px;border:0;background:var(--green);color:#04150d;font:700 13px 'Golos Text',sans-serif;cursor:pointer}
+.copy.ok{background:var(--gold)}
+.copy:focus-visible{outline:2px solid #fff;outline-offset:2px}
+ul,ol{margin:6px 0;padding-left:20px}li{margin:3px 0;color:#d6d3ee}
+.why{font-size:13px;color:var(--muted);margin-top:6px}
+.tip{border-left:3px solid var(--pink);padding:2px 0 2px 10px;margin:10px 0;color:#e8dcff}
+figure{margin:10px 0 0}figure img{width:100%;max-width:360px;border-radius:12px;background:#fff;display:block}
+figcaption{margin-top:4px}
+.diagram{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-top:10px}
+.diagram div{background:var(--panel2);border-radius:10px;padding:8px 10px;font-size:13px;color:#d6d3ee}
+.diagram b{display:block;color:var(--text);font-size:13.5px}
+</style>
+<main>
+<h1>Медведь по частям: что сгенерировать</h1>
+<p>Чтобы медведь двигался как цельная модель, а не как разрезанная картинка, его нужно нарисовать сразу частями. У каждой части дорисован запас на стыке, который заходит под соседнюю. Тогда при любом повороте в суставе нет дыр и обрезанных краёв.</p>
+
+<div class="box">
+  <h2>Как работать</h2>
+  <ol>
+    <li>Один <b>новый чат</b> в ChatGPT или Gemini на всю серию. Генератор лучше держит персонажа, если всё делается в одном чате.</li>
+    <li>Шаг 1: прикрепите основу (картинку ниже) и дайте промпт P1.</li>
+    <li>Шаги 2–4: каждый раз <b>прикрепляйте результат P1</b>, а не предыдущую картинку.</li>
+    <li>Пришлите все картинки в чат с Claude, подписав номера P1–P4.</li>
+  </ol>
+  <figure><img src="rig-base.jpg" alt="Медведь-пилот с поднятым кулаком на белом фоне: основа для P1" width="900" height="1350"><figcaption class="muted">Основа для P1: долгое нажатие на картинку → сохранить.</figcaption></figure>
+</div>
+
+<div class="box">
+  <h2>Почему так</h2>
+  <div class="diagram">
+    <div><b>Стыки с запасом</b>Плечо, локоть, колено: у части нарисован круглый край, который уходит под соседнюю. Повернулась рука — под ней всё равно нарисованный рукав, а не дыра.</div>
+    <div><b>Ровный свет</b>Без розовой и бирюзовой подсветки. Подсветку игра наложит на всю модель сразу, поэтому она всегда будет с правильной стороны.</div>
+    <div><b>Поза без перекрытий</b>Руки и ноги не закрывают тело. Иначе под ними на туловище будет пустое место.</div>
+  </div>
+</div>
+
+<div id="steps"></div>
+
+<div class="box">
+  <h2>Проверьте перед отправкой</h2>
+  <ul>
+    <li>Персонаж везде один и тот же: морда, очки, куртка, штаны, ботинки.</li>
+    <li>Фон чисто белый. Нет теней на полу, подписей, цифр, линий разреза.</li>
+    <li>Части не касаются друг друга, между ними белое поле.</li>
+    <li>У каждой части есть запас на стыке: круглый край плеча, локтя, колена; под головой мех шеи.</li>
+    <li>Нет розовой и бирюзовой подсветки, свет ровный спереди.</li>
+  </ul>
+  <p class="tip">Если вышло не так, поправьте в том же чате. Например: «the parts must not touch each other, leave white space between them» или «draw the hidden end of the upper arm too, as a rounded cap».</p>
+</div>
+<p class="muted">Дальше я сам разрежу листы, соберу скелет, проверю каждый сустав на всём диапазоне движения и покажу модель на стенде рядом с текущей.</p>
+</main>
+<script>
+(()=>{
+const SAME='The same character as in the attached picture: a cartoon brown bear pilot with round ears, gold-framed aviator sunglasses with dark lenses, a dark teal leather bomber jacket with a cream sheepskin collar and a gold zipper, dark teal cargo trousers and black lace-up boots. Keep exactly the same face, proportions, colours, painted 3D-cartoon style and fur and leather textures.';
+const LIGHT='Soft, even light from the front. No coloured rim light, no pink or teal glow, no cast shadows. Pure white background.';
+const STEPS=[
+  {n:'P1',t:'Поза для разбора',att:'основа (картинка выше)',file:'p1-pose',
+   why:'Медведь сидит так, чтобы ни одна рука и нога не закрывала тело. Из этой картинки генератор потом разберёт его на части.',
+   p:`${SAME}
+
+Draw him in a neutral sitting pose for a 2D animation rig, seen in a three-quarter view, body turned slightly to the right: sitting upright as if on a bench (the bench is not drawn), knees bent at a right angle, legs a little apart. Both arms hang down and slightly away from the body, so that no part of an arm covers the jacket; the elbows are a little bent and the fists are closed and rest above the knees without touching them. Nothing overlaps anything else. Calm, slight smile, mouth closed.
+
+${LIGHT} The whole character in frame, centred, with some white space around him.`},
+  {n:'P2',t:'Лист частей',att:'результат P1',file:'p2-parts',
+   why:'Главная картинка. Каждая часть целиком и с запасом на стыке, все части разложены отдельно.',
+   p:`${SAME}
+
+Take the character in the attached picture apart like a paper puppet for a 2D cut-out animation rig. Draw every part separately, at the same size and from the same angle as in the attached picture, laid out on a pure white background with clear white space between the parts; no part touches or overlaps another:
+1. the head with the ears and the sunglasses, and the whole neck fur below it, down past where the collar would cover it;
+2. the torso: the jacket with its collar, the neck opening showing fur, both shoulders rounded and complete, the hips and the top of the trousers below; no head, no arms, no legs;
+3. the left upper arm (the sleeve from the shoulder to the elbow);
+4. the left forearm (the sleeve from the elbow to the knitted cuff);
+5. the left fist;
+6. the right upper arm;
+7. the right forearm;
+8. the right fist;
+9. the left thigh;
+10. the left shin with the boot;
+11. the right thigh;
+12. the right shin with the boot.
+
+Every part is complete at the ends where it joins another part: draw the end that the neighbouring part would hide too, finished as a rounded cap that reaches a little past the joint, as if the part continued under its neighbour. The shoulders, the elbows, the wrists, the hips and the knees are all rounded like that. No cut lines, no outlines around the parts, no labels, no numbers.
+
+${LIGHT}`},
+  {n:'P3',t:'Четыре головы',att:'результат P1',file:'p3-heads',
+   why:'Выражения для разных моментов раунда. Тот же ракурс и размер, что у головы на листе частей.',
+   p:`${SAME}
+
+Draw four versions of only his head, in a row from left to right, all at the same angle and the same size as the head in the attached picture, with the same whole neck fur below each head (it goes down past where the collar would cover it):
+1. calm, a slight closed-mouth smile;
+2. excited, laughing with the mouth wide open;
+3. scared, teeth clenched, a small sweat drop on the forehead;
+4. a big happy grin showing the teeth.
+The sunglasses stay on in all four. The heads do not touch each other.
+
+${LIGHT}`},
+  {n:'P4',t:'Лапы',att:'результат P1',file:'p4-hands',
+   why:'Чтобы рука могла держаться, махать и сжиматься в кулак, а не только быть кулаком.',
+   p:`${SAME}
+
+Draw only his hands (paws), each with the end of the knitted jacket cuff at the wrist, laid out separately on white, not touching: for the left hand and for the right hand, three versions each — a closed fist; an open paw with the fingers spread, waving; a paw gripping a horizontal bar (the bar is not drawn). Same size and angle as the fists in the attached picture. The wrist end is rounded, as if it continued under the sleeve.
+
+${LIGHT}`}];
+const esc=s=>s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+document.getElementById('steps').innerHTML=STEPS.map((s,i)=>`<div class="box"><div class="step"><div class="num">${s.n}</div><div>
+  <h2>${s.t}</h2><span class="att">Прикрепить: ${s.att}</span><p class="why">${s.why}</p>
+  <div class="prompt" id="p${i}">${esc(s.p)}<button class="copy" type="button" data-i="${i}">Копировать</button></div></div></div></div>`).join('');
+document.getElementById('steps').addEventListener('click',e=>{const b=e.target.closest('.copy');if(!b)return;const txt=STEPS[+b.dataset.i].p;
+  const done=()=>{b.textContent='Скопировано';b.classList.add('ok');setTimeout(()=>{b.textContent='Копировать';b.classList.remove('ok')},1600)};
+  const sel=()=>{const r=document.createRange(),el=document.getElementById('p'+b.dataset.i);r.selectNodeContents(el.firstChild||el);const s=getSelection();s.removeAllRanges();s.addRange(r);b.textContent='Выделено: скопируйте'};
+  try{navigator.clipboard.writeText(txt).then(done,sel)}catch(err){sel()}});
+})();
+</script>
