@@ -245,3 +245,14 @@
 .tx-x{width:28px;padding:0;color:var(--red)}
 .tsheet .segs button{font-size:12.5px}
 .btn.wide{width:100%;margin-top:8px}
+
+/* sections on the way (hangar, tournaments) */
+.soonbox{display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;margin:28px 20px 0;padding:28px 20px 24px;border-radius:20px;background:var(--panel);border:1px solid var(--line)}
+.soonic{width:72px;height:72px;border-radius:22px;display:grid;place-items:center;background:rgba(43,255,136,.1);color:var(--green)}
+.soonic svg{width:38px;height:38px}
+.soontag{font:800 10px/1 'Golos Text',sans-serif;letter-spacing:.16em;text-transform:uppercase;color:var(--gold);padding:5px 9px;border-radius:99px;background:rgba(255,210,63,.12)}
+.soonbox h2{margin:2px 0 0;font:800 18px/1.25 'Unbounded',sans-serif}
+.soonbox p{margin:0;max-width:300px;color:var(--muted);font-size:13.5px;line-height:1.5}
+.soonbox .btn{margin-top:8px;min-width:200px}
+.tabs button{position:relative}
+.tsoon{position:absolute;top:0;left:50%;margin-left:6px;font:800 8px/1 'Golos Text',sans-serif;font-style:normal;letter-spacing:.06em;text-transform:uppercase;color:#1a1204;background:var(--gold);padding:3px 5px;border-radius:99px;pointer-events:none}
