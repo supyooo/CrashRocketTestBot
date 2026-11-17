@@ -37,17 +37,17 @@ Without `?server=` the game runs its offline demo rounds.
 | `CORS_ORIGINS` | GitHub Pages + localhost | Comma-separated allowed origins |
 | `HOUSE_EDGE_BPS` | 500 | House edge, basis points (500 = 5%, RTP 95%). Saved with every round, so old rounds stay verifiable after a change |
 | `FAIR_SALT` | dev salt | Public salt; in production a future block hash announced in advance |
-| `MAX_BET` / `MAX_WIN` | 15 / 75 | Limits in play TON: the largest bet per bet panel (two panels a round) and the largest payout of one bet |
+| `MAX_BET` / `MAX_WIN` | 15 / 75 | Limits in USDT: the largest bet per bet panel (two panels a round) and the largest payout of one bet |
 | `DATABASE_URL` | — | Postgres connection. When set, data lives in Postgres; the schema is applied on start and an existing `DATA_FILE` is imported once into an empty database |
 | `DATA_FILE` | data/dev-db.json | Dev storage file used without `DATABASE_URL` |
-| `TON_MNEMONIC` | — | 24 words of the **testnet** house wallet. When set, balances are test TON only: play money is reset once, no free refills. Needs `DATABASE_URL` |
-| `TON_WALLET` | auto | `w5-testnet`, `w5` or `v4`. By default the server checks every wallet the mnemonic can have and uses the one holding test TON (remembered after that) |
+| `CRYPTO_PAY_TOKEN` | — | Crypto Pay app token (from @CryptoTestnetBot → Crypto Pay → Create App). When set, balances are USDT only: old balances are zeroed once with a ledger entry each, no free refills. Needs `DATABASE_URL` |
+| `CRYPTO_PAY_NETWORK` | testnet | The server refuses to start with anything else in this build |
+| `PAY_MIN_DEPOSIT` / `PAY_MIN_WITHDRAW` / `PAY_MAX_WITHDRAW_DAY` | 10 / 10 / 1000 | Limits in USDT (0 for the day limit = none) |
+| `PAY_WAGER` | 2 | Withdrawals open once the turnover reaches this many times the deposits |
 | `TONCENTER_API_KEY` | — | testnet key from @tonapibot (without it toncenter allows 1 request/s) |
-| `TON_NETWORK` | testnet | The server refuses to start with anything else |
-| `TON_MIN_DEPOSIT` / `TON_MIN_WITHDRAW` / `TON_MAX_WITHDRAW_DAY` | 0.1 / 0.5 / 100 | Limits in TON |
 | `ADMIN_IDS` | — | Telegram ids allowed into the admin panel, comma separated |
 | `BOT_USERNAME` | — | The bot's username without `@`, for the "Log in with Telegram" button of the admin panel |
-| `ADMIN_REVIEW_OVER` | 50 | Withdrawals above this (TON) wait for an admin's approval |
+| `ADMIN_REVIEW_OVER` | 50 | Withdrawals above this (USDT) wait for an admin's approval |
 | `PARTNER_SHARE` | 0.4 | Partner's share of NGR in the RevShare summary |
 | `SUPPORT_BOT` | on | `0` turns the support bot off. It runs with `BOT_TOKEN` and Postgres, on the leader server only |
 | `SUPPORT_CHAT_ID` | — | The operators' Telegram group (e.g. `-100…`), the bot must be in it; `/chatid@<bot>` in the group tells its id. Without it tickets go to `ADMIN_IDS` in private |
@@ -89,8 +89,11 @@ within 24 hours. Operators reply to any message of the ticket and the bot copies
 - `POST /api/refill` → free play-money top-up when the balance is empty, 3 per day
 - `GET /api/rounds?limit=20` → finished rounds with revealed hashes and the edge each was played with (`edgeBps`)
 - `GET /api/fair` → commitment, salt, edge and the formula, for independent verification
-- `GET /api/ton/info` → house address, the player's deposit comment, wallets they deposited from, recent transfers (test TON mode)
-- `POST /api/ton/withdraw` `{amount, address}` → queues a payout; only to a wallet the player deposited from
+- `GET /api/pay/info` → limits, the wager progress and the last deposits and withdrawals with their statuses (USDT mode)
+- `POST /api/pay/deposit` `{amount}` → opens a Crypto Pay invoice, returns `{id, url}` (the link opens it in CryptoBot)
+- `POST /api/pay/withdraw` `{amount}` → queues a payout to the player's CryptoBot wallet; `review` above `ADMIN_REVIEW_OVER`
+- `POST /api/pay/cancel` `{id}` → takes back a withdrawal that waits for review or its turn
+- `POST /pay/webhook` → Crypto Pay's webhook (signature checked); set it in the app's settings to `<PUBLIC_URL>/pay/webhook`. A poll every few seconds backs it up
 - `GET /health`
 
 ## WebSocket `/ws?token=…`
@@ -98,13 +101,23 @@ within 24 hours. Operators reply to any message of the ticket and the bot copies
 Client → server: `{t:'bet', id, amount, auto?}`, `{t:'cancel', id}`, `{t:'cashout', id}`, `{t:'ping', id}`
 
 Server → client: `hello` (full state), `betting`, `run`, `tick`, `crash` (with the revealed hash), public `bet` / `cancel` / `cashout`,
-private `balance`, `ton` (deposit credited, payout queued / sent / returned), and `ok` / `err` replies to requests by `id`.
+private `balance`, `pay` (deposit paid, payout queued / under review / sent / failed / cancelled), and `ok` / `err` replies to requests by `id`.
 
-## Test TON
+## USDT (Crypto Pay)
 
-Deposits: the player sends test TON to the house wallet with their personal comment (`CR…`); the server polls
-toncenter and credits each transaction once. Payouts: sent one at a time with a seqno saved before sending, so a
-restart can never pay twice; a payout that surely did not land (5 tries, 3 min) is returned to the balance.
+Deposits: the player picks an amount, the server opens an invoice and the player pays it in CryptoBot from any
+network CryptoBot takes. A paid invoice is credited once: the invoice row is switched to `paid` in the same
+transaction as the ledger entry, whether the news comes by webhook or by the poll.
+
+Withdrawals follow the support model: from 10 USDT, only once the turnover reaches 2× the deposits, never from a
+blocked or frozen account; up to `ADMIN_REVIEW_OVER` they go straight out, above it an admin approves them; the player
+can cancel a request until it is being sent. Payouts are transfers to the player's CryptoBot wallet by Telegram id, one
+at a time, each with the spend_id `boomy-wd-<id>`: Crypto Pay never pays a spend_id twice, and a payout interrupted by
+a restart is looked up before it is tried again. A short house balance keeps the payout waiting (admins get a message);
+a player who never opened CryptoBot gets the money back with a note.
+
+Setup (testnet): in @CryptoTestnetBot → Crypto Pay → Create App, copy the token into `CRYPTO_PAY_TOKEN`, set the
+webhook to `<PUBLIC_URL>/pay/webhook`, and top the app's balance up with test USDT so payouts can go out.
 
 ## Fairness
 
@@ -122,4 +135,4 @@ Rounds saved before the edge was stored per round were played at 3%.
 ## What is not here yet
 
 Moving coins/skins/quests from the device to the server,
-real online counter, mainnet TON (only after the legal review).
+real online counter, real money (Crypto Pay mainnet, only after the legal review).

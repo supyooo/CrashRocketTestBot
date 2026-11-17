@@ -49,7 +49,7 @@ export function attachWs(server: Server, cfg: Config, wallet: Wallet, isBlocked:
       history: snap.history.map((h) => ({ no: h.no, crash: h.x100 / 100 })) });
   }
 
-  /** Called once this server runs rounds. Money is sent in TON; internal units never leave the server. */
+  /** Called once this server runs rounds. Money is sent in USDT; internal units never leave the server. */
   function setEngine(e: Engine) {
     engine = e;
     e.on('betting', (ev) => { flush(); all({ t: 'betting', ...ev }); });

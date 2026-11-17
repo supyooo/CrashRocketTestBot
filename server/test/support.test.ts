@@ -58,8 +58,8 @@ test('the FAQ tree: every button leads somewhere, every node is reachable, texts
     assert.ok(Buffer.byteLength('f:' + node.id) <= 64);
   }
   // the answers quote the server's limits
-  assert.match(faq.get('g_lim')!.text!.ru, /15 TON на одну панель/);
-  assert.match(faq.get('g_lim')!.text!.ru, /75 TON/);
+  assert.match(faq.get('g_lim')!.text!.ru, /15 USDT на одну панель/);
+  assert.match(faq.get('g_lim')!.text!.ru, /75 USDT/);
   assert.match(faq.get('g_lim')!.text!.ru, /95%/);
   // the model's escalations (red boxes) are all there
   for (const id of ['dep_miss', 'wd_late', 'wd_off', 'g_norefund', 's_unfrz', 's_appeal', 'r_nofriend', 'b_ask', 't_op']) assert.ok(faq.get(id)?.ask, id);
@@ -84,7 +84,7 @@ test('taps edit the menu: sections, answers, Back and Main menu; the language sw
   assert.deepEqual(buttons(edits()[0]!.p), ['f:wd_how', 'f:wd_time', 'f:wd_cancel', 'f:wd_miss', 'f:wd_off', 'f:root']);
   await bot.handle(tap('f:wd_time'));
   const e = edits()[1]!.p;
-  assert.match(e.text, /до 50 TON обрабатывается автоматически/);
+  assert.match(e.text, /до 50 USDT обрабатывается автоматически/);
   assert.deepEqual(buttons(e), ['f:wd_late', 'f:wd', 'f:root']);
   await bot.handle(tap('lang'));
   assert.match(edits()[2]!.p.text, /Boomy support/);
@@ -99,11 +99,11 @@ test('a ticket: details go to the operators with a header, the player is told 24
   await wallet.grant('tg:' + PLAYER, toUnits(12.5), 'g');
   await bot.handle(tap('f:dep_miss'));
   assert.match(calls.at(-1)!.p.text, /Напишите ответ одним сообщением/);
-  await bot.handle(say('TXID abc, 5 TON'));
+  await bot.handle(say('TXID abc, 5 USDT'));
   const head = sent(OPS)[0]!.p;
   assert.match(head.text, /Обращение №1<\/b> · Пополнение → Не пришёл депозит/);
   assert.match(head.text, /@ann \(Ann\)/);
-  assert.match(head.text, /Баланс: 12.5 TON/);
+  assert.match(head.text, /Баланс: 12.5 USDT/);
   assert.match(head.text, /srv\.example\/admin#p=tg%3A555/);
   const copies = sent(OPS, 'copyMessage');
   assert.equal(copies.length, 1);
@@ -122,7 +122,7 @@ test('a ticket: details go to the operators with a header, the player is told 24
 test('operators reply to any ticket message; /close closes it; a blocked player is reported', async () => {
   const { bot, sent, store, blocked } = await setup();
   await bot.handle(tap('f:wd_late'));
-  await bot.handle(say('10 TON, 3 days ago'));
+  await bot.handle(say('10 USDT, 3 days ago'));
   const headId = (await store.db.query("SELECT msg_id FROM support_messages WHERE kind = 'head'")).rows[0].msg_id;
   await bot.handle(opReply(Number(headId), 'Проверили, вывод отправлен'));
   const toPlayer = sent(PLAYER, 'copyMessage');

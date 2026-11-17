@@ -3,7 +3,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import type { Config } from './config.js';
 import { fromUnits, toUnits, LEGACY_EDGE_BPS } from './config.js';
 import { InsufficientFunds } from './store/store.js';
-import { TonError, type TonGateway } from './ton/gateway.js';
+import { PayError, type PayGateway } from './pay/gateway.js';
 import type { Store } from './store/store.js';
 import type { Wallet } from './wallet/wallet.js';
 import type { Engine } from './game/engine.js';
@@ -13,16 +13,20 @@ import type { Admin } from './admin/admin.js';
 
 /** The engine appears once this server holds the leader lock (see main.ts). */
 export type EngineRef = { engine: Engine | null };
-type Ctx = { cfg: Config; store: Store; wallet: Wallet; ref: EngineRef; ton?: TonGateway; admin?: Admin };
+type Ctx = { cfg: Config; store: Store; wallet: Wallet; ref: EngineRef; pay?: PayGateway; admin?: Admin };
 
 const MAX_BODY = 64 * 1024;
-function readJson(req: IncomingMessage): Promise<Record<string, unknown>> {
+function readRaw(req: IncomingMessage): Promise<string> {
   return new Promise((resolve, reject) => {
     let size = 0; const chunks: Buffer[] = [];
     req.on('data', (c: Buffer) => { size += c.length; if (size > MAX_BODY) { reject(new Error('body too large')); req.destroy(); } else chunks.push(c); });
-    req.on('end', () => { try { resolve(chunks.length ? JSON.parse(Buffer.concat(chunks).toString()) : {}); } catch { reject(new Error('invalid json')); } });
+    req.on('end', () => resolve(Buffer.concat(chunks).toString()));
     req.on('error', reject);
   });
+}
+async function readJson(req: IncomingMessage): Promise<Record<string, unknown>> {
+  const raw = await readRaw(req);
+  try { return raw ? JSON.parse(raw) : {}; } catch { throw new Error('invalid json'); }
 }
 function send(res: ServerResponse, code: number, body: unknown) {
   res.writeHead(code, { 'content-type': 'application/json; charset=utf-8' });
@@ -35,8 +39,9 @@ export function sessionFrom(req: IncomingMessage, cfg: Config): Session | null {
   return verifySession(h?.startsWith('Bearer ') ? h.slice(7) : null, cfg.sessionSecret);
 }
 
-export function createApi({ cfg, store, wallet, ref, ton, admin }: Ctx) {
-  const mode = ton ? { currency: 'tton', network: 'testnet' } : { currency: 'play' };
+export function createApi({ cfg, store, wallet, ref, pay, admin }: Ctx) {
+  const mode = pay ? { currency: 'usdt', network: cfg.pay.network } : { currency: 'play' };
+  const money = (x: unknown) => typeof x === 'number' && Number.isFinite(x) ? toUnits(x) : NaN;
   return createServer(async (req, res) => {
     const origin = req.headers.origin;
     if (origin && cfg.corsOrigins.includes(origin)) {
@@ -53,6 +58,13 @@ export function createApi({ cfg, store, wallet, ref, ton, admin }: Ctx) {
       if (url.pathname === '/health') return send(res, 200, { ok: true, leader: !!engine, round: engine?.no, phase: engine?.phase, draining: engine?.isDraining ?? false });
 
       if (admin && (await admin.handle(req, res, url))) return;
+
+      // Crypto Pay's webhook: a paid invoice is credited at once (the poll is the backup); the signature is checked
+      if (url.pathname === '/pay/webhook' && req.method === 'POST') {
+        if (!pay) return send(res, 404, { error: 'payments are not enabled' });
+        const ok = await pay.webhook(await readRaw(req), req.headers['crypto-pay-api-signature'] as string | undefined);
+        return send(res, ok ? 200 : 401, { ok });
+      }
 
       if (url.pathname === '/api/auth' && req.method === 'POST') {
         const body = await readJson(req);
@@ -95,29 +107,33 @@ export function createApi({ cfg, store, wallet, ref, ton, admin }: Ctx) {
           ledger: (await store.ledgerOf(s.uid, 20)).map((e) => ({ kind: e.kind, delta: fromUnits(e.delta), balance: fromUnits(e.balance), at: e.at })) });
       }
 
-      if (url.pathname === '/api/ton/info') {
-        if (!ton) return send(res, 404, { error: 'test TON is not enabled' });
-        const i = await ton.info(s.uid);
-        return send(res, 200, { ...i, minDeposit: fromUnits(i.minDeposit), minWithdraw: fromUnits(i.minWithdraw), maxWithdrawDay: fromUnits(i.maxWithdrawDay),
-          transfers: i.transfers.map((t) => ({ ...t, amount: fromUnits(t.amount) })), balance: fromUnits(await wallet.balance(s.uid)) });
-      }
-
-      if (url.pathname === '/api/ton/withdraw' && req.method === 'POST') {
-        if (!ton) return send(res, 404, { error: 'test TON is not enabled' });
-        const body = await readJson(req);
-        if (typeof body.amount !== 'number' || typeof body.address !== 'string') return send(res, 400, { error: 'amount and address are required' });
+      if (url.pathname.startsWith('/api/pay/')) {
+        if (!pay) return send(res, 404, { error: 'payments are not enabled' });
         try {
-          const r = await ton.requestWithdraw(s.uid, toUnits(body.amount), body.address);
-          return send(res, 200, { id: r.id, balance: fromUnits(r.balance) });
+          if (url.pathname === '/api/pay/info') {
+            const i = await pay.info(s.uid);
+            return send(res, 200, { ...i, minDeposit: fromUnits(i.minDeposit), minWithdraw: fromUnits(i.minWithdraw), maxWithdrawDay: fromUnits(i.maxWithdrawDay), reviewOver: fromUnits(i.reviewOver),
+              wager: { ...i.wager, deposits: fromUnits(i.wager.deposits), need: fromUnits(i.wager.need), done: fromUnits(i.wager.done) },
+              history: i.history.map((h) => ({ ...h, amount: fromUnits(h.amount) })), balance: fromUnits(await wallet.balance(s.uid)) });
+          }
+          if (req.method !== 'POST') return send(res, 405, { error: 'POST only' });
+          const body = await readJson(req);
+          if (url.pathname === '/api/pay/deposit') return send(res, 200, await pay.deposit(s.uid, money(body.amount)));
+          if (url.pathname === '/api/pay/withdraw') {
+            const r = await pay.requestWithdraw(s.uid, money(body.amount));
+            return send(res, 200, { id: r.id, status: r.status, balance: fromUnits(r.balance) });
+          }
+          if (url.pathname === '/api/pay/cancel') return send(res, 200, { balance: fromUnits((await pay.cancelWithdraw(s.uid, Number(body.id))).balance) });
+          return send(res, 404, { error: 'not found' });
         } catch (err) {
-          if (err instanceof TonError || err instanceof InsufficientFunds) return send(res, 400, { error: err.message });
+          if (err instanceof PayError || err instanceof InsufficientFunds) return send(res, 400, { error: err.message });
           throw err;
         }
       }
 
       // play money only: a free top-up when the balance runs dry, three times a day
       if (url.pathname === '/api/refill' && req.method === 'POST') {
-        if (ton) return send(res, 400, { error: 'test TON mode: top up from your wallet' });
+        if (pay) return send(res, 400, { error: 'USDT mode: top up through CryptoBot' });
         if ((await wallet.balance(s.uid)) >= cfg.minBet * 10) return send(res, 400, { error: 'you still have play money' });
         const day = dayKey();
         const used = await store.countRefs(`refill:${s.uid}:${day}:`);
