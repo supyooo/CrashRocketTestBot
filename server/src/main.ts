@@ -16,11 +16,11 @@ import { Wallet } from './wallet/wallet.js';
 import { Engine } from './game/engine.js';
 import { createApi, type EngineRef } from './http.js';
 import { attachWs } from './ws.js';
-import { ToncenterChain, friendly } from './ton/chain.js';
-import { TonGateway } from './ton/gateway.js';
+import { cryptoPay } from './pay/cryptopay.js';
+import { PayGateway } from './pay/gateway.js';
 import { Admin } from './admin/admin.js';
 import { SupportBot } from './support/bot.js';
-import { fromUnits, NANO_PER_UNIT } from './config.js';
+import { fromUnits } from './config.js';
 
 const DRAIN_MAX_MS = Number(process.env.DRAIN_MAX_MS ?? 150_000);
 
@@ -38,50 +38,45 @@ const store = await openStore();
 const wallet = new Wallet(store);
 const ref: EngineRef = { engine: null };
 
-// test TON gateway (config.ts guarantees testnet and Postgres when it is on)
-let ton: TonGateway | undefined;
-if (config.ton.enabled && store instanceof PgStore) {
-  // the wallet kind is remembered once it holds test TON, so the house address never changes between restarts
-  const saved = (await store.db.query("SELECT value FROM kv WHERE key = 'ton_wallet'")).rows[0]?.value as string | undefined;
-  const chain = await ToncenterChain.create(config.ton.endpoint, config.ton.apiKey, config.ton.mnemonic, process.env.TON_WALLET || saved);
-  for (const c of chain.candidates) console.log(`  ${c.kind.padEnd(10)} ${friendly(c.address)}  ${fromUnits(Number(c.nano / NANO_PER_UNIT))} TON`);
-  const funded = chain.candidates.find((c) => c.kind === chain.kind && c.nano > 0n);
-  if (funded) await store.db.query("INSERT INTO kv (key, value) VALUES ('ton_wallet', $1) ON CONFLICT (key) DO NOTHING", [JSON.stringify(chain.kind)]);
-  ton = new TonGateway(config, store.db, chain);
-  console.log(`test TON gateway · house wallet ${friendly(chain.house)} (${chain.kind}${funded || !chain.candidates.length ? '' : ', empty: send test TON to it'})`);
+// USDT through Crypto Pay (config.ts guarantees the testnet and Postgres when it is on)
+let pay: PayGateway | undefined;
+if (config.pay.enabled && store instanceof PgStore) {
+  pay = new PayGateway(config, store.db, cryptoPay(config.pay.token, config.pay.network, config.pay.url));
+  console.log(`USDT payments through Crypto Pay (${config.pay.network})`);
 }
 
 // admin panel (/admin): needs Postgres
 let online = () => 0;
-const admin = store instanceof PgStore ? new Admin({ cfg: config, db: store.db, ref, ton, online: () => online() }) : undefined;
+const admin = store instanceof PgStore ? new Admin({ cfg: config, db: store.db, ref, pay, online: () => online() }) : undefined;
 await admin?.start();
-const api = createApi({ cfg: config, store, wallet, ref, ton, admin });
+const api = createApi({ cfg: config, store, wallet, ref, pay, admin });
 const ws = attachWs(api, config, wallet, (uid) => admin?.isBlocked(uid) ?? false);
 online = () => ws.size;
 if (admin) console.log(`admin panel at /admin · ${config.admin.ids.length} admin id(s)${config.devAuth && !config.botToken ? ' · DEV logins' : ''}`);
-if (ton) {
-  ton.on('deposit', (e: { uid: string; amount: number; balance: number }) => {
+if (pay) {
+  pay.on('deposit', (e: { uid: string; amount: number; balance: number }) => {
     ws.toUser(e.uid, { t: 'balance', balance: fromUnits(e.balance) });
-    ws.toUser(e.uid, { t: 'ton', kind: 'deposit', status: 'credited', amount: fromUnits(e.amount) });
+    ws.toUser(e.uid, { t: 'pay', kind: 'deposit', status: 'paid', amount: fromUnits(e.amount) });
   });
-  ton.on('withdraw', (e: { uid: string; id: number; status: string; amount: number; balance?: number }) => {
+  pay.on('withdraw', (e: { uid: string; id: number; status: string; amount: number; balance?: number; error?: string }) => {
     if (e.balance !== undefined) ws.toUser(e.uid, { t: 'balance', balance: fromUnits(e.balance) });
-    ws.toUser(e.uid, { t: 'ton', kind: 'withdraw', id: e.id, status: e.status, amount: fromUnits(e.amount) });
+    ws.toUser(e.uid, { t: 'pay', kind: 'withdraw', id: e.id, status: e.status, amount: fromUnits(e.amount), error: e.error });
   });
-  ton.on('review', (e: { uid: string; id: number; amount: number }) => void admin?.notify(`Вывод на проверку: ${fromUnits(e.amount)} TON от ${e.uid} (заявка #${e.id}). Откройте админку: /admin`));
+  pay.on('review', (e: { uid: string; id: number; amount: number }) => void admin?.notify(`Вывод на проверку: ${fromUnits(e.amount)} USDT от ${e.uid} (заявка #${e.id}). Откройте админку: /admin`));
+  pay.on('low', (e: { id: number; amount: number }) => void admin?.notify(`Не хватает USDT в Crypto Pay для вывода #${e.id} (${fromUnits(e.amount)} USDT). Пополните баланс приложения.`));
 }
 let loop: NodeJS.Timeout | undefined;
 
 api.listen(config.port, () => console.log(`crash-rocket server on :${config.port} · edge ${config.edgeBps / 100}% · ${config.devAuth ? 'DEV logins enabled' : 'Telegram logins only'}`));
 
 if (store instanceof PgStore) await store.becomeLeader(() => console.log('waiting for the previous server to finish its round…'));
-if (ton) { const n = await ton.resetPlayMoney(); if (n) console.log(`switched to test TON: reset ${n} play-money balances`); }
+if (pay) { const n = await pay.resetBalances(); if (n) console.log(`switched to USDT: reset ${n} old balances`); }
 const engine = await Engine.create(config, store, wallet);
 ref.engine = engine;
 ws.setEngine(engine);
 await engine.start(Date.now());
 loop = setInterval(() => engine.step(Date.now()), 20);
-ton?.start(); // only the leader watches deposits and sends payouts
+pay?.start(); // only the leader watches invoices and sends payouts
 // support bot (the game bot answers the FAQ and passes tickets to operators): only the leader polls Telegram
 const support = config.botToken && config.support.enabled && store instanceof PgStore ? new SupportBot({ cfg: config, db: store.db, wallet }) : undefined;
 if (support) { await support.start(); console.log(`support bot polling · tickets to ${config.support.chatId ? 'the support chat' : 'admins in private'}`); }
@@ -95,7 +90,7 @@ async function shutdown(signal: string) {
   const t0 = Date.now();
   await Promise.race([engine.drain(), new Promise((r) => setTimeout(r, DRAIN_MAX_MS))]);
   if (loop) clearInterval(loop);
-  ton?.stop();
+  pay?.stop();
   await support?.stop();
   admin?.stop();
   console.log(`round finished in ${Math.round((Date.now() - t0) / 1000)} s, handing over`);

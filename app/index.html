@@ -5,7 +5,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700;800&family=Unbounded:wght@500;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap">
-<link rel="stylesheet" href="screens.css?v=20261007">
+<link rel="stylesheet" href="screens.css?v=20261117a">
 <style>
 :root{color-scheme:dark;
   --page:#0d0820;--ink:#ecebf5;--ink-2:#9490b3;--hair:#262143;
@@ -313,7 +313,7 @@ html.tg .device>.app{border-radius:0}
       /* Telegram and GitHub Pages may hand out a cached copy of this page after a release. Ask the site for the
          current version, bypassing every cache; if it is newer, reload once with it in the address (the #hash with
          Telegram's login data is kept). Bump APP_VER here and in version.json on every release. */
-      (()=>{const APP_VER='20261109a';
+      (()=>{const APP_VER='20261117a';
         fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(r=>r.json()).then(d=>{
           if(!d||!d.v||d.v===APP_VER)return;const u=new URL(location.href);
           if(u.searchParams.get('v')===d.v)return;          // already asked for it once: never loop
@@ -351,7 +351,7 @@ html.tg .device>.app{border-radius:0}
       </script>
       <header class="top">
         <div class="bal" id="balBox">
-          <svg class="ton" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="12" fill="#0098ea"/><path d="M7.2 7.5h9.6c.7 0 1.1.8.8 1.4L12.6 17c-.3.5-.9.5-1.2 0L6.4 8.9c-.3-.6.1-1.4.8-1.4zm4.1 1.3H8.3l3 5.4V8.8zm1.4 0v5.4l3-5.4h-3z" fill="#fff"/></svg>
+          <svg class="ton" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="12" fill="#26a17b"/><path fill="#fff" d="M13.3 10.4V8.9h3.5V6.6H7.2v2.3h3.5v1.5c-2.9.1-5 .7-5 1.4s2.1 1.3 5 1.4v4.8h2.6v-4.8c2.9-.1 5-.7 5-1.4s-2.1-1.3-5-1.4zm0 2.4h-2.6c-2.5-.1-4.3-.5-4.3-1s1.8-.9 4.3-1v1.6h2.6v-1.6c2.5.1 4.3.5 4.3 1s-1.8.9-4.3 1z"/></svg>
           <span id="bal">25.00</span>
           <button class="plus" id="topup" aria-label="+">+</button>
         </div>
@@ -384,7 +384,7 @@ html.tg .device>.app{border-radius:0}
         <div class="bp">
           <div class="pop l amtPop">
             <div class="pgrid quick"><button data-v="0.5">0.5</button><button data-v="1">1</button><button data-v="2">2</button><button data-v="5">5</button><button data-v="10">10</button><button data-v="15">15</button><button data-q="half">½</button><button data-q="dbl">×2</button></div>
-            <label class="pfield"><span data-i="yourAmt">Своя сумма</span><input class="amtIn" inputmode="decimal" value="1.00" aria-label="Bet"><b>TON</b></label>
+            <label class="pfield"><span data-i="yourAmt">Своя сумма</span><input class="amtIn" inputmode="decimal" value="1.00" aria-label="Bet"><b>USDT</b></label>
           </div>
           <div class="pop r autoPop">
             <label class="auto"><span class="sw-t"><input type="checkbox" class="autoOn"><span></span></span><span data-i="auto">Автовывод</span></label>
@@ -392,7 +392,7 @@ html.tg .device>.app{border-radius:0}
             <label class="auto"><span class="sw-t"><input type="checkbox" class="autoBet"><span></span></span><span data-i="autoBet">Автоставка</span></label>
           </div>
           <div class="drow">
-            <div class="amt"><button class="dec" aria-label="−">−</button><button class="amtBtn"><span class="amtV">1.00</span><svg class="ton" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="12" fill="#0098ea"/><path d="M7.2 7.5h9.6c.7 0 1.1.8.8 1.4L12.6 17c-.3.5-.9.5-1.2 0L6.4 8.9c-.3-.6.1-1.4.8-1.4zm4.1 1.3H8.3l3 5.4V8.8zm1.4 0v5.4l3-5.4h-3z" fill="#fff"/></svg></button><button class="inc" aria-label="+">+</button></div>
+            <div class="amt"><button class="dec" aria-label="−">−</button><button class="amtBtn"><span class="amtV">1.00</span><svg class="ton" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="12" fill="#26a17b"/><path fill="#fff" d="M13.3 10.4V8.9h3.5V6.6H7.2v2.3h3.5v1.5c-2.9.1-5 .7-5 1.4s2.1 1.3 5 1.4v4.8h2.6v-4.8c2.9-.1 5-.7 5-1.4s-2.1-1.3-5-1.4zm0 2.4h-2.6c-2.5-.1-4.3-.5-4.3-1s1.8-.9 4.3-1v1.6h2.6v-1.6c2.5.1 4.3.5 4.3 1s-1.8.9-4.3 1z"/></svg></button><button class="inc" aria-label="+">+</button></div>
             <button class="achip autoBtn"><span data-i="autoS">Авто</span><b class="autoV"></b></button>
             <button class="pbx" aria-label="Second bet"></button>
           </div>
@@ -432,7 +432,7 @@ const I18N={
   bet:'Ставка',cancel:'Отменить',cash:'Забрать',betNext:'След. ставка',nextQueued:'След. ставка',accepted:'Ставка принята',
   startIn:s=>`Старт через ${s} с`,alt:m=>`Высота ${fmtInt(Math.round((m-1)*1000))} м`,boom:c=>`Взрыв на ${c}x`,go:'ПУСК!',
   winL:'Ты забрал',bigL:'Большой выигрыш',on:m=>`на ${m}x`,on2:x=>`на ${x.join("x и ")}x`,bigwin:'BIG WIN!',rekt:'ЛИКВИДАЦИЯ',histT:'История раундов',histN:n=>`последние ${n}`,safe:m=>`Ты успел выйти на ${m}x`,
-  noFunds:'Недостаточно TON',players:n=>`Игроки · ${n}`,pool:v=>`Банк ${v} TON`,flying:'в полёте',you:'Вы',online:n=>`${fmtInt(n)} онлайн`,
+  noFunds:'Недостаточно USDT',players:n=>`Игроки · ${n}`,pool:v=>`Банк ${v} USDT`,flying:'в полёте',you:'Вы',online:n=>`${fmtInt(n)} онлайн`,
   soon:'Этот экран сделаем следующим шагом',topup:'Пополнение появится вместе с бэкендом',refill:'Демо-баланс пополнен',
   wear:'Надеть',worn:'Выбрано',playersH:'Игроки раунда',yourAmt:'Своя сумма',atX:'На множителе',autoS:'Авто',off:'выкл',autoBet:'Автоставка',autoStop:'Автоставка выключена: не хватает на ставку',tRound:'Раунд',tMine:'Мои ставки',noMine:'Вы ещё не играли',
   zones:['Сквозь облака','Стратосфера','Открытый космос','Мимо Луны','Варп-скорость'],zoneN:(i,m)=>`Зона ${i} · ${m}x`},
@@ -441,7 +441,7 @@ const I18N={
   bet:'Bet',cancel:'Cancel',cash:'Cash out',betNext:'Next bet',nextQueued:'Next bet',accepted:'Bet placed',
   startIn:s=>`Launch in ${s}s`,alt:m=>`Altitude ${fmtInt(Math.round((m-1)*1000))} m`,boom:c=>`Exploded at ${c}x`,go:'LIFTOFF!',
   winL:'You cashed out',bigL:'Big win',on:m=>`at ${m}x`,on2:x=>`at ${x.join("x and ")}x`,bigwin:'BIG WIN!',rekt:'LIQUIDATED',histT:'Round history',histN:n=>`last ${n}`,safe:m=>`You bailed at ${m}x`,
-  noFunds:'Not enough TON',players:n=>`Players · ${n}`,pool:v=>`Pool ${v} TON`,flying:'flying',you:'You',online:n=>`${fmtInt(n)} online`,
+  noFunds:'Not enough USDT',players:n=>`Players · ${n}`,pool:v=>`Pool ${v} USDT`,flying:'flying',you:'You',online:n=>`${fmtInt(n)} online`,
   soon:'This screen is the next step',topup:'Top-up arrives with the backend',refill:'Demo balance refilled',
   wear:'Equip',worn:'Equipped',playersH:'Round players',yourAmt:'Custom amount',atX:'At multiplier',autoS:'Auto',off:'off',autoBet:'Auto bet',autoStop:'Auto-bet is off: not enough for the bet',tRound:'Round',tMine:'My bets',noMine:'No bets yet',
   zones:['Through the clouds','Stratosphere','Open space','Moon flyby','Warp speed'],zoneN:(i,m)=>`Zone ${i} · ${m}x`}
@@ -451,7 +451,7 @@ const T=k=>I18N[lang][k];
 const fmtInt=n=>n.toLocaleString(lang==='ru'?'ru-RU':'en-US');
 const fmtTon=n=>n.toLocaleString(lang==='ru'?'ru-RU':'en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
 const x2=m=>m.toFixed(2);
-const CUR=()=>window.NET&&NET.demo?' DEMO':' TON';   // the player's own amounts: virtual in demo mode
+const CUR=()=>window.NET&&NET.demo?' DEMO':' USDT';   // the player's own amounts: virtual in demo mode
 const xf=m=>Math.floor(m*100)/100; // the multiplier as the server counts it (floor(100*m)): 1.999 is 1.99, never rounded up
 
 
@@ -748,7 +748,7 @@ function renderPlayers(){
   rows.sort((a,b)=>(b.me?1e9:0)-(a.me?1e9:0)||(b.out?1:0)-(a.out?1:0)||b.bet-a.bet);
   const real=rows.filter(r=>!r.demo),pool=real.reduce((s,r)=>s+r.bet,0);   // a demo bet is not in the round's real pool
   set('phL','textContent',T('players')(real.length));set('phR','textContent',T('pool')(fmtTon(pool)));
-  set('plN','textContent',String(real.length));set('plPool','textContent',fmtTon(pool)+' TON');
+  set('plN','textContent',String(real.length));set('plPool','textContent',fmtTon(pool)+' USDT');
   if(psTab==='mine'){  // my last rounds: time, stake, multiplier, result
     const h=window.ECO&&ECO.hist?ECO.hist():[];
     $('plist').innerHTML=h.length?h.map(r=>`<div class="pl my ${r.win?'won':'lost'}"><span class="n">${r.time}</span><span class="b">${fmtTon(r.amt)}</span><span class="r">${x2(r.x)}x · ${r.win?'+'+fmtTon(r.win-r.amt):'−'+fmtTon(r.amt)}</span></div>`).join(''):`<div class="pl my"><span class="n">${T('noMine')}</span></div>`;return}
@@ -772,7 +772,7 @@ function setAmt(i,v){v=clamp(Math.round(v*100)/100,LIM.min,LIM.max);PN[i].amtIn.
 function autoChip(i){const p=PN[i],on=p.autoOn.checked,ab=p.autoBet.checked;p.autoBtn.classList.toggle('on',on||ab);p.autoV.textContent=[on?x2(autoX(i))+'x':ab?'':T('off'),ab?'↻':''].filter(Boolean).join(' ')}
 /** Auto-bet: the same amount every round until it is switched off or the balance runs short. */
 function autoBetDue(i){if(!PN[i].autoBet.checked||S.bets[i]||S.nexts[i]||PN[i].el.hidden)return 0;const a=getAmt(i);
-  if(S.bal<a){PN[i].autoBet.checked=false;autoChip(i);toast(T('autoStop'),'bad');window.NET&&NET.ton&&!NET.demo&&NET.openTon('deposit');return 0}return a}
+  if(S.bal<a){PN[i].autoBet.checked=false;autoChip(i);toast(T('autoStop'),'bad');window.NET&&NET.pay&&!NET.demo&&NET.openPay('deposit');return 0}return a}
 function closePops(){document.querySelectorAll('.pop.on').forEach(p=>p.classList.remove('on'));$('histBtn').setAttribute('aria-expanded','false')}
 function togglePop(p){const was=p.classList.contains('on');closePops();if(!was)p.classList.add('on');haptic('select')}
 // the second panel: shown with +, hidden with × (only when it has no bet); remembered on this device
@@ -926,7 +926,7 @@ function tick(ts){
 requestAnimationFrame(tick);
 </script>
 <!-- ?v=: bump on every release so Telegram does not keep old copies (and APP_VER + version.json for the page itself) -->
-<script src="screens.js?v=20261007"></script>
-<script src="net.js?v=20261109a"></script>
+<script src="screens.js?v=20261117a"></script>
+<script src="net.js?v=20261117a"></script>
 <script src="round.js?v=20261109a"></script>
-<script src="menu.js?v=20261109a"></script>
+<script src="menu.js?v=20261117a"></script>

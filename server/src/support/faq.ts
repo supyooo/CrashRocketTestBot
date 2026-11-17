@@ -1,6 +1,6 @@
 /**
  * The support bot's FAQ tree, from the support model (docs/support-model.md). Texts are the model's answers;
- * the currency is TON (the model says USDT) and every limit comes from the server config, so the answers
+ * the currency is USDT, as in the model, and every limit comes from the server config, so the answers
  * never disagree with the game.
  *
  * A node is either a section (title + kids: a menu) or an answer (title + text, maybe kids: buttons under it).
@@ -22,7 +22,7 @@ export function faqParams(cfg: Config) {
   const n = (u: number) => String(fromUnits(u));
   return {
     minBet: fromUnits(cfg.minBet).toFixed(2), maxBet: n(cfg.maxBet), maxWin: n(cfg.maxWin), rtp: String(100 - cfg.edgeBps / 100),
-    minDeposit: n(cfg.ton.minDeposit), minWithdraw: n(cfg.ton.minWithdraw), reviewOver: n(cfg.admin.reviewOver),
+    minDeposit: n(cfg.pay.minDeposit), minWithdraw: n(cfg.pay.minWithdraw), reviewOver: n(cfg.admin.reviewOver), wager: String(cfg.pay.wager),
     email: cfg.support.partnerEmail
   };
 }
@@ -56,13 +56,13 @@ export function buildFaq(p: P): Map<string, FaqNode> {
 • В верхней части экрана нажмите кнопку «Пополнить».
 • Выберите предпочитаемую криптовалюту и сеть, затем укажите сумму пополнения.
 • Следуйте инструкциям на экране для завершения платежа.
-Минимальная сумма пополнения — ${p.minDeposit} TON.`,
+Минимальная сумма пополнения — ${p.minDeposit} USDT.`,
               en: `To top up your balance:
 • Open "Profile" at the bottom of the screen.
 • Tap "Deposit" at the top of the screen.
 • Choose the cryptocurrency and network you prefer, then enter the amount.
 • Follow the on-screen instructions to complete the payment.
-The minimum deposit is ${p.minDeposit} TON.` } },
+The minimum deposit is ${p.minDeposit} USDT.` } },
     { id: 'dep_miss', title: { ru: 'Не пришёл депозит', en: 'My deposit has not arrived' }, ask: true,
       text: { ru: `Депозиты обрабатываются автоматически через независимый криптошлюз. Обычно зачисление занимает несколько минут после подтверждения сети.
 <b>Важно:</b>
@@ -90,18 +90,18 @@ If the network has confirmed the transaction but the funds have not reached your
 • Перейдите в раздел «Профиль» в нижней части экрана.
 • Нажмите на кнопку «Вывести».
 • Выберите сумму вывода.
-Минимальная сумма вывода — ${p.minWithdraw} TON. Комиссии с нашей стороны отсутствуют.
-<b>Обратите внимание:</b> функция вывода становится доступна только после выполнения условия обязательного оборота (вейджер ×2) от суммы ваших депозитов.`,
+Минимальная сумма вывода — ${p.minWithdraw} USDT. Комиссии с нашей стороны отсутствуют.
+<b>Обратите внимание:</b> функция вывода становится доступна только после выполнения условия обязательного оборота (вейджер ×${p.wager}) от суммы ваших депозитов.`,
               en: `To withdraw:
 • Open "Profile" at the bottom of the screen.
 • Tap "Withdraw".
 • Choose the amount.
-The minimum withdrawal is ${p.minWithdraw} TON. We charge no fees.
-<b>Please note:</b> withdrawals become available only after the required turnover (wager ×2) of your deposits is met.` } },
+The minimum withdrawal is ${p.minWithdraw} USDT. We charge no fees.
+<b>Please note:</b> withdrawals become available only after the required turnover (wager ×${p.wager}) of your deposits is met.` } },
     { id: 'wd_time', title: { ru: 'Сроки вывода', en: 'Withdrawal times' }, kids: ['wd_late'],
-      text: { ru: `Вывод средств до ${p.reviewOver} TON обрабатывается автоматически. Заявки свыше ${p.reviewOver} TON проходят ручную проверку службой безопасности. Стандартный срок обработки таких заявок составляет до 48 рабочих часов.
+      text: { ru: `Вывод средств до ${p.reviewOver} USDT обрабатывается автоматически. Заявки свыше ${p.reviewOver} USDT проходят ручную проверку службой безопасности. Стандартный срок обработки таких заявок составляет до 48 рабочих часов.
 Если <b>по истечении этого срока</b> вывод не поступил, пожалуйста, нажмите на кнопку «Сроки вывода прошли».`,
-              en: `Withdrawals up to ${p.reviewOver} TON are processed automatically. Requests above ${p.reviewOver} TON are reviewed by the security team by hand. The standard processing time for them is up to 48 business hours.
+              en: `Withdrawals up to ${p.reviewOver} USDT are processed automatically. Requests above ${p.reviewOver} USDT are reviewed by the security team by hand. The standard processing time for them is up to 48 business hours.
 If the withdrawal has not arrived <b>after that time</b>, please tap "Withdrawal time has passed".` } },
     { id: 'wd_late', title: { ru: 'Сроки вывода прошли', en: 'Withdrawal time has passed' }, ask: true,
       text: { ru: `Опишите, пожалуйста, ситуацию: сумма и дата заявки на вывод, адрес кошелька. ${ONE_MSG_RU}`,
@@ -118,9 +118,9 @@ To cancel:
 • Tap "Transactions".
 • Find your request with the "Pending" status and tap the cross ("✕") next to it. The funds return to your game balance at once.` } },
     { id: 'wd_miss', title: { ru: 'Вывод не поступил', en: 'My withdrawal has not arrived' }, kids: ['wd_late'],
-      text: { ru: `Вывод средств до ${p.reviewOver} TON обрабатывается автоматически. Заявки свыше ${p.reviewOver} TON проходят ручную проверку службой безопасности. Стандартный срок обработки таких заявок составляет до 48 рабочих часов.
+      text: { ru: `Вывод средств до ${p.reviewOver} USDT обрабатывается автоматически. Заявки свыше ${p.reviewOver} USDT проходят ручную проверку службой безопасности. Стандартный срок обработки таких заявок составляет до 48 рабочих часов.
 Если <b>по истечении этого срока</b> вывод не поступил, пожалуйста, нажмите на кнопку «Сроки вывода прошли».`,
-              en: `Withdrawals up to ${p.reviewOver} TON are processed automatically. Requests above ${p.reviewOver} TON are reviewed by the security team by hand. The standard processing time for them is up to 48 business hours.
+              en: `Withdrawals up to ${p.reviewOver} USDT are processed automatically. Requests above ${p.reviewOver} USDT are reviewed by the security team by hand. The standard processing time for them is up to 48 business hours.
 If the withdrawal has not arrived <b>after that time</b>, please tap "Withdrawal time has passed".` } },
     { id: 'wd_off', title: { ru: 'Вывод отменён', en: 'My withdrawal was cancelled' }, ask: true,
       text: { ru: `Ваша заявка на вывод была отменена, а аккаунт временно ограничен в рамках стандартной проверки службы безопасности (AML-политика). Для снятия ограничений нам необходимо убедиться, что аккаунтом владеете именно вы.
@@ -178,14 +178,14 @@ If something failed and the refund did not arrive, please tap "There was no refu
               en: `All rounds are calculated on our servers in real time. If your internet drops, your phone freezes or Telegram closes by accident, the flight does not stop. If you did not tap "Cash out" and had no auto cash-out set, the bet is lost at the crash. If you set a multiplier in "Auto cash-out" beforehand, the system locks in your win even if you are completely offline. Please use auto cash-out as a safety net on a weak connection!` } },
     { id: 'g_lim', title: { ru: 'Лимиты ставок', en: 'Bet limits' },
       text: { ru: `Лимиты игры на данный момент:
-• <b>Минимальная ставка:</b> ${p.minBet} TON
-• <b>Максимальная ставка:</b> ${p.maxBet} TON на одну панель
-• <b>Максимальная выплата (Max Win):</b> ${p.maxWin} TON с одной ставки (включает сумму вашей ставки и чистый выигрыш). При достижении этой суммы система автоматически зафиксирует победу.
+• <b>Минимальная ставка:</b> ${p.minBet} USDT
+• <b>Максимальная ставка:</b> ${p.maxBet} USDT на одну панель
+• <b>Максимальная выплата (Max Win):</b> ${p.maxWin} USDT с одной ставки (включает сумму вашей ставки и чистый выигрыш). При достижении этой суммы система автоматически зафиксирует победу.
 Процент возврата игроку (RTP) составляет ${p.rtp}%. Это математическое ожидание возврата средств на длинной дистанции.`,
               en: `Current limits:
-• <b>Minimum bet:</b> ${p.minBet} TON
-• <b>Maximum bet:</b> ${p.maxBet} TON per panel
-• <b>Maximum payout (Max Win):</b> ${p.maxWin} TON per bet (your stake plus the net win). When a bet reaches it, the system locks in the win automatically.
+• <b>Minimum bet:</b> ${p.minBet} USDT
+• <b>Maximum bet:</b> ${p.maxBet} USDT per panel
+• <b>Maximum payout (Max Win):</b> ${p.maxWin} USDT per bet (your stake plus the net win). When a bet reaches it, the system locks in the win automatically.
 The return to player (RTP) is ${p.rtp}%. It is the expected return over the long run.` } },
 
     // ---------- security, bans and AML ----------
@@ -253,8 +253,8 @@ Documents are handled by authorised staff and stored encrypted under the Privacy
     { id: 'bonus', title: { ru: 'Бонусы', en: 'Bonuses' }, kids: ['b_wel', 'b_hng', 'b_vch', 'b_tsk'] },
     { id: 'b_wel', title: { ru: 'Приветственный бонус 500%', en: 'Welcome bonus 500%' }, kids: ['b_how', 'b_miss'] },
     { id: 'b_how', title: { ru: 'Как работает бонус на депозит?', en: 'How does the deposit bonus work?' }, kids: ['b_ask'],
-      text: { ru: 'За первые 4 пополнения вы получаете от 50% до 200% на Бонусный счёт в виде виртуальных Монет (например, при первом депозите на 10 TON вы получите 200 Монет). <b>Важно:</b> Монеты не подлежат выводу в криптовалюту.',
-              en: 'For your first 4 deposits you get 50% to 200% on the Bonus account as virtual Coins (for example, a first deposit of 10 TON gives 200 Coins). <b>Important:</b> Coins cannot be withdrawn as cryptocurrency.' } },
+      text: { ru: 'За первые 4 пополнения вы получаете от 50% до 200% на Бонусный счёт в виде виртуальных Монет (например, при первом депозите на 10 USDT вы получите 200 Монет). <b>Важно:</b> Монеты не подлежат выводу в криптовалюту.',
+              en: 'For your first 4 deposits you get 50% to 200% on the Bonus account as virtual Coins (for example, a first deposit of 10 USDT gives 200 Coins). <b>Important:</b> Coins cannot be withdrawn as cryptocurrency.' } },
     { id: 'b_miss', title: { ru: 'Депозит сделал, а бонус не пришёл', en: 'I deposited but got no bonus' }, kids: ['b_ask'],
       text: { ru: 'Бонусные Монеты начисляются автоматически. Проверьте ваш Бонусный баланс в разделе «Ангар». Если Монет нет, убедитесь, что это один из ваших первых четырёх депозитов. Если проблема сохраняется, нажмите кнопку ниже.',
               en: 'Bonus Coins are credited automatically. Check your Bonus balance in the "Hangar". If there are no Coins, make sure it was one of your first four deposits. If the problem persists, tap the button below.' } },
@@ -271,8 +271,8 @@ Documents are handled by authorised staff and stored encrypted under the Privacy
 • A detailed description of the error and what happened.` } },
     { id: 'b_hng', title: { ru: 'Ангар, скины и кэшбек', en: 'Hangar, skins and cashback' }, kids: ['h_why', 'h_cb', 'h_dup'] },
     { id: 'h_why', title: { ru: 'Для чего нужны Монеты и Скины?', en: 'What are Coins and Skins for?' },
-      text: { ru: 'Монеты — это виртуальная валюта, которую нельзя вывести в TON. Они используются для покупки Кейсов со Скинами в Ангаре. Скины меняют визуал игры, а редкие предметы (Эпические и Легендарные) дают пассивные бонусы — например, ускоряют заработок Монет. На шанс выигрыша реальных денег скины не влияют.',
-              en: 'Coins are a virtual currency that cannot be withdrawn as TON. They buy Cases with Skins in the Hangar. Skins change how the game looks, and rare items (Epic and Legendary) give passive bonuses, such as earning Coins faster. Skins do not change your chance to win real money.' } },
+      text: { ru: 'Монеты — это виртуальная валюта, которую нельзя вывести в USDT. Они используются для покупки Кейсов со Скинами в Ангаре. Скины меняют визуал игры, а редкие предметы (Эпические и Легендарные) дают пассивные бонусы — например, ускоряют заработок Монет. На шанс выигрыша реальных денег скины не влияют.',
+              en: 'Coins are a virtual currency that cannot be withdrawn as USDT. They buy Cases with Skins in the Hangar. Skins change how the game looks, and rare items (Epic and Legendary) give passive bonuses, such as earning Coins faster. Skins do not change your chance to win real money.' } },
     { id: 'h_cb', title: { ru: 'Не пришёл кэшбек (Монеты) за ставки', en: 'No cashback (Coins) for my bets' },
       text: { ru: 'Кэшбек в виде Монет начисляется автоматически только за ставки с Реального баланса (TON). Ставки, сделанные с использованием Фрибетов, не приносят дополнительных Монет. Если вы используете редкие Скины, процесс начисления монет ускоряется.',
               en: 'Coin cashback is credited automatically, only for bets from the Real balance (TON). Bets made with Free bets bring no extra Coins. Rare Skins speed up earning Coins.' } },

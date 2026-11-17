@@ -15,12 +15,12 @@ const TX={
   balance:n=>`Баланс ${n} монет`,after:n=>`После покупки ${n}`,preview:'Так будет выглядеть твоя сборка',
   how:'Больше монет: задания и турниры во вкладке',howBtn:'Турниры',inSet:'Коллекция',
   segWeek:'Турнир',segDay:'Топ дня',segQ:'Задания',weekT:'Лунная гонка',weekLeft:'Турнир недели · осталось',weekRule:'Очки — сумма пяти твоих лучших множителей за неделю',
-  weekFund:'Фонд: 250 000 монет + Золотой парашют',dayLeft:'Топ дня · до конца',dayT:'Самый высокий пойманный множитель',dayRule:'Считается только забранная ставка от 0,5 TON. Тройка лидеров получает монеты.',
+  weekFund:'Фонд: 250 000 монет + Золотой парашют',dayLeft:'Топ дня · до конца',dayT:'Самый высокий пойманный множитель',dayRule:'Считается только забранная ставка от 0,5 USDT. Тройка лидеров получает монеты.',
   you:'Ты',login:'Награда за вход',streak:n=>`Серия ${n} дн.`,claimDay:(n,d)=>`Забрать ${n} монет за день ${d}`,claimedDay:'Награда за сегодня получена',
   dQuests:'Задания дня',refresh:'Обновятся через',claim:'Забрать',got:'Получено',weekly:'Задание недели',
   q1:'Сыграй 10 раундов',q2:'Забери на 3x и выше',q3:'Поставь 3 раунда подряд',q4:'Пригласи друга',
   wq:'Забери на 10x три раза',wqR:'награда: Ретро-шаттл',wqRcoins:'награда: 1 500 монет',chest:'Сундук',today:'сегодня',done:'получено',
-  lvl:n=>`Пилот · ${n} ур.`,bal:'Баланс',top:'Пополнить',wd:'Вывести',earn:'Как заработать',
+  lvl:n=>`Пилот · ${n} ур.`,bal:'Баланс',top:'Пополнить',wd:'Вывести',detail:'Детализация',earn:'Как заработать',
   sRounds:'Раундов сыграно',sBest:'Лучший множитель',sTurn:'Оборот',sNet:'Итог',
   coll:'Коллекция скинов',refH:'Приглашай друзей',refP:'1% с оборота каждого друга и 1 000 монет, когда он сыграет первый раунд.',
   copy:'Копировать',share:'Поделиться',copied:'Ссылка скопирована',invited:'Приглашено',earned:'Заработано',
@@ -35,12 +35,12 @@ const TX={
   balance:n=>`Balance ${n} coins`,after:n=>`After purchase ${n}`,preview:'This is how your build will look',
   how:'More coins: quests and tournaments in the tab',howBtn:'Tournaments',inSet:'Collection',
   segWeek:'Tournament',segDay:'Top today',segQ:'Quests',weekT:'Moon Race',weekLeft:'Weekly tournament · ends in',weekRule:'Score is the sum of your five best multipliers this week',
-  weekFund:'Prize: 250,000 coins + Golden parachute',dayLeft:'Top today · ends in',dayT:'Highest multiplier cashed out',dayRule:'Only cash-outs from 0.5 TON count. The top three get coins.',
+  weekFund:'Prize: 250,000 coins + Golden parachute',dayLeft:'Top today · ends in',dayT:'Highest multiplier cashed out',dayRule:'Only cash-outs from 0.5 USDT count. The top three get coins.',
   you:'You',login:'Daily login',streak:n=>`${n}-day streak`,claimDay:(n,d)=>`Claim ${n} coins for day ${d}`,claimedDay:'Today\'s reward claimed',
   dQuests:'Daily quests',refresh:'Refresh in',claim:'Claim',got:'Claimed',weekly:'Weekly quest',
   q1:'Play 10 rounds',q2:'Cash out at 3x or more',q3:'Bet 3 rounds in a row',q4:'Invite a friend',
   wq:'Cash out at 10x three times',wqR:'reward: Retro Shuttle',wqRcoins:'reward: 1,500 coins',chest:'Chest',today:'today',done:'claimed',
-  lvl:n=>`Pilot · lvl ${n}`,bal:'Balance',top:'Top up',wd:'Withdraw',earn:'How to earn',
+  lvl:n=>`Pilot · lvl ${n}`,bal:'Balance',top:'Top up',wd:'Withdraw',detail:'Transactions',earn:'How to earn',
   sRounds:'Rounds played',sBest:'Best multiplier',sTurn:'Turnover',sNet:'Net',
   coll:'Skin collection',refH:'Invite friends',refP:'1% of each friend\'s turnover and 1,000 coins when they play their first round.',
   copy:'Copy',share:'Share',copied:'Link copied',invited:'Invited',earned:'Earned',
@@ -77,7 +77,7 @@ const DESC={
  short:{ru:'Красная свеча, которая по иронии летит вверх. График на борту всё равно идёт вниз.',en:'A red candle that, ironically, flies up. The chart on its side still goes down.'},
  retro:{ru:'Хромированная классика пятидесятых. Летит на живом огне и разлетается серебряными обломками.',en:'Chrome fifties classic. Flies on real fire and bursts into silver debris.'},
  plane:{ru:'Бумажный самолётик, как в Telegram. Без огня, только ветер за крыльями.',en:'A paper plane, Telegram style. No fire, just wind behind the wings.'},
- ledger:{ru:'Аппаратный кошелёк с реактивной тягой. На экране баланс TON +∞.',en:'A jet-powered hardware wallet. The screen reads TON +∞.'},
+ ledger:{ru:'Аппаратный кошелёк с реактивной тягой. На экране баланс USDT +∞.',en:'A jet-powered hardware wallet. The screen reads USDT +∞.'},
  cart:{ru:'Тележка из супермаркета на ускорителе. Багет и мешок денег в комплекте.',en:'A supermarket cart on a booster. Comes with a baguette and a sack of cash.'},
  bath:{ru:'Ванна на львиных лапах, доверху набитая купюрами.',en:'A clawfoot tub stuffed to the brim with banknotes.'},
  cyber:{ru:'Угловатый стальной пикап на синем форсаже.',en:'An angular steel pickup on a blue afterburner.'},
@@ -286,16 +286,17 @@ const refLink=()=>`https://t.me/CrashRocketTestBot?startapp=ref_${(user()&&user(
 function renderProfile(){const u=user(),name=u?(u.username?'@'+u.username:[u.first_name,u.last_name].filter(Boolean).join(' ')):tx('pilot'),ini=(u?(u.first_name||u.username||'P'):'P').slice(0,1).toUpperCase(),lv=level();
   const total=CAT.reduce((a,c)=>a+c.items.filter(i=>i[1]!=='t').length,0),mine=CAT.reduce((a,c)=>a+c.items.filter(i=>i[1]!=='t'&&owns(c.k,i[0])).length,0);
   const dec=v=>v.toFixed(2).replace('.',lang==='ru'?',':'.');
-  const hist=D.st.hist.slice(0,6).map(h=>`<div class="hrow"><span>${h.time}</span><span>${fmtTon(h.amt)} TON</span><span style="color:${h.win?'var(--cyan)':'var(--muted)'};font-weight:700">${dec(h.x)}x</span><b style="color:${h.win?'var(--green)':'var(--red)'}">${h.win?'+'+fmtTon(h.win-h.amt):'−'+fmtTon(h.amt)}</b></div>`).join('');
+  const hist=D.st.hist.slice(0,6).map(h=>`<div class="hrow"><span>${h.time}</span><span>${fmtTon(h.amt)} USDT</span><span style="color:${h.win?'var(--cyan)':'var(--muted)'};font-weight:700">${dec(h.x)}x</span><b style="color:${h.win?'var(--green)':'var(--red)'}">${h.win?'+'+fmtTon(h.win-h.amt):'−'+fmtTon(h.amt)}</b></div>`).join('');
   scr.profile.innerHTML=`<div class="mehead"><span class="pic">${u&&u.photo_url?`<img src="${esc(u.photo_url)}" alt="">`:ini}</span><div class="who"><b>${esc(name)}</b><div class="lvl"><span>${tx('lvl')(lv.L)}</span><div class="bar5"><i style="width:${lv.cur/lv.need*100}%"></i></div><span>${num(lv.cur)} / ${num(lv.need)}</span></div></div></div>
-   <div class="wallet"><span class="lbl">${tx('bal')}</span><div class="sum"><svg width="30" height="30" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="12" fill="#0098ea"/><path d="M7.2 7.5h9.6c.7 0 1.1.8.8 1.4L12.6 17c-.3.5-.9.5-1.2 0L6.4 8.9c-.3-.6.1-1.4.8-1.4zm4.1 1.3H8.3l3 5.4V8.8zm1.4 0v5.4l3-5.4h-3z" fill="#fff"/></svg><b>${fmtTon(S.bal)}</b><span>TON</span></div>
+   <div class="wallet"><span class="lbl">${tx('bal')}</span><div class="sum"><svg width="30" height="30" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="12" fill="#26a17b"/><path fill="#fff" d="M13.3 10.4V8.9h3.5V6.6H7.2v2.3h3.5v1.5c-2.9.1-5 .7-5 1.4s2.1 1.3 5 1.4v4.8h2.6v-4.8c2.9-.1 5-.7 5-1.4s-2.1-1.3-5-1.4zm0 2.4h-2.6c-2.5-.1-4.3-.5-4.3-1s1.8-.9 4.3-1v1.6h2.6v-1.6c2.5.1 4.3.5 4.3 1s-1.8.9-4.3 1z"/></svg><b>${fmtTon(S.bal)}</b><span>USDT</span></div>
     <div class="row2"><button class="btn green" data-act="deposit">${tx('top')}</button><button class="btn ghost" data-act="withdraw">${tx('wd')}</button></div>
+    <button class="btn ghost wide" data-act="history">${tx('detail')}</button>
     <div class="cn">${COIN}<b>${num(D.coins)} ${tx('coins')}</b><span style="flex:1"></span><button class="link" data-act="gotourq">${tx('earn')}</button></div></div>
    <div class="stats"><div class="box"><span>${tx('sRounds')}</span><b>${num(D.st.rounds)}</b></div><div class="box"><span>${tx('sBest')}</span><b style="color:var(--gold)">${D.st.best?dec(D.st.best)+'x':'—'}</b></div></div>
    <button class="box colb" data-act="gohangar"><canvas data-th="char:${SEL.char}"></canvas><div class="t"><div><b>${tx('coll')}</b><span style="color:var(--muted);font-size:12.5px">${mine} / ${total}</span></div><div class="bar5"><i style="width:${mine/total*100}%"></i></div></div><span style="font-size:20px;color:var(--muted)">›</span></button>
    <div class="box ref"><h2>${tx('refH')}</h2><p>${tx('refP')}</p><div class="url" id="refUrl">${esc(refLink().replace('https://',''))}</div>
     <div class="row2"><button class="btn ghost" data-act="copy" style="border-color:var(--green);color:var(--green)">${tx('copy')}</button><button class="btn green" data-act="share">${tx('share')}</button></div>
-    <div class="foot"><span>${tx('invited')} <b style="color:var(--text)">0</b></span><span>${tx('earned')} <b style="color:var(--green)">0,00 TON</b></span></div></div>
+    <div class="foot"><span>${tx('invited')} <b style="color:var(--text)">0</b></span><span>${tx('earned')} <b style="color:var(--green)">0,00 USDT</b></span></div></div>
    <div class="sec"><b>${tx('hist')}</b></div><div class="hist2">${hist||`<div class="empty">${tx('noHist')}</div>`}</div>
    <div class="box sets"><button data-act="sound"><span>${tx('sound')}</span><i class="tgl ${AU.on?'on':''}"></i></button><button data-act="vibro"><span>${tx('vibro')}</span><i class="tgl ${D.set.vibro?'on':''}"></i></button><button data-act="lite"><span>${tx('lite')}<small class="sub">${tx('liteSub')}</small></span><i class="tgl ${window.isLite&&isLite()?'on':''}"></i></button>
     <button data-act="lang"><span>${tx('langL')}</span><em>${tx('langV')} ›</em></button><button data-act="soon"><span>${tx('fair')}</span><em>${tx('fairV')} ›</em></button><button data-act="soon"><span>${tx('support')}</span><em>›</em></button></div>`;
@@ -333,7 +334,7 @@ function act(e){const b=e.target.closest('[data-act]');if(!b)return;const a=b.da
   else if(a==='vibro'){D.set.vibro=!D.set.vibro;save();renderProfile();haptic('select')}
   else if(a==='lite'){window.setLite(!isLite());renderProfile();haptic('select');toast(isLite()?tx('liteOn'):tx('liteOff'))}
   else if(a==='lang'){window.setLang(lang==='ru'?'en':'ru');render()}
-  else if(a==='deposit'||a==='withdraw'){if(window.NET&&NET.ton)NET.openTon(a);else toast(tx('soonBack'))}
+  else if(a==='deposit'||a==='withdraw'||a==='history'){if(window.NET&&NET.pay)NET.openPay(a);else toast(tx('soonBack'))}
   else if(a==='soon')toast(tx('soonBack'))}
 Object.values(scr).forEach(s=>s.addEventListener('click',act));isheet.addEventListener('click',act);
 $('scrim').addEventListener('click',()=>{if(sheetItem)closeItem()});

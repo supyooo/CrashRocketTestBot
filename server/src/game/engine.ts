@@ -51,6 +51,8 @@ export class Engine extends EventEmitter {
   private pending = new Set<string>();
   /** Writes about the round (open bets, finished round) go out one after another, in order. */
   private writes: Promise<void> = Promise.resolve();
+  /** Payouts being written (cash-outs pay in the background): a stop or a test waits for them too. */
+  private payouts = new Set<Promise<unknown>>();
 
   private constructor(private cfg: Config, private store: Store, private wallet: Wallet) { super(); }
 
@@ -97,8 +99,14 @@ export class Engine extends EventEmitter {
   /** Current multiplier while running, else 1.00x. */
   x100(now: number) { return this.phase === 'running' ? Math.min(x100At(now - this.phaseAt), this.crashX100) : 100; }
 
-  /** All pending writes about rounds are saved. */
-  settled() { return this.writes; }
+  /** All pending writes about rounds and every payout under way are saved. */
+  async settled(): Promise<void> {
+    for (;;) {
+      const w = this.writes;
+      await Promise.all([w, ...[...this.payouts].map((p) => p.catch(() => {}))]);
+      if (w === this.writes && !this.payouts.size) return;     // nothing new started while waiting
+    }
+  }
 
   /**
    * Graceful stop for deploys: no new round opens; the round in progress (betting or flying) plays out to
@@ -107,7 +115,8 @@ export class Engine extends EventEmitter {
    */
   drain(): Promise<void> {
     return new Promise((resolve) => {
-      const done = () => { void this.writes.then(() => resolve()); };
+      // payouts decided before the stop are written before the process exits: a restart would not pay them again
+      const done = () => { void this.settled().then(() => resolve()); };
       if (this.phase === 'crashed' && !this.opening) return done();
       this.draining = done;
     });
@@ -192,6 +201,8 @@ export class Engine extends EventEmitter {
     this.saveOpen();
     this.emit('cashout', { uid: b.uid, slot: b.slot, name: b.name, x100, payout });
     const paid = this.pay(b, payout);
+    this.payouts.add(paid);
+    void paid.catch(() => {}).finally(() => this.payouts.delete(paid));
     return { x100, payout, paid };
   }
 
